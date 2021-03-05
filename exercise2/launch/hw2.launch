@@ -1,0 +1,10 @@
+<launch>
+
+  <node pkg="turtlesim" type="turtlesim_node" name="turtlesim_node" output="screen"/>
+  <node pkg="exercise2" type="client_node" name="client_node" output="screen"/>
+  <node pkg="exercise2" type="service_node" name="service_node"  output="screen">
+    <remap from="cmd_vel" to="/turtle1/cmd_vel" />
+  </node>
+
+</launch>
+

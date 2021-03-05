@@ -1,0 +1,10 @@
+<launch>
+
+  <node pkg="turtlesim" type="turtlesim_node" name="turtlesim_node" output="screen"/>
+
+  <node pkg="exercise2" type="movement.py" name="movement_newname"  output="screen">
+    <remap from="cmd_vel" to="/turtle1/cmd_vel" />
+  </node>
+
+</launch>
+
