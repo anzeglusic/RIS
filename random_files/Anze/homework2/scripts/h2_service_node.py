@@ -18,7 +18,7 @@ def handle_movement(req):
 
     step = 1
     final_step = int(duration*hz)
-    while step < final_step-hz: # bacouse turtle subscribes 1 per secound
+    while step < final_step: # bacouse turtle subscribes 1 per secound
         if new_movement == "circle":
             twist.linear.x = 1
             twist.angular.z = (2.0*math.pi)/8.0
@@ -41,15 +41,17 @@ def handle_movement(req):
             twist.angular.z = 4.0 * 2 * (random.random()-0.5)
         else:
             # do random
+            new_movement = "random"
             twist.linear.x = 1.0 * random.random()
             twist.angular.z = 4.0 * 2 * (random.random()-0.5)
-            pass
 
         pub = rospy.Publisher('/turtle1/cmd_vel', Twist, queue_size = 1000)
         pub.publish(twist)
 
         step += 1
         r.sleep()
+    twist.linear.x = 0.0
+    twist.angular.z = 0.0
 
     to_return = rospy.get_param("~last_movement_type")
     rospy.set_param("~last_movement_type",new_movement)
