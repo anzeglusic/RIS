@@ -1,4 +1,0 @@
-string what_movement_to_do
-float64 how_long
----
-string last_issued_movement
