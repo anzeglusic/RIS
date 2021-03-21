@@ -1,0 +1,4 @@
+# array of integers
+int64[] numbers
+---
+int64 sum
