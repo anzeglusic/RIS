@@ -140,8 +140,6 @@ def check_for_face_dnn_1_1(frame, thiknes, prototxtPath, caffePath, debug):
 
     # Set the dimensions of the image
     dims = rgb_image.shape
-    if debug:
-        print(rgb_image.shape)
 
     if dims[0] < dims[1]:
         num_of_dead_pixels = dims[1]-dims[0]
@@ -153,97 +151,54 @@ def check_for_face_dnn_1_1(frame, thiknes, prototxtPath, caffePath, debug):
         print("\n\nSpodnja stranica bi morala biti daljša !!!!\n\n")
     
     dims = rgb_image_left.shape
-    if debug:
-        print(f"original {rgb_image_original.shape}")
-        print(f"left     {rgb_image_left.shape}")
-        print(f"middle   {rgb_image_middle.shape}")
-        print(f"right    {rgb_image_right.shape}")
     h = dims[0]
     w = dims[1]
-    
-    blob_left = cv2.dnn.blobFromImage(
-        image=cv2.resize(
-            src=rgb_image_left,
-            dsize=(300, 300)),
-        scalefactor=1.0,
-        size=(300, 300),
-        mean=(104.0, 177.0, 123.0))
 
-    blob_middle = cv2.dnn.blobFromImage(
-        image=cv2.resize(
-            src=rgb_image_middle,
-            dsize=(300, 300)),
-        scalefactor=1.0,
-        size=(300, 300),
-        mean=(104.0, 177.0, 123.0))
-
-    blob_right = cv2.dnn.blobFromImage(
-        image=cv2.resize(
-            src=rgb_image_right,
-            dsize=(300, 300)),
-        scalefactor=1.0,
-        size=(300, 300),
-        mean=(104.0, 177.0, 123.0))
+    imgL = cv2.resize(src=rgb_image_left, dsize=(300, 300))
+    imgM = cv2.resize(src=rgb_image_middle, dsize=(300, 300))
+    imgR = cv2.resize(src=rgb_image_right, dsize=(300, 300))
     
-    face_net.setInput(blob_left)
+    blob_l_m_r = cv2.dnn.blobFromImages(
+        images=[imgL, imgM, imgR],
+        scalefactor=1.0,
+        size=(300, 300),
+        mean=(104.0, 117.0, 123.0))
+    
+    face_net.setInput(blob_l_m_r)
     face_detections = face_net.forward()
 
-    for i in range(0, face_detections.shape[2]):
-        confidence = face_detections[0, 0, i, 2]
+    right_image_shift = rgb_image_original.shape[1] - rgb_image_original.shape[0]
+
+    for i in range(face_detections.shape[2]):
+        imageIndx = face_detections[0,0,i,0] # 0 == left, 1 == middle, 2 == right
+        confidence = face_detections[0,0,i,2]
         if confidence > 0.5:
 
             box = face_detections[0, 0, i, 3:7] * np.array([w, h, w, h])
             box = box.astype('int')
             x1, y1, x2, y2 = box[0], box[1], box[2], box[3]
 
-            # Mark left region
-            border_color = np.array([0, 0, 255])
-            rgb_image_original[(y1-thiknes):y1, (x1-thiknes):(x2+thiknes+1)] = border_color  # up
-            rgb_image_original[(y2+1):(y2+thiknes+2), (x1-thiknes):(x2+thiknes+1)] = border_color  # down
-            rgb_image_original[(y1-thiknes):(y2+thiknes+2),(x1-thiknes):x1] = border_color  # left
-            rgb_image_original[(y1-thiknes):(y2+thiknes+2), (x2+1):(x2+thiknes+2)] = border_color  # right
-            
-    
-    face_net.setInput(blob_middle)
-    face_detections = face_net.forward()
-
-    for i in range(0, face_detections.shape[2]):
-        confidence = face_detections[0, 0, i, 2]
-        if confidence > 0.5:
-
-            box = face_detections[0, 0, i, 3:7] * np.array([w, h, w, h])
-            box = box.astype('int')
-            x1, y1, x2, y2 = box[0], box[1], box[2], box[3]
-
-            # Mark middle region
-            border_color = np.array([0, 255, 0])
-            rgb_image_original[(y1-thiknes):y1, (shift_pixels+x1-thiknes):(shift_pixels+x2+thiknes+1)] = border_color  # up
-            rgb_image_original[(y2+1):(y2+thiknes+2), (shift_pixels+x1-thiknes):(shift_pixels+x2+thiknes+1)] = border_color  # down
-            rgb_image_original[(y1-thiknes):(y2+thiknes+2),(shift_pixels+x1-thiknes):shift_pixels+x1] = border_color  # left
-            rgb_image_original[(y1-thiknes):(y2+thiknes+2), (shift_pixels+x2+1):(shift_pixels+x2+thiknes+2)] = border_color  # right
-            
-    
-    face_net.setInput(blob_right)
-    face_detections = face_net.forward()
-
-    shift_pixels = rgb_image_original.shape[1] - rgb_image_original.shape[0]
-    if debug:
-        print(f"to shift right {shift_pixels}")
-
-    for i in range(0, face_detections.shape[2]):
-        confidence = face_detections[0, 0, i, 2]
-        if confidence > 0.5:
-
-            box = face_detections[0, 0, i, 3:7] * np.array([w, h, w, h])
-            box = box.astype('int')
-            x1, y1, x2, y2 = box[0], box[1], box[2], box[3]
-
-            # Mark right region
-            border_color = np.array([255, 0, 0])
-            rgb_image_original[(y1-thiknes):y1, (shift_pixels+x1-thiknes):(shift_pixels+x2+thiknes+1)] = border_color  # up
-            rgb_image_original[(y2+1):(y2+thiknes+2), (shift_pixels+x1-thiknes):(shift_pixels+x2+thiknes+1)] = border_color  # down
-            rgb_image_original[(y1-thiknes):(y2+thiknes+2),(shift_pixels+x1-thiknes):shift_pixels+x1] = border_color  # left
-            rgb_image_original[(y1-thiknes):(y2+thiknes+2), (shift_pixels+x2+1):(shift_pixels+x2+thiknes+2)] = border_color  # right
+            if imageIndx == 0:
+                # Mark left region
+                border_color = np.array([0, 0, 255])
+                rgb_image_original[(y1-thiknes):y1, (x1-thiknes):(x2+thiknes+1)] = border_color  # up
+                rgb_image_original[(y2+1):(y2+thiknes+2), (x1-thiknes):(x2+thiknes+1)] = border_color  # down
+                rgb_image_original[(y1-thiknes):(y2+thiknes+2),(x1-thiknes):x1] = border_color  # left
+                rgb_image_original[(y1-thiknes):(y2+thiknes+2), (x2+1):(x2+thiknes+2)] = border_color  # right
+            elif imageIndx == 1:
+                # Mark middle region
+                border_color = np.array([0, 255, 0])
+                rgb_image_original[(y1-thiknes):y1, (shift_pixels+x1-thiknes):(shift_pixels+x2+thiknes+1)] = border_color  # up
+                rgb_image_original[(y2+1):(y2+thiknes+2), (shift_pixels+x1-thiknes):(shift_pixels+x2+thiknes+1)] = border_color  # down
+                rgb_image_original[(y1-thiknes):(y2+thiknes+2),(shift_pixels+x1-thiknes):shift_pixels+x1] = border_color  # left
+                rgb_image_original[(y1-thiknes):(y2+thiknes+2), (shift_pixels+x2+1):(shift_pixels+x2+thiknes+2)] = border_color  # right
+            elif imageIndx == 2:
+                # Mark right region
+                border_color = np.array([255, 0, 0])
+                rgb_image_original[(y1-thiknes):y1, (right_image_shift+x1-thiknes):(right_image_shift+x2+thiknes+1)] = border_color  # up
+                rgb_image_original[(y2+1):(y2+thiknes+2), (right_image_shift+x1-thiknes):(right_image_shift+x2+thiknes+1)] = border_color  # down
+                rgb_image_original[(y1-thiknes):(y2+thiknes+2),(right_image_shift+x1-thiknes):right_image_shift+x1] = border_color  # left
+                rgb_image_original[(y1-thiknes):(y2+thiknes+2), (right_image_shift+x2+1):(right_image_shift+x2+thiknes+2)] = border_color  # right
     
     return rgb_image_original
 
@@ -309,7 +264,7 @@ def analizeFrames_dnn_1_1(frames, prototxtPath, caffePath, thiknes=5):
         print(
             f"Analizing frames [{int(i/num_of_frames*100)}%]: {int(i)}/{int(num_of_frames)}", end="\r")
         frames[i] = check_for_face_dnn_1_1(
-            frames[i], thiknes, prototxtPath, caffePath,debug=(i==-1))
+            frames[i], thiknes, prototxtPath, caffePath,debug=(i==0))
     print("Frames analized.", " "*100)
     return frames
 
@@ -340,17 +295,17 @@ def saveVideo(path, frames, fps, fourcc):
 
 # =================================================================================================
 # =================================================================================================
-prototxtPath = "/home/code8master/Desktop/wsROS/src/video-testing/deploy.prototxt.txt"
-caffePath = "/home/code8master/Desktop/wsROS/src/video-testing/res10_300x300_ssd_iter_140000.caffemodel"
-for video_num in range(1, 14):
-# for video_num in [11]:
+prototxtPath = "/home/code8master/Desktop/wsROS/src/RIS/Anze/deploy.prototxt.txt"
+caffePath = "/home/code8master/Desktop/wsROS/src/RIS/Anze/res10_300x300_ssd_iter_140000.caffemodel"
+# for video_num in range(1, 14):
+for video_num in [3]:
     print(f"---------------- {video_num}.mp4 ----------------")
-    path_in = f"/home/code8master/Desktop/wsROS/src/video-testing/videos/{video_num}.mp4"
-    path_out= f"/home/code8master/Desktop/wsROS/src/video-testing/videos_analized_dnn_1_1_x3/{video_num}.mp4"
+    path_in = f"/home/code8master/Desktop/wsROS/src/RIS/Anze/videos/{video_num}.mp4"
+    # path_out= f"/home/code8master/Desktop/wsROS/src/video-testing/videos_analized_dnn_1_1_x3/{video_num}.mp4"
     (frames, fps, fourcc) = getFrames(path=path_in)
     frames_marked = analizeFrames_dnn_1_1(frames=frames, caffePath=caffePath, prototxtPath=prototxtPath)
-    # playFrames(frames,fps)
-    saveVideo(path = path_out, frames = frames_marked, fps = fps, fourcc = fourcc)
+    playFrames(frames,fps*0.5)
+    # saveVideo(path = path_out, frames = frames_marked, fps = fps, fourcc = fourcc)
 
 cv2.destroyAllWindows()
 

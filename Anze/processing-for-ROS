@@ -24,6 +24,7 @@ class face_localizer:
 
         # The function for performin HOG face detection
         #self.face_detector = dlib.get_frontal_face_detector()
+        #! TODO: change path, so it will be independet to the user
         self.face_net = cv2.dnn.readNetFromCaffe('deploy.prototxt.txt', 'res10_300x300_ssd_iter_140000.caffemodel')
         # A help variable for holding the dimensions of the image
         self.dims = (0, 0, 0)
@@ -124,6 +125,31 @@ class face_localizer:
         h = self.dims[0]
         w = self.dims[1]
 
+
+        # split image into 3 different images that are 1:1 format
+        # it is assumed that image is in format that the images' width is larger than height
+        if dims[0] < dims[1]:
+            num_of_dead_pixels = dims[1]-dims[0] # 160
+            shift_pixels = num_of_dead_pixels//2 # 80
+            rgb_image_left = rgb_image[:,0:dims[0],:] # 480x480
+            rgb_image_middle = rgb_image[:,shift_pixels:(shift_pixels+dims[0]),:] # 480x480
+            rgb_image_right = rgb_image[:,(dims[1]-dims[0]):,:] # 480x480
+        else:
+            print("\n\nSpodnja stranica bi morala biti daljša !!!!\n\n")
+
+        # h_custom and w_custom for custom sizes for multiplication
+        dims_custom = (0,0,0)
+        dims_custom = rgb_image_left.shape
+        h_custom = dims_custom[0]
+        w_custom = dims_custom[1]
+
+
+        imgL = cv2.resize(src=rgb_image_left, dsize=(300, 300))
+        imgM = cv2.resize(src=rgb_image_middle, dsize=(300, 300))
+        imgR = cv2.resize(src=rgb_image_right, dsize=(300, 300))
+
+
+
         # Tranform image to gayscale
         #gray = cv2.cvtColor(rgb_image, cv2.COLOR_BGR2GRAY)
 
@@ -132,16 +158,36 @@ class face_localizer:
 
         # Detect the faces in the image
         #face_rectangles = self.face_detector(rgb_image, 0)
-        blob = cv2.dnn.blobFromImage(cv2.resize(rgb_image, (300, 300)), 1.0, (300, 300), (104.0, 177.0, 123.0))
+        blob = cv2.dnn.blobFromImages(images=[imgL,imgM,imgR], scalefactor=1.0, size=(300, 300), mean=(104.0, 117.0, 123.0))
         self.face_net.setInput(blob)
         face_detections = self.face_net.forward()
-
+        
+        right_image_shift = rgb_image.shape[1] - rgb_image.shape[0]
+        
         for i in range(0, face_detections.shape[2]):
+            imageIndx = face_detections[0,0,i,0] # 0 == left, 1 == middle, 2 == right
             confidence = face_detections[0, 0, i, 2]
             if confidence>0.5:
-                box = face_detections[0,0,i,3:7] * np.array([w,h,w,h])
+                box = face_detections[0,0,i,3:7] * np.array([w_custom,h_custom,w_custom,h_custom])
                 box = box.astype('int')
-                x1, y1, x2, y2 = box[0], box[1], box[2], box[3]
+                x1_custom, y1_custom, x2_custom, y2_custom = box[0], box[1], box[2], box[3]
+                
+                # y stay the same because original images' width is larger than its width
+                if imageIndx == 0: # left
+                    x1 = x1_custom
+                    y1 = y1_custom
+                    x2 = x2_custom
+                    y2 = y2_custom
+                elif imageIndx == 1: # middle
+                    x1 = shift_pixels + x1_custom
+                    y1 = y1_custom
+                    x2 = shift_pixels + x2_custom
+                    y2 = y2_custom
+                elif imageIndx == 2: # right
+                    x1 = right_image_shift + x1_custom
+                    y1 = y1_custom
+                    x2 = right_image_shift + x2_custom
+                    y2 = y2_custom
 
                 # Extract region containing face
                 face_region = rgb_image[y1:y2, x1:x2]
