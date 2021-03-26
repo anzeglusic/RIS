@@ -10,7 +10,7 @@ import tf2_geometry_msgs
 import tf2_ros
 #import matplotlib.pyplot as plt
 from sensor_msgs.msg import Image
-from geometry_msgs.msg import PointStamped, Vector3, Pose
+from geometry_msgs.msg import PointStamped, Vector3, Pose, Point
 from cv_bridge import CvBridge, CvBridgeError
 from visualization_msgs.msg import Marker, MarkerArray
 from std_msgs.msg import ColorRGBA
@@ -147,18 +147,6 @@ class face_localizer:
         image = depth_image[face_y1:face_y2, face_x1:face_x2]
         shift_left = face_x1
         shift_top = face_y1
-        # x1 = y1 = x2 = y3 = 0
-        # x3 = y2 = min(image.shape)-1
-        
-        # for i in range( min(image.shape)):
-        #     if(np.isnan(image[y1,x1])):
-        #         y1=x1 = i
-        #     if(np.isnan(image[y2,x2])):
-        #         y2 = min(image.shape)-1-i
-        #         x2 = i
-        #     if(np.isnan(image[y3,x3])):
-        #         x3 = min(image.shape)-1-i
-        #         y3 = 0
 
         biggerDim = np.argmax(image.shape) 
         # print(f"bigger dimention: {biggerDim}")
@@ -258,7 +246,6 @@ class face_localizer:
                     marker.color = ColorRGBA(0, 1, 0, 1)
                     self.marker_array.markers.append(marker)
 
-                    self.markers_pub.publish(self.marker_array)
             rospy.sleep(2)
             v1 = np.array([v1_cor.position.x,v1_cor.position.y, v1_cor.position.z] )
             v2 = np.array([v2_cor.position.x,v2_cor.position.y, v2_cor.position.z] )
@@ -266,44 +253,14 @@ class face_localizer:
             v12 =v2-v1
             v13 =v3-v1
             norm = np.cross(v12,v13)
+            orig_arr = v1
+            dest_arr = norm
+            print(norm)
+            self.marker_array.markers.append(self.get_arrow_points(Vector3(1,1,1),Point(orig_arr[0],orig_arr[1],orig_arr[2]),Point(dest_arr[0],dest_arr[1],dest_arr[2]),3))
+            self.markers_pub.publish(self.marker_array)
         except Exception as e:
             print(e)
             norm = None
-        """try:
-            v1_p = PointStamped()
-            v1_p.point.x = v1_p[0]
-            v1_p.point.y = v1_p[1]
-            v1_p.point.z = v1_p[2]
-            v1_p.header.frame_id = "camera_rgb_optical_frame"
-            v1_p.header.stamp = stamp
-            v2_p = PointStamped()
-            v2_p.point.x = v2_p[0]
-            v2_p.point.y = v2_p[1]
-            v2_p.point.z = v2_p[2]
-            v2_p.header.frame_id = "camera_rgb_optical_frame"
-            v2_p.header.stamp = stamp
-            v3_p = PointStamped()
-            v3_p.point.x = v3_p[0]
-            v3_p.point.y = v3_p[1]
-            v3_p.point.z = v3_p[2]
-            v3_p.header.frame_id = "camera_rgb_optical_frame"
-            v3_p.header.stamp = stamp
-            v1 = self.tf_buf.transform(v1, "map")
-            v2 = self.tf_buf.transform(v2, "map")
-            v3 = self.tf_buf.transform(v3, "map")
-            v12 =v2_p-v1_p
-            v13 =v3_p-v1_p
-            norm = np.cross(v12,v13)
-            norm_world = self.tf_buf.transform(norm_p, "map")
-
-            norm[0] = norm_world.point.x
-            norm[1] = norm_world.point.y
-            norm[2] = norm_world.point.z
-            
-        except Exception as e:
-            print(e)
-            norm = None
-        """
         return norm
 
     def find_faces(self):
@@ -444,6 +401,26 @@ class face_localizer:
                 #     self.marker_array.markers.append(marker)
 
                 #     self.markers_pub.publish(self.marker_array)
+
+    def get_arrow_points(self, scale, head, tail, idn):
+        self.marker_num += 1
+        m = Marker()
+        m.action = Marker.ADD
+        m.header.frame_id= 'map'
+        m.header.stamp = rospy.Time.now()
+        m.ns = 'points_arrow'
+        m.id = self.marker_num
+        m.type = Marker.ARROW
+        m.pose.orientation.y = 0
+        m.pose.orientation.w = 1
+        m.scale = scale
+        m.color.r = 0.2
+        m.color.g = 0.5
+        m.color.b = 1.0
+        m.color.a = 0.3
+
+        m.points = [tail,head]
+        return m
 
     def depth_callback(self,data):
 
