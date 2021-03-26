@@ -108,7 +108,8 @@ class face_localizer:
         angle_to_target = np.arctan2(face_x,k_f)
 
         # Get the angles in the base_link relative coordinate system
-        x, y = dist*np.cos(angle_to_target), dist*np.sin(angle_to_target)
+        x = dist*np.cos(angle_to_target)
+        y = dist*np.sin(angle_to_target)
 
         ### Define a stamped message for transformation - directly in "base_link"
         #point_s = PointStamped()
@@ -141,27 +142,104 @@ class face_localizer:
 
         return pose
     
-    def get_normal(self, image,stamp):
-        x1=y1=x2=y3 = 0
-        x3=y2 = min(image.shape)-1
-        for i in range( min(image.shape)):
-            if(np.isnan(image[y1,x1])):
-                y1=x1 = i
-            if(np.isnan(image[y2,x2])):
-                y2 = min(image.shape)-1-i
-                x2 = i
-            if(np.isnan(image[y3,x3])):
-                x3 = min(image.shape)-1-i
-                y3 = 0
-        v1 = np.array([x1,y1,image[x1,y1]])
-        v1_cor = self.get_pose((x1,x1,y1,y1),image[x1,y1],stamp)
-        v2 = np.array([x2,y2,image[x2,y2]])
-        v2_cor = self.get_pose((x2,x2,y2,y2),image[x2,y2],stamp)
-        v3 = np.array([x3,y3,image[x3,y3]])
-        v3_cor = self.get_pose((x3,x3,y3,y3),image[x3,y3],stamp)
+    def get_normal(self, depth_image, face_cord, stamp):
+        face_x1, face_y1, face_x2, face_y2 = face_cord
+        image = depth_image[face_y1:face_y2, face_x1:face_x2]
+        shift_left = face_x1
+        shift_top = face_y1
+        # x1 = y1 = x2 = y3 = 0
+        # x3 = y2 = min(image.shape)-1
+        
+        # for i in range( min(image.shape)):
+        #     if(np.isnan(image[y1,x1])):
+        #         y1=x1 = i
+        #     if(np.isnan(image[y2,x2])):
+        #         y2 = min(image.shape)-1-i
+        #         x2 = i
+        #     if(np.isnan(image[y3,x3])):
+        #         x3 = min(image.shape)-1-i
+        #         y3 = 0
+
+        biggerDim = np.argmax(image.shape) 
+        # print(f"bigger dimention: {biggerDim}")
+        bigLen = image.shape[biggerDim]
+        smallLen = image.shape[~biggerDim]
+        # print(f"bigLen = {bigLen}")
+        # print(f"smallLen = {smallLen}")
+        x1 = y1 = None # top-left
+        x2 = y2 = None # bottom-right
+        x3 = y3 = None # top-right
+            
+        for big_i in range(bigLen//2):
+            whatPart = big_i/bigLen
+            small_i = round(whatPart*smallLen)
+            if biggerDim == 0:
+                # top-left point
+                if (x1==None and np.isnan(image[big_i][small_i])==False):
+                    x1 = small_i
+                    y1 = big_i
+                # bottom-right point
+                if (x2==None and np.isnan(image[(bigLen-1)-big_i][(smallLen-1)-small_i])==False):
+                    x2 = (smallLen-1)-small_i
+                    y2 = (bigLen-1)-big_i
+                # top-right point
+                if (x3==None and np.isnan(image[big_i][(smallLen-1)-small_i])==False):
+                    x3 = (smallLen-1)-small_i
+                    y3 = big_i
+            else:
+                # top-left point
+                if (x1==None and np.isnan(image[small_i][big_i])==False):
+                    x1 = big_i
+                    y1 = small_i
+                # bottom-right point
+                if (x2==None and np.isnan(image[(smallLen-1)-small_i][(bigLen-1)-big_i])==False):
+                    x2 = (bigLen-1)-big_i
+                    y2 = (smallLen-1)-small_i
+                # top-right point
+                if (x3==None and np.isnan(image[small_i][(bigLen-1)-big_i])==False):
+                    x3 = small_i
+                    y3 = (bigLen-1)-big_i
+
+        if x1 == None or x2 == None or x3 == None:
+            return None
+
+
+
+        x1 += shift_left
+        y1 += shift_top
+
+        x2 += shift_left
+        y2 += shift_top
+        
+        x3 += shift_left
+        y3 += shift_top
+        
+        
+
+        print("\n< 1 > image [{:>3}] [{:>3}] = {:}".format(y1,x1,depth_image[y1][x1]))
+        print("< 2 > image [{:>3}] [{:>3}] = {:}".format(y2,x2,depth_image[y2][x2]))
+        print("< 3 > image [{:>3}] [{:>3}] = {:}".format(y3,x3,depth_image[y3][x3]))
+
+
+
+
+        v1_cor = self.get_pose((x1,x1,y1,y1),depth_image[y1,x1],stamp)
+        
+        v2_cor = self.get_pose((x2,x2,y2,y2),depth_image[y2,x2],stamp)
+        
+        v3_cor = self.get_pose((x3,x3,y3,y3),depth_image[y3,x3],stamp)
+
+        try:
+            print(f"\n{v1_cor.position.z}")
+            print(f"\n{v2_cor.position.z}")
+            print(f"\n{v3_cor.position.z}")
+        except:
+            pass
+        
         
         try: 
             #print(v1_cor,v2_cor,v3_cor)
+            v3_cor.position.z -= 0.1
             for pose in [v1_cor,v2_cor,v3_cor]:
                 if pose is not None:
 
@@ -335,7 +413,7 @@ class face_localizer:
                 # Find the distance to the detected face
                 face_distance = float(np.nanmean(depth_image[y1:y2,x1:x2]))
                 im = depth_image[y1:y2,x1:x2]
-                norm = self.get_normal(im,depth_image_message.header.stamp)
+                norm = self.get_normal(depth_image, (x1,y1,x2,y2) ,depth_image_message.header.stamp)
                 print('Norm of face', norm)
 
                 print('Distance to face', face_distance)
@@ -346,26 +424,26 @@ class face_localizer:
 
                 # Find the location of the detected face
                 pose = self.get_pose((x1,x2,y1,y2), face_distance, depth_time)
+                
+                #! uncomment !!!
+                # if pose is not None:
 
+                #     # Create a marker used for visualization
+                #     self.marker_num += 1
+                #     marker = Marker()
+                #     marker.header.stamp = rospy.Time(0)
+                #     marker.header.frame_id = 'map'
+                #     marker.pose = pose
+                #     marker.type = Marker.CUBE
+                #     marker.action = Marker.ADD
+                #     marker.frame_locked = False
+                #     marker.lifetime = rospy.Duration.from_sec(10)
+                #     marker.id = self.marker_num
+                #     marker.scale = Vector3(0.1, 0.1, 0.1)
+                #     marker.color = ColorRGBA(0, 1, 0, 1)
+                #     self.marker_array.markers.append(marker)
 
-                if pose is not None:
-
-                    # Create a marker used for visualization
-                    self.marker_num += 1
-                    marker = Marker()
-                    marker.header.stamp = rospy.Time(0)
-                    marker.header.frame_id = 'map'
-                    marker.pose = pose
-                    marker.type = Marker.CUBE
-                    marker.action = Marker.ADD
-                    marker.frame_locked = False
-                    marker.lifetime = rospy.Duration.from_sec(10)
-                    marker.id = self.marker_num
-                    marker.scale = Vector3(0.1, 0.1, 0.1)
-                    marker.color = ColorRGBA(0, 1, 0, 1)
-                    self.marker_array.markers.append(marker)
-
-                    self.markers_pub.publish(self.marker_array)
+                #     self.markers_pub.publish(self.marker_array)
 
     def depth_callback(self,data):
 
@@ -393,9 +471,10 @@ def main():
 
         rate = rospy.Rate(1)
         while not rospy.is_shutdown():
-            print("hello!")
+            #print("hello!")
             face_finder.find_faces()
-            print("hello")
+            #print("hello")
+            print("\n-----------\n")
             rate.sleep()
 
         cv2.destroyAllWindows()
