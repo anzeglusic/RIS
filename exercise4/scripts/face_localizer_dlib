@@ -17,6 +17,7 @@ from std_msgs.msg import ColorRGBA
 
 
 class face_localizer:
+
     def __init__(self):
         rospy.init_node('face_localizer', anonymous=True)
 
@@ -41,6 +42,7 @@ class face_localizer:
 
         # Publiser for the visualization markers
         self.markers_pub = rospy.Publisher('face_markers', MarkerArray, queue_size=1000)
+        self.pic_pub = rospy.Publisher('face_im', Image, queue_size=1000)
 
         # Object we use for transforming between coordinate frames
         self.tf_buf = tf2_ros.Buffer()
@@ -218,16 +220,17 @@ class face_localizer:
         v3_cor = self.get_pose((x3,x3,y3,y3),depth_image[y3,x3],stamp)
 
         try:
-            print(f"\n{v1_cor.position.z}")
-            print(f"\n{v2_cor.position.z}")
-            print(f"\n{v3_cor.position.z}")
+            print("\n coords of points:")
+            print(f"\n{v1_cor.position}")
+            print(f"\n{v2_cor.position}")
+            print(f"\n{v3_cor.position}")
         except:
             pass
         
         
         try: 
             #print(v1_cor,v2_cor,v3_cor)
-            v3_cor.position.z -= 0.1
+            v3_cor.position.z += 0.1
             for pose in [v1_cor,v2_cor,v3_cor]:
                 if pose is not None:
 
@@ -246,18 +249,34 @@ class face_localizer:
                     marker.color = ColorRGBA(0, 1, 0, 1)
                     self.marker_array.markers.append(marker)
 
-            rospy.sleep(2)
+            #rospy.sleep(2)
             v1 = np.array([v1_cor.position.x,v1_cor.position.y, v1_cor.position.z] )
             v2 = np.array([v2_cor.position.x,v2_cor.position.y, v2_cor.position.z] )
             v3 = np.array([v3_cor.position.x,v3_cor.position.y, v3_cor.position.z] )
+
             v12 =v2-v1
             v13 =v3-v1
             norm = np.cross(v12,v13)
+
             orig_arr = v1
             dest_arr = norm
             print(norm)
+
             self.marker_array.markers.append(self.get_arrow_points(Vector3(1,1,1),Point(orig_arr[0],orig_arr[1],orig_arr[2]),Point(dest_arr[0],dest_arr[1],dest_arr[2]),3))
+
             self.markers_pub.publish(self.marker_array)
+            
+            #ustvarimo Image msg
+            # Refrence :image = depth_image[face_y1:face_y2, face_x1:face_x2]
+            """im_ms = Image()
+            im_ms.header.stamp = rospy.Time(0)
+            im_ms.header.frame_id = 'map'
+            im_ms.height = image.shape[0]
+            im_ms.width = image.shape[1]
+            im_ms.data = image
+            
+            self.pic_pub.publish(im_ms)"""
+
         except Exception as e:
             print(e)
             norm = None
@@ -363,9 +382,20 @@ class face_localizer:
                 # Extract region containing face
                 face_region = rgb_image[y1:y2, x1:x2]
 
+                """im_ms = Image()
+                im_ms.header.stamp = rospy.Time(0)
+                im_ms.header.frame_id = 'map'
+                im_ms.height = face_region.shape[0]
+                im_ms.width = face_region.shape[1]
+                im_ms.data = face_region"""
+                
+                #self.pic_pub.publish(im_ms)
+                self.pic_pub.publish(CvBridge().cv2_to_imgmsg(face_region, encoding="passthrough"))
                 # Visualize the extracted face
                 #cv2.imshow("ImWindow", face_region)
                 #cv2.waitKey(1)
+
+                #self.pic_pub = rospy.Publisher('face_im', Image, queue_size=1000)
 
                 # Find the distance to the detected face
                 face_distance = float(np.nanmean(depth_image[y1:y2,x1:x2]))
