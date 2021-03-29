@@ -150,6 +150,10 @@ class face_localizer:
         shift_left = face_x1
         shift_top = face_y1
 
+        if min(depth_image.shape) == 0:
+            return None
+
+
         biggerDim = np.argmax(image.shape) 
         # print(f"bigger dimention: {biggerDim}")
         bigLen = image.shape[biggerDim]
@@ -190,19 +194,25 @@ class face_localizer:
                     x3 = small_i
                     y3 = (bigLen-1)-big_i
 
+
         if x1 == None or x2 == None or x3 == None:
             return None
+        else:
+            x1 = (face_x1+face_x2)//2+2
+            x2 = (face_x1+face_x2)//2-2
+            x3 = (face_x1+face_x2)//2
+            y1 = (face_y1+face_y2)//2+2
+            y2 = (face_y1+face_y2)//2-2
+            y3 = (face_y1+face_y2)//2
 
+        # x1 += shift_left
+        # y1 += shift_top
 
-
-        x1 += shift_left
-        y1 += shift_top
-
-        x2 += shift_left
-        y2 += shift_top
+        # x2 += shift_left
+        # y2 += shift_top
         
-        x3 += shift_left
-        y3 += shift_top
+        # x3 += shift_left
+        # y3 += shift_top
         
         
 
@@ -219,13 +229,13 @@ class face_localizer:
         
         v3_cor = self.get_pose((x3,x3,y3,y3),depth_image[y3,x3],stamp)
 
-        try:
-            print("\n coords of points:")
-            print(f"\n{v1_cor.position}")
-            print(f"\n{v2_cor.position}")
-            print(f"\n{v3_cor.position}")
-        except:
-            pass
+        # try:
+        #     # print("\n coords of points:")
+        #     # print(f"\n{v1_cor.position}")
+        #     # print(f"\n{v2_cor.position}")
+        #     # print(f"\n{v3_cor.position}")
+        # except:
+        #     pass
         
         
         try: 
@@ -254,13 +264,23 @@ class face_localizer:
             v2 = np.array([v2_cor.position.x,v2_cor.position.y, v2_cor.position.z] )
             v3 = np.array([v3_cor.position.x,v3_cor.position.y, v3_cor.position.z] )
 
+            print(f"v1:  {v1}")
+            print(f"v2:  {v2}")
+            print(f"v3:  {v3}")
+
             v12 =v2-v1
             v13 =v3-v1
+
+            print(f"v12:  {v12}")
+            print(f"v13:  {v13}")
+
             norm = np.cross(v12,v13)
+            norm = norm/np.linalg.norm(norm)*0.5
+            print(f"norm: {norm}")
 
             orig_arr = v1
-            dest_arr = norm
-            print(norm)
+            dest_arr = v1-norm
+            #print(norm)
 
             self.marker_array.markers.append(self.get_arrow_points(Vector3(1,1,1),Point(orig_arr[0],orig_arr[1],orig_arr[2]),Point(dest_arr[0],dest_arr[1],dest_arr[2]),3))
 
@@ -381,6 +401,8 @@ class face_localizer:
 
                 # Extract region containing face
                 face_region = rgb_image[y1:y2, x1:x2]
+                if min(face_region.shape)==0:
+                    continue
 
                 """im_ms = Image()
                 im_ms.header.stamp = rospy.Time(0)
@@ -398,6 +420,8 @@ class face_localizer:
                 #self.pic_pub = rospy.Publisher('face_im', Image, queue_size=1000)
 
                 # Find the distance to the detected face
+                assert y1 != y2, "Y sta ista !!!!!!!!!!!"
+                assert x1 != x2, "X sta ista !!!!!!!!!!!"
                 face_distance = float(np.nanmean(depth_image[y1:y2,x1:x2]))
                 im = depth_image[y1:y2,x1:x2]
                 norm = self.get_normal(depth_image, (x1,y1,x2,y2) ,depth_image_message.header.stamp)
