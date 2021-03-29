@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(exercise3)
+project(exercise3ilja)
 
 find_package(catkin REQUIRED COMPONENTS
 	roscpp
@@ -19,6 +19,6 @@ find_package(OpenCV)
 catkin_package()
 
 include_directories(include ${catkin_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS})
-add_executable(map_goals src/map_goals.cpp)
-target_link_libraries(map_goals ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
+add_executable(map_goalsilja src/map_goalsilja.cpp)
+target_link_libraries(map_goalsilja ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
 
