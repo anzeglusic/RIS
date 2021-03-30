@@ -9,6 +9,7 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <std_msgs/String.h>
 #include <geometry_msgs/Point.h>
+#include <geometry_msgs/Twist.h>
 #include <cmath>
 #include <map>
 #include <wait.h>
@@ -190,19 +191,17 @@ double euc(double x1, double y1, double x2, double y2) {
 	return dist;
 }
 bool prva = false;
-
-void tapa(const geometry_msgs::Point::ConstPtr &mg) {
+int bro = 0;
+void tapa(const geometry_msgs::Twist::ConstPtr &mg) {
+    if (bro%2) {
+        bro++;
+        return;
+    }
     double yyy, xxx;
-    if (!prva) {
-    cout << "DOJDE" << dirrr << endl;
-    
-    y2 = mg->y;
-    x2 = mg->x;
-    prva = true;
-    }else {
-        //prva = false;
-    double yyy = mg->y;
-    double xxx = mg->x;
+    y2 = mg->angular.y;
+    x2 = mg->angular.x;
+    yyy = mg->linear.y;
+    xxx = mg->linear.x;
     cout << "DOJDEDVA" << " " << yyy << " " << xxx << endl;
     if (isnan(x2) || isnan(y2) || isnan(xxx) || isnan(yyy)) return;
     if (y2 - yyy > 0 && (y2 - yyy) > abs(x2-xxx)) {
@@ -240,7 +239,6 @@ void tapa(const geometry_msgs::Point::ConstPtr &mg) {
         cout << "POZDRAAAAAAAAAAAAAAV" << endl;
         system("/home/iletavcioski/ROS/src/exercise3/src/pozdrav.sh");
         sleep(30);
-    }
     }
     return;
 }
@@ -293,6 +291,7 @@ bool preveri(int my, int mx, int dir) {
     }
     return cc;
 }
+
 int main(int argc, char** argv) {
     ros::init(argc, argv, "map_goals");
     ros::NodeHandle n;
