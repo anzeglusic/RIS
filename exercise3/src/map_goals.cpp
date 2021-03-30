@@ -232,9 +232,9 @@ void tapa(const geometry_msgs::Twist::ConstPtr &mg) {
         sleep(30);
     }
     else if (xxx - x2 > 0 && (xxx - x2) > abs(y2-yyy)) {
-        if (!went[make_pair(yyy, make_pair(xxx, 1))]) {
-            vozi(yy11, xx11, yyy, xxx,1);
-            went[make_pair(yyy, make_pair(xxx, 1))] = true;
+        if (!went[make_pair(yyy, make_pair(xxx, 0))]) {
+            vozi(yy11, xx11, yyy, xxx,0);
+            went[make_pair(yyy, make_pair(xxx, 0))] = true;
         }
         cout << "POZDRAAAAAAAAAAAAAAV" << endl;
         //system("/home/iletavcioski/ROS/src/exercise3/src/pozdrav.sh");
