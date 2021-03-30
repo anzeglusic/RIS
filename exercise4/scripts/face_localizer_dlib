@@ -107,7 +107,7 @@ class face_localizer:
     #TRNEUTNO NIMA OBTEZITVE GLEDE NA ODDALJENOST SE DA NAKNADNO DODATI
     def norm_accumulator(self, norm, center_point,dist1):
         found = -1
-        if norm.size == 0  or center_point.size == 0 or dist1<1.5:
+        if norm.size == 0  or center_point.size == 0 or dist1>1.5:
             print("huh")
             return None
         print("central point",center_point)
