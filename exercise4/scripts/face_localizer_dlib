@@ -136,12 +136,13 @@ class face_localizer:
                 print(self.detected_pos_fin[found][1:])
                 if n == 6:
                     #poslji povprecni norm
-
+                    print(n)
                     #self.points_pub(Point(self.detected_norm_fin[found][0][0],self.detected_norm_fin[found][0][1],self.detected_norm_fin[found][0][2]))
                     act_norm = self.detected_pos_fin[found][0]-self.detected_norm_fin[found][0]
                     self.twist_pub.publish(Vector3(act_norm[0],act_norm[1],act_norm[2]),Vector3(self.detected_pos_fin[found][0][0],self.detected_pos_fin[found][0][1],self.detected_pos_fin[found][0][2]))
                     #dodamo se enega v norm da blokiramo aktivacijo tega ifa
                     self.detected_norm_fin[found].append(np.array([-1,-1,-1]))
+                    self.detected_pos_fin[found].append(np.array([-1,-1,-1]))
 
                     return self.detected_norm_fin[found][0]
             else:
