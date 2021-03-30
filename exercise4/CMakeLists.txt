@@ -14,6 +14,8 @@ find_package(catkin REQUIRED COMPONENTS
 
 find_package( OpenCV REQUIRED )
 
+generate_messages(DEPENDENCIES std_msgs geometry_msgs )
+
 catkin_package()
 
 #include_directories(include ${catkin_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS})
@@ -21,4 +23,5 @@ catkin_package()
 #target_link_libraries(map_goals ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
 
 catkin_install_python(PROGRAMS scripts/processing-for-ROS DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
+
 

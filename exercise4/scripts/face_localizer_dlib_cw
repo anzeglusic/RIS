@@ -43,18 +43,13 @@ class face_localizer:
         # Publiser for the visualization markers
         self.markers_pub = rospy.Publisher('face_markers', MarkerArray, queue_size=1000)
         self.pic_pub = rospy.Publisher('face_im', Image, queue_size=1000)
-        self.points_pub = rospy.Publisher('/our_pub1/chat1', Point, queue_size=1000)
 
         # Object we use for transforming between coordinate frames
         self.tf_buf = tf2_ros.Buffer()
         self.tf_listener = tf2_ros.TransformListener(self.tf_buf)
         
         #notri hranimo "priblizen center slike" pod katerim je mnzoica 100 ter normala stene na kateri je
-        #key so stevilke znotraj imamo pa prvo povprecje vseh tock in nato se vse tocke (np.array) shranjene v seznamu
         self.detected_pos_fin = {}
-        self.detected_norm_fin = {}
-        self.entries = 0
-        self.range = 0.2
 
     def get_wall_norm(self):
         pass
@@ -83,7 +78,6 @@ class face_localizer:
         point_s.point.y = 0
         point_s.point.z = x
         point_s.header.frame_id = "camera_rgb_optical_frame"
-        
         point_s.header.stamp = stamp
 
         # Get the point in the "map" coordinate system
@@ -102,44 +96,6 @@ class face_localizer:
             pose = None
 
         return pose
-
-    #TRNEUTNO NIMA OBTEZITVE GLEDE NA ODDALJENOST SE DA NAKNADNO DODATI
-    def norm_accumulator(self, norm, center_point,dist):
-        found = -1
-        for i in self.detected_pos_fin:
-            dist = np.linalg.norm(center_point-self.detected_pos_fin[i][0])
-            print("distance:",dist)
-            #ce si je sredinska tocka dovolj blizu preverimo se kosinusno podobnost normal
-            if dist<0.5:
-                c_sim = np.dot(norm,self.detected_norm_fin[i][0])/(np.linalg.norm(norm)*np.linalg.norm(self.detected_norm_fin[i][0]))
-                print("similarity:",c_sim)
-                if c_sim>0.5:
-                    found = i
-        if found >=0:
-            print("najdeno ujemanje:",found)
-            n = len(self.detected_pos_fin[found][0])
-            #dodamo točko na koncu seznama točk  ce le ta nima 5 elementov(+1 za povprecje)
-            if n < 6:
-                self.detected_pos_fin[found].append(center_point)
-                self.detected_norm_fin[found].append(norm)
-                #zracunamo nova povprecja racunamo od 1 naprej saj prvi je povprecje
-                self.detected_pos_fin[found][0] = np.array([sum([x[0] for x in self.detected_pos_fin[found][1:]])/n,sum([x[1] for x in self.detected_pos_fin[found][1:]])/n,sum([x[2] for x in self.detected_pos_fin[found][1:]])/n])
-                self.detected_norm_fin[found][0] = np.array([sum([x[0] for x in self.detected_norm_fin[found][1:]])/n,sum([x[1] for x in self.detected_norm_fin[found][1:]])/n,sum([x[2] for x in self.detected_norm_fin[found][1:]])/n])
-            #ce smo sedaj polni posljemo normalo kot point!!
-            if n == 6:
-                #poslji povprecni norm
-                pass
-
-        else:
-            print("ni bilo ujemanj:")
-            #ustvarimo nov entry
-            self.detected_pos_fin[self.entries] = [center_point,center_point]
-            self.detected_norm_fin[self.entries] =[norm,norm]
-            self.entries += self.entries
-
-            #psoljemo signal za zaznanje slike
-        
-
 
     def get_pose(self,coords,dist,stamp):
         # Calculate the position of the detected face
@@ -188,15 +144,11 @@ class face_localizer:
 
         return pose
     
-    def get_normal(self, depth_image, face_cord, stamp,dist):
+    def get_normal(self, depth_image, face_cord, stamp):
         face_x1, face_y1, face_x2, face_y2 = face_cord
         image = depth_image[face_y1:face_y2, face_x1:face_x2]
         shift_left = face_x1
         shift_top = face_y1
-
-        if min(depth_image.shape) == 0:
-            return None
-
 
         biggerDim = np.argmax(image.shape) 
         # print(f"bigger dimention: {biggerDim}")
@@ -238,7 +190,6 @@ class face_localizer:
                     x3 = small_i
                     y3 = (bigLen-1)-big_i
 
-
         if x1 == None or x2 == None or x3 == None:
             return None
         else:
@@ -249,20 +200,21 @@ class face_localizer:
             y2 = (face_y1+face_y2)//2-2
             y3 = (face_y1+face_y2)//2
 
-        # x1 += shift_left
-        # y1 += shift_top
+        """
+        x1 += shift_left
+        y1 += shift_top
 
-        # x2 += shift_left
-        # y2 += shift_top
+        x2 += shift_left
+        y2 += shift_top
         
-        # x3 += shift_left
-        # y3 += shift_top
-        
+        x3 += shift_left
+        y3 += shift_top
+        """
         
 
-        #print("\n< 1 > image [{:>3}] [{:>3}] = {:}".format(y1,x1,depth_image[y1][x1]))
-        #print("< 2 > image [{:>3}] [{:>3}] = {:}".format(y2,x2,depth_image[y2][x2]))
-        #print("< 3 > image [{:>3}] [{:>3}] = {:}".format(y3,x3,depth_image[y3][x3]))
+        print("\n< 1 > image [{:>3}] [{:>3}] = {:}".format(y1,x1,depth_image[y1][x1]))
+        print("< 2 > image [{:>3}] [{:>3}] = {:}".format(y2,x2,depth_image[y2][x2]))
+        print("< 3 > image [{:>3}] [{:>3}] = {:}".format(y3,x3,depth_image[y3][x3]))
 
 
 
@@ -273,13 +225,13 @@ class face_localizer:
         
         v3_cor = self.get_pose((x3,x3,y3,y3),depth_image[y3,x3],stamp)
 
-        # try:
-        #     # print("\n coords of points:")
-        #     # print(f"\n{v1_cor.position}")
-        #     # print(f"\n{v2_cor.position}")
-        #     # print(f"\n{v3_cor.position}")
-        # except:
-        #     pass
+        try:
+            print("\n coords of points:")
+            print(f"\n{v1_cor.position}")
+            print(f"\n{v2_cor.position}")
+            print(f"\n{v3_cor.position}")
+        except:
+            pass
         
         
         try: 
@@ -308,31 +260,21 @@ class face_localizer:
             v2 = np.array([v2_cor.position.x,v2_cor.position.y, v2_cor.position.z] )
             v3 = np.array([v3_cor.position.x,v3_cor.position.y, v3_cor.position.z] )
 
-            print(f"v1:  {v1}")
-            #print(f"v2:  {v2}")
-            #print(f"v3:  {v3}")
-
             v12 =v2-v1
             v13 =v3-v1
-
-            #print(f"v12:  {v12}")
-            #print(f"v13:  {v13}")
-
             norm = np.cross(v12,v13)
-            norm = norm/np.linalg.norm(norm)*0.5
-            print(f"norm: {norm}")
 
             orig_arr = v1
-            dest_arr = v1-norm
-            #print(norm)
+            dest_arr = norm
+            print("vektorja:\n")
+            print(v12.dtype)
+            print(v13.dtype)
+            print(norm.dtype)
 
             self.marker_array.markers.append(self.get_arrow_points(Vector3(1,1,1),Point(orig_arr[0],orig_arr[1],orig_arr[2]),Point(dest_arr[0],dest_arr[1],dest_arr[2]),3))
 
             self.markers_pub.publish(self.marker_array)
-            self.norm_accumulator(norm,v1,dist)    
-
-            self.points_pub.publish(Point(orig_arr[0],orig_arr[1],orig_arr[2]))
-            self.points_pub.publish(Point(dest_arr[0],dest_arr[1],dest_arr[2]))
+            
             #ustvarimo Image msg
             # Refrence :image = depth_image[face_y1:face_y2, face_x1:face_x2]
             """im_ms = Image()
@@ -448,8 +390,6 @@ class face_localizer:
 
                 # Extract region containing face
                 face_region = rgb_image[y1:y2, x1:x2]
-                if min(face_region.shape)==0:
-                    continue
 
                 """im_ms = Image()
                 im_ms.header.stamp = rospy.Time(0)
@@ -460,7 +400,6 @@ class face_localizer:
                 
                 #self.pic_pub.publish(im_ms)
                 self.pic_pub.publish(CvBridge().cv2_to_imgmsg(face_region, encoding="passthrough"))
-
                 # Visualize the extracted face
                 #cv2.imshow("ImWindow", face_region)
                 #cv2.waitKey(1)
@@ -468,11 +407,9 @@ class face_localizer:
                 #self.pic_pub = rospy.Publisher('face_im', Image, queue_size=1000)
 
                 # Find the distance to the detected face
-                assert y1 != y2, "Y sta ista !!!!!!!!!!!"
-                assert x1 != x2, "X sta ista !!!!!!!!!!!"
                 face_distance = float(np.nanmean(depth_image[y1:y2,x1:x2]))
                 im = depth_image[y1:y2,x1:x2]
-                norm = self.get_normal(depth_image, (x1,y1,x2,y2) ,depth_image_message.header.stamp,face_distance)
+                norm = self.get_normal(depth_image, (x1,y1,x2,y2) ,depth_image_message.header.stamp)
                 print('Norm of face', norm)
 
                 print('Distance to face', face_distance)
