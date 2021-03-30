@@ -189,79 +189,59 @@ double euc(double x1, double y1, double x2, double y2) {
 
 	return dist;
 }
+bool prva = false;
 
-void tapa1(const geometry_msgs::Point::ConstPtr &mg) {
+void tapa(const geometry_msgs::Point::ConstPtr &mg) {
+    double yyy, xxx;
+    if (!prva) {
+    cout << "DOJDE" << dirrr << endl;
+    
+    y2 = mg->y;
+    x2 = mg->x;
+    prva = true;
+    }else {
+        //prva = false;
     double yyy = mg->y;
     double xxx = mg->x;
+    cout << "DOJDEDVA" << " " << yyy << " " << xxx << endl;
     if (isnan(x2) || isnan(y2) || isnan(xxx) || isnan(yyy)) return;
     if (y2 - yyy > 0 && (y2 - yyy) > abs(x2-xxx)) {
-        vozi(yy11, xx11, yyy, xxx,1);
+        if (!went[make_pair(yyy, make_pair(xxx, 1))]) {
+            vozi(yy11, xx11, yyy, xxx,1);
+            went[make_pair(yyy, make_pair(xxx, 1))] = true;
+        }
         cout << "POZDRAAAAAAAAAAAAAAV" << endl;
         system("/home/iletavcioski/ROS/src/exercise3/src/pozdrav.sh");
         sleep(30);
     }
     else if (yyy - y2 > 0 && (yyy - y2) > abs(x2-xxx)) {
-        vozi(yy11, xx11, yyy, xxx,3);
+        if (!went[make_pair(yyy, make_pair(xxx, 3))]) {
+            vozi(yy11, xx11, yyy, xxx,3);
+            went[make_pair(yyy, make_pair(xxx, 3))] = true;
+        }
         cout << "POZDRAAAAAAAAAAAAAAV" << endl;
         system("/home/iletavcioski/ROS/src/exercise3/src/pozdrav.sh");
         sleep(30);
     }
     else if (x2 - xxx > 0 && (x2 - xxx) > abs(y2-yyy)) {
-        vozi(yy11, xx11, yyy, xxx,2);
+        if (!went[make_pair(yyy, make_pair(xxx, 2))]) {
+            vozi(yy11, xx11, yyy, xxx,2);
+            went[make_pair(yyy, make_pair(xxx, 2))] = true;
+        }
         cout << "POZDRAAAAAAAAAAAAAAV" << endl;
         system("/home/iletavcioski/ROS/src/exercise3/src/pozdrav.sh");
         sleep(30);
     }
     else if (xxx - x2 > 0 && (xxx - x2) > abs(y2-yyy)) {
-        vozi(yy11, xx11, yyy, xxx,0);
+        if (!went[make_pair(yyy, make_pair(xxx, 1))]) {
+            vozi(yy11, xx11, yyy, xxx,1);
+            went[make_pair(yyy, make_pair(xxx, 1))] = true;
+        }
         cout << "POZDRAAAAAAAAAAAAAAV" << endl;
         system("/home/iletavcioski/ROS/src/exercise3/src/pozdrav.sh");
         sleep(30);
     }
-}
-void tapa(const geometry_msgs::Point::ConstPtr &mg) {
-    cout << "DOJDE" << dirrr << endl;
-    sleep(5);
-    y2 = mg->y;
-    x2 = mg->x;
-    if (isnan(x2) || isnan(y2)) return;
-
-    double yy1 = y2;
-    double xx1 = x2;
-    double a = euc(xx1, yy1-0.5, X, Y);
-    double b = euc(xx1-0.5, yy1, X, Y);
-    double c = euc(xx1, yy1+0.5, X, Y);
-    double d = euc(xx1+0.5, yy1, X, Y);
-    if (a < b && a < c && a < d) dirrr = 1;
-    else if (b < a && b < c && b < d) dirrr = 2;
-    else if (c < a && c < b && c < d) dirrr = 3;
-    else dirrr = 0;
-
-    if (dirrr == 1 && !went[make_pair(yy1-0.5, make_pair(xx1, 1))]) {
-        went[make_pair(yy1-0.5, make_pair(xx1, 1))] = true;
-        vozi(yy11, xx11, yy1-0.5, xx1,1);
-        cout << "POZDRAAAAAAAAAAAAAAV" << endl;
-        system("/home/iletavcioski/ROS/src/exercise3/src/pozdrav.sh");
-        sleep(30);
-    } else if (dirrr == 2 && !went[make_pair(yy1, make_pair(xx1-0.5, 2))]) {
-        went[make_pair(yy1, make_pair(xx1-0.5, 2))] = true;
-        vozi(yy11, xx11, yy1, xx1-0.5,2);
-        cout << "POZDRAAAAAAAAAAAAAAV" << endl;
-        system("/home/iletavcioski/ROS/src/exercise3/src/pozdrav.sh");
-        sleep(30);
-    } else if (dirrr == 3 && !went[make_pair(yy1+0.5, make_pair(xx1, 3))]) {
-        went[make_pair(yy1+0.5, make_pair(xx1, 3))] = true;
-        vozi(yy11, xx11, yy1+0.5, xx1,3);
-        cout << "POZDRAAAAAAAAAAAAAAV" << endl;
-        system("/home/iletavcioski/ROS/src/exercise3/src/pozdrav.sh");
-        sleep(30);
-    } else if (dirrr == 0 && !went[make_pair(yy1, make_pair(xx1+0.5, 0))]) {
-        went[make_pair(yy1, make_pair(xx1+0.5, 0))] = true;
-        vozi(yy11, xx11, yy1, xx1+0.5,0);
-        cout << "POZDRAAAAAAAAAAAAAAV" << endl;
-        system("/home/iletavcioski/ROS/src/exercise3/src/pozdrav.sh");
-        sleep(30);
-    } 
+    }
     return;
 }
 
@@ -326,12 +306,10 @@ int main(int argc, char** argv) {
     yy11 = 259;
     xx11 = 235;
     int mom = 1;
+    
     while(ros::ok()) {
         ros::Subscriber sub24 = n.subscribe("/our_pub1/chat1", 100, tapa);
         ros::spinOnce();
-        //ros::Subscriber sub25 = n.subscribe("/our_pub1/chat1", 100, tapa1);
-        //ros::spinOnce();
-        //sleep(5);
         if (!cv_map.empty()) imshow("Map", cv_map);
        
         if(cc) {
