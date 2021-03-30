@@ -193,10 +193,10 @@ double euc(double x1, double y1, double x2, double y2) {
 bool prva = false;
 int bro = 0;
 void tapa(const geometry_msgs::Twist::ConstPtr &mg) {
-    if (bro%2) {
-        bro++;
-        return;
-    }
+    //if (bro%2) {
+     //   bro++;
+      //  return;
+   // }
     double yyy, xxx;
     y2 = mg->angular.y;
     x2 = mg->angular.x;
