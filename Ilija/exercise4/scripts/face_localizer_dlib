@@ -10,7 +10,7 @@ import tf2_geometry_msgs
 import tf2_ros
 #import matplotlib.pyplot as plt
 from sensor_msgs.msg import Image
-from geometry_msgs.msg import PointStamped, Vector3, Pose, Point
+from geometry_msgs.msg import PointStamped, Vector3, Pose, Point, Twist
 from cv_bridge import CvBridge, CvBridgeError
 from visualization_msgs.msg import Marker, MarkerArray
 from std_msgs.msg import ColorRGBA
@@ -43,7 +43,8 @@ class face_localizer:
         # Publiser for the visualization markers
         self.markers_pub = rospy.Publisher('face_markers', MarkerArray, queue_size=1000)
         self.pic_pub = rospy.Publisher('face_im', Image, queue_size=1000)
-        self.points_pub = rospy.Publisher('/our_pub1/chat1', Point, queue_size=1000)
+        #self.points_pub = rospy.Publisher('/our_pub1/chat1', Point, queue_size=1000)
+        self.twist_pub = rospy.Publisher('/our_pub1/chat1', Twist, queue_size=1000)
 
         # Object we use for transforming between coordinate frames
         self.tf_buf = tf2_ros.Buffer()
@@ -104,40 +105,70 @@ class face_localizer:
         return pose
 
     #TRNEUTNO NIMA OBTEZITVE GLEDE NA ODDALJENOST SE DA NAKNADNO DODATI
-    def norm_accumulator(self, norm, center_point,dist):
+    def norm_accumulator(self, norm, center_point,dist1):
         found = -1
-        for i in self.detected_pos_fin:
-            dist = np.linalg.norm(center_point-self.detected_pos_fin[i][0])
-            print("distance:",dist)
-            #ce si je sredinska tocka dovolj blizu preverimo se kosinusno podobnost normal
-            if dist<0.5:
-                c_sim = np.dot(norm,self.detected_norm_fin[i][0])/(np.linalg.norm(norm)*np.linalg.norm(self.detected_norm_fin[i][0]))
-                print("similarity:",c_sim)
-                if c_sim>0.5:
-                    found = i
-        if found >=0:
-            print("najdeno ujemanje:",found)
-            n = len(self.detected_pos_fin[found][0])
-            #dodamo točko na koncu seznama točk  ce le ta nima 5 elementov(+1 za povprecje)
-            if n < 6:
-                self.detected_pos_fin[found].append(center_point)
-                self.detected_norm_fin[found].append(norm)
-                #zracunamo nova povprecja racunamo od 1 naprej saj prvi je povprecje
-                self.detected_pos_fin[found][0] = np.array([sum([x[0] for x in self.detected_pos_fin[found][1:]])/n,sum([x[1] for x in self.detected_pos_fin[found][1:]])/n,sum([x[2] for x in self.detected_pos_fin[found][1:]])/n])
-                self.detected_norm_fin[found][0] = np.array([sum([x[0] for x in self.detected_norm_fin[found][1:]])/n,sum([x[1] for x in self.detected_norm_fin[found][1:]])/n,sum([x[2] for x in self.detected_norm_fin[found][1:]])/n])
-            #ce smo sedaj polni posljemo normalo kot point!!
-            if n == 6:
-                #poslji povprecni norm
-                pass
+        if norm.size == 0  or center_point.size == 0 or dist1>1.5:
+            print("huh")
+            return None
+        print("central point",center_point)
+        if self.detected_pos_fin:
+
+            for i in self.detected_pos_fin:
+                dist = np.linalg.norm(center_point-self.detected_pos_fin[i][0])
+                print("distance:",dist," ",i)
+                #ce si je sredinska tocka dovolj blizu preverimo se kosinusno podobnost normal
+                if dist<0.5:
+                    c_sim = np.dot(norm,self.detected_norm_fin[i][0])/(np.linalg.norm(norm)*np.linalg.norm(self.detected_norm_fin[i][0]))
+                    print("similarity:",c_sim)
+                    if c_sim>0.5:
+                        found = i
+            if found >=0:
+                print("najdeno ujemanje:",found)
+                n = len(self.detected_pos_fin[found])
+                #dodamo točko na koncu seznama točk  ce le ta nima 5 elementov(+1 za povprecje)
+                if n < 6:
+                    self.detected_pos_fin[found].append(center_point)
+                    self.detected_norm_fin[found].append(norm)
+                    #zracunamo nova povprecja racunamo od 1 naprej saj prvi je povprecje
+                    self.detected_pos_fin[found][0] = np.array([sum([x[0] for x in self.detected_pos_fin[found][1:]])/n,sum([x[1] for x in self.detected_pos_fin[found][1:]])/n,sum([x[2] for x in self.detected_pos_fin[found][1:]])/n])
+                    self.detected_norm_fin[found][0] = np.array([sum([x[0] for x in self.detected_norm_fin[found][1:]])/n,sum([x[1] for x in self.detected_norm_fin[found][1:]])/n,sum([x[2] for x in self.detected_norm_fin[found][1:]])/n])
+                #ce smo sedaj polni posljemo normalo kot point!!
+                print(self.detected_pos_fin[found][1:])
+                if n == 6:
+                    #poslji povprecni norm
+
+                    #self.points_pub(Point(self.detected_norm_fin[found][0][0],self.detected_norm_fin[found][0][1],self.detected_norm_fin[found][0][2]))
+                    act_norm = self.detected_pos_fin[found][0]-self.detected_norm_fin[found][0]
+                    self.twist_pub.publish(Vector3(act_norm[0],act_norm[1],act_norm[2]),Vector3(self.detected_pos_fin[found][0][0],self.detected_pos_fin[found][0][1],self.detected_pos_fin[found][0][2]))
+                    #dodamo se enega v norm da blokiramo aktivacijo tega ifa
+                    self.detected_norm_fin[found].append(np.array([-1,-1,-1]))
+
+                    return self.detected_norm_fin[found][0]
+            else:
+                print("ni bilo ujemanj:1")
+
+                #ustvarimo nov entry
+                self.detected_pos_fin[self.entries] = [center_point,center_point]
+                self.detected_norm_fin[self.entries] =[norm,norm]
+                act_norm = self.detected_pos_fin[self.entries][0]-self.detected_norm_fin[self.entries][0]
+                #self.points_pub(Point(self.detected_pos_fin[found][0][0],self.detected_pos_fin[found][0][1],self.detected_pos_fin[found][0][2]))
+                self.twist_pub.publish(Vector3(act_norm[0],act_norm[1],act_norm[2]),Vector3(self.detected_pos_fin[self.entries][0][0],self.detected_pos_fin[self.entries][0][1],self.detected_pos_fin[self.entries][0][2]))
+                self.entries += 1
+                return self.detected_pos_fin[self.entries-1][0]
 
         else:
             print("ni bilo ujemanj:")
             #ustvarimo nov entry
             self.detected_pos_fin[self.entries] = [center_point,center_point]
             self.detected_norm_fin[self.entries] =[norm,norm]
-            self.entries += self.entries
-
-            #psoljemo signal za zaznanje slike
+            act_norm = self.detected_pos_fin[self.entries][0]-self.detected_norm_fin[self.entries][0]
+            #self.points_pub(Point(self.detected_pos_fin[found][0][0],self.detected_pos_fin[found][0][1],self.detected_pos_fin[found][0][2]))
+            self.twist_pub.publish(Vector3(act_norm[1],act_norm[1],act_norm[2]),Vector3(self.detected_pos_fin[self.entries][0][0],self.detected_pos_fin[self.entries][0][1],self.detected_pos_fin[self.entries][0][2]))
+            self.entries += 1
+            return self.detected_pos_fin[self.entries-1][0]
+        
+        #posljemo None nazaj da vemo da nismo dokoncno dolocili nobene tocke
+        return None
         
 
 
@@ -324,15 +355,15 @@ class face_localizer:
 
             orig_arr = v1
             dest_arr = v1-norm
-            #print(norm)
+            print("before:",norm)
 
             self.marker_array.markers.append(self.get_arrow_points(Vector3(1,1,1),Point(orig_arr[0],orig_arr[1],orig_arr[2]),Point(dest_arr[0],dest_arr[1],dest_arr[2]),3))
-
             self.markers_pub.publish(self.marker_array)
             self.norm_accumulator(norm,v1,dist)    
 
-            self.points_pub.publish(Point(orig_arr[0],orig_arr[1],orig_arr[2]))
-            self.points_pub.publish(Point(dest_arr[0],dest_arr[1],dest_arr[2]))
+            print("after:",norm)
+            #self.points_pub.publish(Point(orig_arr[0],orig_arr[1],orig_arr[2]))
+            #self.points_pub.publish(Point(dest_arr[0],dest_arr[1],dest_arr[2]))
             #ustvarimo Image msg
             # Refrence :image = depth_image[face_y1:face_y2, face_x1:face_x2]
             """im_ms = Image()
@@ -483,6 +514,7 @@ class face_localizer:
 
                 # Find the location of the detected face
                 pose = self.get_pose((x1,x2,y1,y2), face_distance, depth_time)
+                break
                 
                 #! uncomment !!!
                 # if pose is not None:
@@ -548,7 +580,7 @@ def main():
 
         face_finder = face_localizer()
 
-        rate = rospy.Rate(1)
+        rate = rospy.Rate(1.25)
         while not rospy.is_shutdown():
             #print("hello!")
             face_finder.find_faces()
