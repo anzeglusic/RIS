@@ -1,0 +1,40 @@
+{
+  "configurations": [
+    {
+      "browse": {
+        "databaseFilename": "",
+        "limitSymbolsToIncludedHeaders": true
+      },
+      "includePath": [
+        "/home/code8master/Desktop/long_wsROS/devel/include/**",
+        "/home/code8master/Desktop/wsROS/devel/include/**",
+        "/opt/ros/noetic/include/**",
+        "/home/code8master/Desktop/long_wsROS/src/Turtlebot_packs_part2/depthimage_to_laserscan/include/**",
+        "/home/code8master/Desktop/long_wsROS/src/Turtlebot_packs_part2/kobuki/kobuki_auto_docking/include/**",
+        "/home/code8master/Desktop/long_wsROS/src/Turtlebot_packs_part2/kobuki/kobuki_bumper2pc/include/**",
+        "/home/code8master/Desktop/long_wsROS/src/Turtlebot_packs_part2/kobuki/kobuki_controller_tutorial/include/**",
+        "/home/code8master/Desktop/long_wsROS/src/Turtlebot_packs_part2/kobuki_desktop/kobuki_gazebo_plugins/include/**",
+        "/home/code8master/Desktop/long_wsROS/src/Turtlebot_packs_part2/kobuki/kobuki_keyop/include/**",
+        "/home/code8master/Desktop/long_wsROS/src/Turtlebot_packs_part2/kobuki/kobuki_node/include/**",
+        "/home/code8master/Desktop/long_wsROS/src/Turtlebot_packs_part2/kobuki/kobuki_random_walker/include/**",
+        "/home/code8master/Desktop/long_wsROS/src/Turtlebot_packs_part2/kobuki/kobuki_safety_controller/include/**",
+        "/home/code8master/Desktop/wsROS/src/RIS/tf2/include/**",
+        "/home/code8master/Desktop/long_wsROS/src/Turtlebot_packs_part2/yujin_ocs/yocs_cmd_vel_mux/include/**",
+        "/home/code8master/Desktop/long_wsROS/src/Turtlebot_packs_part2/yujin_ocs/yocs_controllers/include/**",
+        "/home/code8master/Desktop/long_wsROS/src/Turtlebot_packs_part2/yujin_ocs/yocs_diff_drive_pose_controller/include/**",
+        "/home/code8master/Desktop/long_wsROS/src/Turtlebot_packs_part2/yujin_ocs/yocs_keyop/include/**",
+        "/home/code8master/Desktop/long_wsROS/src/Turtlebot_packs_part2/yujin_ocs/yocs_math_toolkit/include/**",
+        "/home/code8master/Desktop/long_wsROS/src/Turtlebot_packs_part2/yujin_ocs/yocs_navi_toolkit/include/**",
+        "/home/code8master/Desktop/long_wsROS/src/Turtlebot_packs_part2/yujin_ocs/yocs_navigator/include/**",
+        "/home/code8master/Desktop/long_wsROS/src/Turtlebot_packs_part2/yujin_ocs/yocs_safety_controller/include/**",
+        "/home/code8master/Desktop/long_wsROS/src/Turtlebot_packs_part2/yujin_ocs/yocs_velocity_smoother/include/**",
+        "/home/code8master/Desktop/long_wsROS/src/Turtlebot_packs_part2/yujin_ocs/yocs_virtual_sensor/include/**",
+        "/home/code8master/Desktop/long_wsROS/src/Turtlebot_packs_part2/yujin_ocs/yocs_waypoint_provider/include/**",
+        "/home/code8master/Desktop/long_wsROS/src/Turtlebot_packs_part2/yujin_ocs/yocs_waypoints_navi/include/**",
+        "/usr/include/**"
+      ],
+      "name": "ROS"
+    }
+  ],
+  "version": 4
+}

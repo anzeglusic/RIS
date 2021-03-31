@@ -1,0 +1,7 @@
+{
+    "python.autoComplete.extraPaths": [
+        "/home/code8master/Desktop/long_wsROS/devel/lib/python3/dist-packages",
+        "/home/code8master/Desktop/wsROS/devel/lib/python3/dist-packages",
+        "/opt/ros/noetic/lib/python3/dist-packages"
+    ]
+}
