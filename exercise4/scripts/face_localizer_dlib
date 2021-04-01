@@ -109,7 +109,7 @@ class face_localizer:
         found = -1
         if norm.size == 0  or center_point.size == 0 or dist1>1.5:
             print("huh")
-            return None
+            return False
         print("central point",center_point)
         if self.detected_pos_fin:
 
@@ -144,7 +144,7 @@ class face_localizer:
                     self.detected_norm_fin[found].append(np.array([-1,-1,-1]))
                     self.detected_pos_fin[found].append(np.array([-1,-1,-1]))
 
-                    return self.detected_norm_fin[found][0]
+                    return False
             else:
                 print("ni bilo ujemanj:1")
 
@@ -155,7 +155,7 @@ class face_localizer:
                 #self.points_pub(Point(self.detected_pos_fin[found][0][0],self.detected_pos_fin[found][0][1],self.detected_pos_fin[found][0][2]))
                 self.twist_pub.publish(Vector3(act_norm[0],act_norm[1],act_norm[2]),Vector3(self.detected_pos_fin[self.entries][0][0],self.detected_pos_fin[self.entries][0][1],self.detected_pos_fin[self.entries][0][2]))
                 self.entries += 1
-                return self.detected_pos_fin[self.entries-1][0]
+                return True
 
         else:
             print("ni bilo ujemanj:")
@@ -166,10 +166,10 @@ class face_localizer:
             #self.points_pub(Point(self.detected_pos_fin[found][0][0],self.detected_pos_fin[found][0][1],self.detected_pos_fin[found][0][2]))
             self.twist_pub.publish(Vector3(act_norm[1],act_norm[1],act_norm[2]),Vector3(self.detected_pos_fin[self.entries][0][0],self.detected_pos_fin[self.entries][0][1],self.detected_pos_fin[self.entries][0][2]))
             self.entries += 1
-            return self.detected_pos_fin[self.entries-1][0]
+            return True
         
         #posljemo None nazaj da vemo da nismo dokoncno dolocili nobene tocke
-        return None
+        return False
         
 
 
@@ -219,8 +219,8 @@ class face_localizer:
             pose = None
 
         return pose
-    
-    def get_normal(self, depth_image, face_cord, stamp,dist):
+   
+    def get_normal(self, depth_image, face_cord, stamp,dist, face_region):
         face_x1, face_y1, face_x2, face_y2 = face_cord
         image = depth_image[face_y1:face_y2, face_x1:face_x2]
         shift_left = face_x1
@@ -357,9 +357,9 @@ class face_localizer:
             dest_arr = v1-norm
             print("before:",norm)
 
-            for pose in [v1_cor,v2_cor,v3_cor]:
+            #for pose in [v1_cor,v2_cor,v3_cor]:
+            """
                 if pose is not None:
-
                     # Create a marker used for visualization
                     self.marker_num += 1
                     marker = Marker()
@@ -378,12 +378,16 @@ class face_localizer:
                         marker.color = ColorRGBA(0,0,1,1)
                     else:
                         marker.color = ColorRGBA(0, 1, 0, 1)
-                    self.marker_array.markers.append(marker)
+                    #self.marker_array.markers.append(marker)
 
-            self.marker_array.markers.append(self.get_arrow_points(Vector3(1,1,1),Point(orig_arr[0],orig_arr[1],orig_arr[2]),Point(dest_arr[0],dest_arr[1],dest_arr[2]),3))
+            #self.marker_array.markers.append(self.get_arrow_points(Vector3(1,1,1),Point(orig_arr[0],orig_arr[1],orig_arr[2]),Point(dest_arr[0],dest_arr[1],dest_arr[2]),3))
             self.markers_pub.publish(self.marker_array)
-            self.norm_accumulator(norm,v1,dist) #! ACCUMULATOR IS CALLED
-
+            """
+            doit = self.norm_accumulator(norm,v1,dist) #! ACCUMULATOR IS CALLED
+            if doit:
+                self.marker_array.markers.append(self.get_arrow_points(Vector3(1,1,1),Point(orig_arr[0],orig_arr[1],orig_arr[2]),Point(dest_arr[0],dest_arr[1],dest_arr[2]),3))
+                self.markers_pub.publish(self.marker_array)
+                self.pic_pub.publish(CvBridge().cv2_to_imgmsg(face_region, encoding="passthrough"))
             print("after:",norm)
             #self.points_pub.publish(Point(orig_arr[0],orig_arr[1],orig_arr[2]))
             #self.points_pub.publish(Point(dest_arr[0],dest_arr[1],dest_arr[2]))
@@ -571,7 +575,7 @@ class face_localizer:
 
 
 
-
+        br = 0
         for face in good_face_detections_final:
             i = face["indx"]
             imageIndx = face["imageIndx"]
@@ -592,7 +596,7 @@ class face_localizer:
             im_ms.data = face_region"""
             
             #self.pic_pub.publish(im_ms)
-            self.pic_pub.publish(CvBridge().cv2_to_imgmsg(face_region, encoding="passthrough"))
+            #self.pic_pub.publish(CvBridge().cv2_to_imgmsg(face_region, encoding="passthrough"))
 
             # Visualize the extracted face
             #cv2.imshow("ImWindow", face_region)
@@ -601,11 +605,11 @@ class face_localizer:
             #self.pic_pub = rospy.Publisher('face_im', Image, queue_size=1000)
 
             # Find the distance to the detected face
-            assert y1 != y2, "Y sta ista !!!!!!!!!!!"
-            assert x1 != x2, "X sta ista !!!!!!!!!!!"
-            face_distance = float(np.nanmean(depth_image[y1:y2,x1:x2]))
+            #assert y1 != y2, "Y sta ista !!!!!!!!!!!"
+            #assert x1 != x2, "X sta ista !!!!!!!!!!!"
+            face_distance = float(np.nanmean(depth_image[y1q:y2,x1:x2]))
             im = depth_image[y1:y2,x1:x2]
-            norm = self.get_normal(depth_image, (x1,y1,x2,y2) ,depth_image_message.header.stamp,face_distance)
+            norm = self.get_normal(depth_image, (x1,y1,x2,y2) ,depth_image_message.header.stamp,face_distance, face_region)
             normals_found.append(norm)
             print('Norm of face', norm)
 
@@ -619,24 +623,26 @@ class face_localizer:
             pose = self.get_pose((x1,x2,y1,y2), face_distance, depth_time)
             
             #! uncomment !!!
-            # if pose is not None:
 
-            #     # Create a marker used for visualization
-            #     self.marker_num += 1
-            #     marker = Marker()
-            #     marker.header.stamp = rospy.Time(0)
-            #     marker.header.frame_id = 'map'
-            #     marker.pose = pose
-            #     marker.type = Marker.CUBE
-            #     marker.action = Marker.ADD
-            #     marker.frame_locked = False
-            #     marker.lifetime = rospy.Duration.from_sec(10)
-            #     marker.id = self.marker_num
-            #     marker.scale = Vector3(0.1, 0.1, 0.1)
-            #     marker.color = ColorRGBA(0, 1, 0, 1)
-            #     self.marker_array.markers.append(marker)
-
-            #     self.markers_pub.publish(self.marker_array)
+                 # Create a marker used for visualization
+            """
+            if br == 0:
+                br = 1
+                self.marker_num += 1
+                marker = Marker()
+                marker.header.stamp = rospy.Time(0)
+                marker.header.frame_id = 'map'
+                marker.pose = pose
+                marker.type = Marker.CUBE
+                marker.action = Marker.ADD
+                marker.frame_locked = False
+                marker.lifetime = rospy.Duration.from_sec(10)
+                marker.id = self.marker_num
+                marker.scale = Vector3(0.1, 0.1, 0.1)
+                marker.color = ColorRGBA(0, 1, 0, 1)
+                self.marker_array.markers.append(marker)
+                self.markers_pub.publish(self.marker_array)
+             """
         
 
     def get_arrow_points(self, scale, head, tail, idn):
