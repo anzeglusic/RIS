@@ -123,8 +123,8 @@ void vozi(int y3, int x3, double y, double x, int dir) {
     stevec++;
     goal_pub.publish(goal);
     if (!look)
-    sleep(15);
-    else sleep(8);
+    sleep(10);
+    else sleep(6);
      if (y == 0.5 && x == -0.5 && dir == 3) konec = true;
     return;
 }
@@ -185,26 +185,26 @@ void tapa(const geometry_msgs::Twist::ConstPtr &mg) {
     if (YY > 0 && YY >= 4 && YY <= 6) {
         vozi(yy11, xx11, y2-0.5, x2,1);
         cout << "POZDRAAAAAAAAAAAAAAV" << endl;
-        system("/home/iletavcioski/ROS/src/exercise3/src/pozdrav.sh");
-        sleep(20);
+        system("/home/code8master/Desktop/wsROS/src/RIS/exercise3/src/pozdrav.sh");
+        sleep(10);
     }
     else if (YY < 0 && YY <= -4 && YY >= -6) {
         vozi(yy11, xx11, y2+0.5, x2,3);
         cout << "POZDRAAAAAAAAAAAAAAV" << endl;
-        system("/home/iletavcioski/ROS/src/exercise3/src/pozdrav.sh");
-        sleep(20);
+        system("/home/code8master/Desktop/wsROS/src/RIS/exercise3/src/pozdrav.sh");
+        sleep(10);
     }
     else if (XX > 0 && XX >= 4 && XX <= 6) {
         vozi(yy11, xx11, y2, x2-0.5,2);    
         cout << "POZDRAAAAAAAAAAAAAAV" << endl;
-        system("/home/iletavcioski/ROS/src/exercise3/src/pozdrav.sh");
-        sleep(20);
+        system("/home/code8master/Desktop/wsROS/src/RIS/exercise3/src/pozdrav.sh");
+        sleep(10);
     }
     else if (XX <  0 && XX >= -6 && XX <= -4){
             vozi(yy11, xx11, y2, x2+0.5,0);
         cout << "POZDRAAAAAAAAAAAAAAV" << endl;
-        system("/home/iletavcioski/ROS/src/exercise3/src/pozdrav.sh");
-        sleep(20);
+        system("/home/code8master/Desktop/wsROS/src/RIS/exercise3/src/pozdrav.sh");
+        sleep(10);
     }
     return;
 }

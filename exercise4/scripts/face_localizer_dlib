@@ -607,7 +607,7 @@ class face_localizer:
             # Find the distance to the detected face
             #assert y1 != y2, "Y sta ista !!!!!!!!!!!"
             #assert x1 != x2, "X sta ista !!!!!!!!!!!"
-            face_distance = float(np.nanmean(depth_image[y1q:y2,x1:x2]))
+            face_distance = float(np.nanmean(depth_image[y1:y2,x1:x2]))
             im = depth_image[y1:y2,x1:x2]
             norm = self.get_normal(depth_image, (x1,y1,x2,y2) ,depth_image_message.header.stamp,face_distance, face_region)
             normals_found.append(norm)
