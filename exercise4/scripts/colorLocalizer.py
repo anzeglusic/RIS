@@ -8,6 +8,7 @@ import cv2
 import numpy as np
 import tf2_geometry_msgs
 import tf2_ros
+from pprint import pprint
 #import matplotlib.pyplot as plt
 from sensor_msgs.msg import Image
 from geometry_msgs.msg import PointStamped, Vector3, Pose, Point, Twist
@@ -44,7 +45,188 @@ class color_localizer:
         # self.entries = 0
         # self.range = 0.2
 
-    def find_color(self,image):
+    def find_elipses_first(self,image,depth_image):
+
+        minValue = np.nanmin(depth_image)
+        maxValue = np.nanmax(depth_image)
+
+        temp_mask = ~np.isfinite(depth_image)
+        nanToValue = maxValue*1.25
+        depth_image[temp_mask] = nanToValue
+        depth_image = depth_image - minValue
+        depth_image = depth_image * 255/(nanToValue - minValue)
+        depth_image = np.round(depth_image)
+        depth_image = depth_image.astype(np.uint8)
+        # print(depth_image)
+        # print(np.min(depth_image))
+        # print(np.max(depth_image))
+        # print(depth_image.shape)
+
+        frame = image.copy()
+
+        imagesToTest = [
+                        frame[:,:,0],
+                        frame[:,:,1],
+                        frame[:,:,2],
+                        cv2.cvtColor(image,cv2.COLOR_BGR2GRAY),
+                        cv2.cvtColor(image,cv2.COLOR_BGR2HSV)[:,:,0],
+                        cv2.cvtColor(image,cv2.COLOR_BGR2HSV)[:,:,1],
+                        cv2.cvtColor(image,cv2.COLOR_BGR2HSV)[:,:,2],
+                        depth_image
+                        ]
+
+        # Set the dimensions of the image
+        dims = frame.shape
+
+        # Tranform image to gayscale
+        gray1 = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        gray1 = cv2.cvtColor(gray1,cv2.COLOR_GRAY2BGR)
+        # gray1 = cv2.cvtColor(depth_image,cv2.COLOR_GRAY2BGR)
+
+        # return cv2.cvtColor(gray,cv2.COLOR_GRAY2BGR)
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+        # gray[:,:,1] = 255
+        # gray[:,:,2] = 255
+        # sat = gray[:,:,1] < 128
+        # gray[sat] = [0,0,0]
+        # return cv2.cvtColor(gray,cv2.COLOR_HSV2BGR)
+        # return cv2.cvtColor(gray[:,:,2],cv2.COLOR_GRAY2BGR)
+
+        for i in range(len(imagesToTest)):
+            gray = imagesToTest[i]
+
+            # Do histogram equlization
+            img = cv2.equalizeHist(gray)
+            
+            threshDict = {}
+            # Binarize the image - original
+            # ret, thresh = cv2.threshold(img, 50, 255, 0)
+            ret, thresh = cv2.threshold(img, 50, 255, cv2.THRESH_BINARY)
+            threshDict["normal"] = thresh
+
+            # binary + otsu
+            ret, thresh = cv2.threshold(img, 50, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+            threshDict["binaryOtsu"] = thresh
+
+            # gauss + binary + otsu
+            img2 = cv2.GaussianBlur(img,(5,5),2)
+            ret, thresh = cv2.threshold(img2, 50, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+            threshDict["gaussBinaryOtsu"] = thresh
+            
+            # adaptive mean threshold
+            thresh = cv2.adaptiveThreshold(img,255,cv2.ADAPTIVE_THRESH_MEAN_C,\
+                    cv2.THRESH_BINARY,11,2)
+            threshDict["adaptiveMean"] = thresh
+            
+            # adaptive gaussian threshold
+            thresh = cv2.adaptiveThreshold(img,255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C,\
+                cv2.THRESH_BINARY,11,2)
+            threshDict["adaptiveGauss"] = thresh
+
+            # t = threshDict["normal"]
+            # pprint(t)
+            t = None
+            for i,key in enumerate(threshDict):
+                if i==0:
+                    t = threshDict[key]
+                else:
+                    part1 = i/(i+1)
+                    part2 = 1-part1
+                    t = cv2.addWeighted(t,part1, threshDict[key],part2, 0)
+            
+            thresh = t
+
+            thresh = cv2.Canny(gray,100,200)
+            """
+            return cv2.cvtColor(thresh,cv2.COLOR_GRAY2RGB)
+            """
+
+
+
+
+            kernel = np.ones((5,5), "uint8")
+
+            # threshDict["adaptiveGauss"] = cv2.erode(threshDict["adaptiveGauss"], kernel)
+            # return cv2.cvtColor(cv2.bitwise_not(threshDict["adaptiveGauss"]),cv2.COLOR_GRAY2RGB)
+
+            # Extract contours
+            contours, hierarchy = cv2.findContours(thresh, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+
+            # Example how to draw the contours
+            # cv2.drawContours(frame, contours, -1, (255, 0, 0), 3)
+            
+            # Fit elipses to all extracted contours
+            elps = []
+            for cnt in contours:
+                #     print cnt
+                #     print cnt.shape
+                if cnt.shape[0] >= 20:
+                    ellipse = cv2.fitEllipse(cnt)
+                    elps.append(ellipse)
+
+
+            # Find two elipses with same centers
+            candidates = []
+            for n in range(len(elps)):
+                for m in range(n + 1, len(elps)):
+                    e1 = elps[n]
+                    e2 = elps[m]
+                    dist = np.sqrt(((e1[0][0] - e2[0][0]) ** 2 + (e1[0][1] - e2[0][1]) ** 2))
+                    #             print dist
+                    if dist < 5:
+                        candidates.append((e1,e2))
+
+            for c in candidates:
+                print("candidates found")
+                # the centers of the ellipses
+                e1 = c[0]
+                e2 = c[1]
+
+                # drawing the ellipses on the image
+                cv2.ellipse(gray1, e1, (0, 0, 255), 2)
+                cv2.ellipse(gray1, e2, (0, 0, 255), 2)
+
+            
+            return gray1
+
+
+    def calc_rgb_distance_mask(self, image, rgb_value, minDistance):
+        rangeImage = image - np.array(rgb_value)
+        temp = np.reshape(rangeImage, (image.shape[0]*image.shape[1],3))
+        temp = np.linalg.norm(temp,axis=1)
+        temp = np.reshape(temp, (image.shape[0],image.shape[1]))
+
+        temp = (temp / np.sqrt(255**2 + 255**2 + 255**2))*255
+        temp = temp.astype(np.uint8)
+
+        distance = temp.copy()
+
+        toMask = temp < minDistance
+        temp = (toMask * 255).astype(np.uint8)
+
+        return temp, distance
+
+    def calc_mask(self, mask, kernel, kernel1, operations):
+        oper1 = operations[0]
+        oper2 = operations[1]
+        oper3 = operations[2]
+        oper4 = operations[3]
+        oper5 = operations[4]
+
+        if oper1:
+            mask = cv2.dilate(mask, kernel)
+        if oper2:
+            mask = cv2.erode(mask, kernel)
+        if oper3:
+            mask = cv2.erode(mask, kernel1)
+        if oper4:
+            mask = cv2.dilate(mask, kernel1)
+        if oper5:
+            mask = cv2.dilate(mask, kernel)
+        return mask
+
+    def find_color(self,image, depth_image):
+        '''
         hsvIm = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
 
         red_low = np.array([136, 87, 11], np.uint8)
@@ -65,66 +247,214 @@ class color_localizer:
 
 
         black_low = np.array([0,0,0], np.uint8)
-        black_up = np.array([180, 255, 40], np.uint8)
+        black_up = np.array([180, 255, 60], np.uint8)
         black_mask = cv2.inRange(hsvIm, black_low, black_up)
+        '''
+        # red
+        red_mask, red_distance = self.calc_rgb_distance_mask(image, [0,0,255], 100)
+
+        # green
+        green_mask, green_distance = self.calc_rgb_distance_mask(image, [0,255,0], 100)
+
+        # blue
+        blue_mask, blue_distance = self.calc_rgb_distance_mask(image, [255,0,0], 100)
+
+        # yellow
+        yellow_mask, yellow_distance = self.calc_rgb_distance_mask(image, [0,255,255], 100)
+
+        # cyan
+        cyan_mask, cyan_distance = self.calc_rgb_distance_mask(image, [255,255,0], 100)
+
+        # black
+        black_mask, black_distance = self.calc_rgb_distance_mask(image, [0,0,0], 60)
+
+        # white
+        white_mask, white_distance = self.calc_rgb_distance_mask(image, [255,255,255], 5)
 
         kernel = np.ones((30,30), "uint8")
         kernel1 = np.ones((7,7), "uint8")
 
-        # R
-        red_mask = cv2.dilate(red_mask, kernel)
-        red_mask = cv2.erode(red_mask, kernel)
-        red_mask = cv2.erode(red_mask, kernel1)
-        red_mask = cv2.dilate(red_mask, kernel1)
-        # red_mask = cv2.dilate(red_mask, kernel)
+        oper1 = True
+        oper2 = True
+        oper3 = False
+        oper4 = False
+        oper5 = False
+
+        operations = [oper1, oper2, oper3, oper4, oper5]
+
+        # red
+        red_mask = self.calc_mask(mask=red_mask,kernel=kernel,kernel1=kernel1,operations=operations)
         res_red = cv2.bitwise_and(image, image, mask = red_mask)
 
-        # R
-        red_mask1 = cv2.dilate(red_mask1, kernel)
-        red_mask1 = cv2.erode(red_mask1, kernel)
-        red_mask1 = cv2.erode(red_mask1, kernel1)
-        red_mask1 = cv2.dilate(red_mask1, kernel1)
-        # red_mask1 = cv2.dilate(red_mask1, kernel)
-        res_red1 = cv2.bitwise_and(image, image, mask = red_mask1)
-
-        # G
-        green_mask = cv2.dilate(green_mask, kernel)
-        green_mask = cv2.erode(green_mask, kernel)
-        green_mask = cv2.erode(green_mask, kernel1)
-        green_mask = cv2.dilate(green_mask, kernel1)
-        # green_mask = cv2.dilate(green_mask, kernel)
+        # green
+        green_mask = self.calc_mask(mask=green_mask,kernel=kernel,kernel1=kernel1,operations=operations)
         res_green = cv2.bitwise_and(image, image, mask = green_mask)
 
-        # B
-        blue_mask = cv2.dilate(blue_mask, kernel)
-        blue_mask = cv2.erode(blue_mask, kernel)
-        blue_mask = cv2.erode(blue_mask, kernel1)
-        blue_mask = cv2.dilate(blue_mask, kernel1)
-        # blue_mask = cv2.dilate(blue_mask, kernel)
+        # blue
+        blue_mask = self.calc_mask(mask=blue_mask,kernel=kernel,kernel1=kernel1,operations=operations)
         res_blue = cv2.bitwise_and(image, image, mask = blue_mask)
 
+        # yellow
+        yellow_mask = self.calc_mask(mask=yellow_mask,kernel=kernel,kernel1=kernel1,operations=operations)
+        res_yellow = cv2.bitwise_and(image, image, mask = yellow_mask)
+
+        # cyan
+        cyan_mask = self.calc_mask(mask=cyan_mask,kernel=kernel,kernel1=kernel1,operations=operations)
+        res_cyan = cv2.bitwise_and(image, image, mask = cyan_mask)
+
         # black
-        black_mask = cv2.dilate(black_mask, kernel)
-        black_mask = cv2.erode(black_mask, kernel)
-        black_mask = cv2.erode(black_mask, kernel1)
-        black_mask = cv2.dilate(black_mask, kernel1)
-        # black_mask = cv2.dilate(black_mask, kernel)
+        black_mask = self.calc_mask(mask=black_mask,kernel=kernel,kernel1=kernel1,operations=operations)
         res_black = cv2.bitwise_and(image, image, mask = black_mask)
 
-        final_mask = cv2.bitwise_or(red_mask,red_mask1)
+        # white
+        white_mask = self.calc_mask(mask=white_mask,kernel=kernel,kernel1=kernel1,operations=operations)
+        res_white = cv2.bitwise_and(image, image, mask = white_mask)
+
+
+
+        final_mask = cv2.bitwise_or(red_mask,red_mask)
         final_mask = cv2.bitwise_or(final_mask,green_mask)
         final_mask = cv2.bitwise_or(final_mask,blue_mask)
+        final_mask = cv2.bitwise_or(final_mask,yellow_mask)
+        final_mask = cv2.bitwise_or(final_mask,cyan_mask)
         final_mask = cv2.bitwise_or(final_mask,black_mask)
+        final_mask = cv2.bitwise_or(final_mask,white_mask)
         # final_mask = cv2.bitwise_and(final_mask,bitMaskForAnd)
 
         # final_mask = black_mask
 
-        contour, hierarchy = cv2.findContours(final_mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-        for pic, cont in enumerate(contour):
-            area = cv2.contourArea(cont)
-            if(area > 300):
-                x, y, w, h = cv2.boundingRect(cont)
-                image = cv2.rectangle(image, (x, y),(x+w,y+h), (0,255,255),2)
+        # return green_mask
+        # return final_mask
+        # return cv2.Canny(final_mask,100,200)
+
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        imageGray = cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
+
+        masksList = [red_mask, green_mask, blue_mask, yellow_mask, cyan_mask, black_mask, white_mask]
+        colorsForBorder = [ (0,0,255),
+                            (0,255,0),
+                            (255,0,0), 
+                            (0,255,255), 
+                            (255,255,0), 
+                            (0,0,0),
+                            (255,255,255)
+                            ]
+        colorDistanceList = [red_distance, green_distance, blue_distance, yellow_distance, cyan_distance, black_distance, white_distance]
+        i = -1
+        colorsDict = {  0:"red",
+                        1:"green",
+                        2:"blue",
+                        3:"yellow",
+                        4:"cyan",
+                        5:"black",
+                        6:"white"}
+        for mask, borderColor, colorDistance in zip(masksList,colorsForBorder,colorDistanceList):
+            i += 1
+            contour, hierarchy = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+
+            for pic, cont in enumerate(contour):
+                area = cv2.contourArea(cont)
+                if(area > 300):
+                    x, y, w, h = cv2.boundingRect(cont)
+                    depth_cut = depth_image[y:(y+h),x:(x+w)]
+                    image_cut = image[y:(y+h),x:(x+w)]
+                    dist_cut = colorDistance[y:(y+h),x:(x+w)]
+                    mask_cut = mask[y:(y+h),x:(x+w)]
+                    # print(colorsDict[i])
+                    # print(mask_cut.shape)
+                    mask_row_sum = np.sum(mask_cut>0,1)
+                    # print("\t",mask_row_sum.shape)
+                    bestRowIndx = np.argmax(mask_row_sum)
+                    mask_row = mask_cut[bestRowIndx,:]>0
+                    depth_row = depth_cut[bestRowIndx,:]
+
+                    tempColumnRow = depth_row*mask_row
+                    tempColumnRow[(tempColumnRow==0)] = np.Inf
+                    tempColumnRow[np.isnan(tempColumnRow)] = np.Inf
+                    bestColumnIndx = np.argmin(tempColumnRow)
+
+                    numOfCorrectColors = np.sum(mask_cut==255)
+                    numOfAllColors = h*w
+                    # print(f"{colorsDict[i]}\n\t{numOfCorrectColors}/{numOfAllColors} [{numOfCorrectColors/numOfAllColors}]")
+
+                    if numOfCorrectColors/numOfAllColors < 0.5:
+                        continue
+                    
+                    counter = 0
+                    while True:
+                        if (bestColumnIndx-counter) < 0:
+                            counter -= 1
+                            break
+                        if (bestColumnIndx+counter) == len(mask_row):
+                            counter -= 1
+                            break 
+                        if mask_row[bestColumnIndx-counter]==False or mask_row[bestColumnIndx+counter]==False or np.isinf(tempColumnRow[bestColumnIndx-counter])==True or np.isinf(tempColumnRow[bestColumnIndx+counter])==True:
+                            counter -= 1
+                            break
+                        counter += 1
+                    # print(f"\tcolumn indx: {bestColumnIndx}")
+                    # print(tempColumnRow)
+                    # print(mask_row)
+                    # print(f"\tcounter: {counter}")
+
+                    shift = np.floor((counter*2)/5).astype(int)
+                    if shift < 1:
+                        continue
+                    
+                    LL = depth_row[bestColumnIndx-shift*2]
+                    L = depth_row[bestColumnIndx-shift]
+                    C = depth_row[bestColumnIndx]
+                    R = depth_row[bestColumnIndx+shift]
+                    RR = depth_row[bestColumnIndx+shift*2]
+
+                    LL_C = LL-C
+                    L_C = L-C
+                    C_R = R-C
+                    C_RR = RR-C
+
+                    if LL_C<=0 or L_C<=0 or C_R<=0 or C_RR<=0:
+                        continue
+
+                    if LL_C<L_C*3 or C_RR<C_R*3:
+                        continue
+                    
+                    center_row_indx = np.floor(h/2).astype(int)
+                    up_shif = np.floor(h/5).astype(int)
+                    if up_shif<1:
+                        continue
+                    
+                    rowIndx1 = bestRowIndx-up_shif
+                    rowIndx2 = bestRowIndx
+                    rowIndx3 = bestRowIndx+up_shif
+                    if rowIndx1 < 0:
+                        a = depth_cut[bestRowIndx+up_shif*2][bestColumnIndx]
+                    else:
+                        a = depth_cut[bestRowIndx-up_shif][bestColumnIndx]
+                    
+                    b = depth_cut[bestRowIndx][bestColumnIndx]
+    
+                    if rowIndx3 >= h :
+                        c = depth_cut[bestRowIndx-up_shif*2][bestColumnIndx]
+                    else:
+                        c = depth_cut[bestRowIndx+up_shif][bestColumnIndx]
+                    # print(colorsDict[i])
+                    # print(a)
+                    # print(f"\t{np.abs(a-b)}")
+                    # print(b)
+                    # print(f"\t{np.abs(b-c)}")
+                    # print(c)
+                    # print(f"\t{np.abs(a-c)}")
+                    # print(a)
+                    # print()
+                    # if c > 2:
+                    #     continue
+
+                    distThreshold = 0.005
+                    if np.abs(a-b)>distThreshold or np.abs(a-c)>distThreshold or np.abs(b-c)>distThreshold:
+                        continue
+                    
+                    print(f"\tcylinder detected --> {colorsDict[i]}")
+                    imageGray = cv2.rectangle(imageGray, (x, y),(x+w,y+h), borderColor ,2)
         
         """
         contour, hierarchy = cv2.findContours(red_mask1, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
@@ -134,7 +464,7 @@ class color_localizer:
                 x, y, w, h = cv2.boundingRect(cont)
                 image = cv2.rectangle(image, (x, y),(x+w,y+h), (0,255,0),2)
         """
-        return image
+        return imageGray
         # return cv2.cvtColor(final_mask,cv2.COLOR_GRAY2BGR)
 
     def find_objects(self):
@@ -146,6 +476,13 @@ class color_localizer:
         except Exception as e:
             print(e)
             return 0
+        
+        try:
+            depth_image_message = rospy.wait_for_message("/camera/depth/image_raw", Image)
+        except Exception as e:
+            print(e)
+            return 0
+        
 
 
         # Convert the images into a OpenCV (numpy) format
@@ -154,7 +491,14 @@ class color_localizer:
         except CvBridgeError as e:
             print(e)
 
-        markedImage = self.find_color(rgb_image)
+        try:
+            depth_image = self.bridge.imgmsg_to_cv2(depth_image_message, "32FC1")
+        except CvBridgeError as e:
+            print(e)
+
+
+        markedImage = self.find_color(rgb_image, depth_image)
+        # markedImage = self.find_elipses_first(rgb_image, depth_image)
 
 
         self.pic_pub.publish(CvBridge().cv2_to_imgmsg(markedImage, encoding="passthrough"))
@@ -162,8 +506,29 @@ class color_localizer:
 
 
 
+    def find_elipse(self,contours):
+        # Fit elipses to all extracted contours
+        elps = []
+        for cnt in contours:
+            #     print cnt
+            #     print cnt.shape
+            if cnt.shape[0] >= 20:
+                ellipse = cv2.fitEllipse(cnt)
+                elps.append(ellipse)
 
 
+        # Find two elipses with same centers
+        # candidates = []
+        # for n in range(len(elps)):
+        #     for m in range(n + 1, len(elps)):
+        #         e1 = elps[n]
+        #         e2 = elps[m]
+        #         dist = np.sqrt(((e1[0][0] - e2[0][0]) ** 2 + (e1[0][1] - e2[0][1]) ** 2))
+        #         #             print dist
+        #         if dist < 5:
+        #             candidates.append((e1,e2))
+
+        return elps
 
 
 
