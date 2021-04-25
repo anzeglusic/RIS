@@ -20,6 +20,9 @@ from std_msgs.msg import ColorRGBA
 class color_localizer:
 
     def __init__(self):
+        self.found_rings = []
+        self.found_cylinders = []
+
         rospy.init_node('color_localizer', anonymous=True)
         
         # An object we use for converting images between ROS format and OpenCV format
@@ -70,7 +73,7 @@ class color_localizer:
             #preverimo ce so vse 3 točke manj kto 20cm narazen(to je največji možn diameter kroga
             good = True
             for j in itertools.combinations(i,2):
-                if np.abs(j[0] - j[1])>20:
+                if np.abs(j[0] - j[1])>0.2:
                     good = False
                     break
             if good:
@@ -79,18 +82,21 @@ class color_localizer:
                 #hardcodana natancnost ker zadeva zna mal zajebavat mogoč obstaja bolj robusten način
                 if(avgdist>3):
                     continue
-
+                #print(de.shape)
                 if de[cent[1],cent[0]] > avgdist+0.15:
                     print("center je dlje od povprečja točk")
                     #MOŽNO DA JE TREBA ZAMENAT!!
-                    return (cent[0],cent[1],avgdist)
+                    # for z in i:
+                    #     print(f"\t{z}")
+                    return (cent[1],cent[0],avgdist)
         return None
 
-    def get_pose(self,xin,yin,dist):
+    def get_pose(self,xin,yin,dist, depth_im,objectType):
         # Calculate the position of the detected ellipse
         print(dist)
         k_f = 525 # kinect focal length in pixels
 
+        xin = -(xin - depth_im.shape[1]/2)
 
         angle_to_target = np.arctan2(xin,k_f)
 
@@ -109,6 +115,38 @@ class color_localizer:
         # Get the point in the "map" coordinate system
         point_world = self.tf_buf.transform(point_s, "map")
 
+        # print(f"\nlocal point")
+        # print(f"\tx: {point_s.point.x}")
+        # print(f"\ty: {point_s.point.y}")
+        # print(f"\tz: {point_s.point.z}")
+        # print(f"world point")
+        # print(f"\tx: {point_world.point.x}")
+        # print(f"\ty: {point_world.point.y}")
+        # print(f"\tz: {point_world.point.z}")
+
+
+        allDist = []
+        if objectType == "ring":
+            for elipse in self.found_rings:
+                pointsDist = np.sqrt((elipse["x"]-point_world.point.x)**2+(elipse["y"]-point_world.point.y)**2)
+                if pointsDist < 0.5 or dist>2:
+                    return
+                allDist.append(pointsDist)
+            # allDist = np.array(allDist)
+            self.found_rings.append({"x":point_world.point.x, "y":point_world.point.y})
+        elif objectType == "cylinder":
+            for cylinder in self.found_cylinders:
+                pointsDist = np.sqrt((cylinder["x"]-point_world.point.x)**2+(cylinder["y"]-point_world.point.y)**2)
+                if pointsDist < 0.5 or dist>2:
+                    return
+                allDist.append(pointsDist)
+            # allDist = np.array(allDist)
+            self.found_cylinders.append({"x":point_world.point.x, "y":point_world.point.y})
+
+
+        pprint(sorted(allDist))
+
+
         # Create a Pose object with the same position
         pose = Pose()
         pose.position.x = point_world.point.x
@@ -124,7 +162,7 @@ class color_localizer:
         marker.type = Marker.CUBE
         marker.action = Marker.ADD
         marker.frame_locked = False
-        marker.lifetime = rospy.Duration.from_sec(10)
+        marker.lifetime = rospy.Duration.from_sec(0)
         marker.id = self.nM
         marker.scale = Vector3(0.1, 0.1, 0.1)
         marker.color = ColorRGBA(0, 1, 0, 1)
@@ -152,7 +190,7 @@ class color_localizer:
         w2 = el[0] + rot.dot(w2)
         return h1,h2,w1,w2
     
-    def find_elipses_first(self,image,depth_image,stamp):
+    def find_elipses_first(self,image,depth_image,stamp,grayBGR_toDrawOn):
 
         minValue = np.nanmin(depth_image)
         maxValue = np.nanmax(depth_image)
@@ -260,7 +298,7 @@ class color_localizer:
 
             # Example how to draw the contours
             # cv2.drawContours(frame, contours, -1, (255, 0, 0), 3)
-            
+
             # Fit elipses to all extracted contours
             elps = []
             for cnt in contours:
@@ -306,24 +344,23 @@ class color_localizer:
                 w11= np.round((w11+w1)/2).astype(int)
                 w21= np.round((w21+w2)/2).astype(int)
                 # drawing the ellipses on the image
-                cv2.ellipse(gray1, e1, (0, 0, 255), 2)
-                cv2.ellipse(gray1, e2, (0, 0, 255), 2)
+                cv2.ellipse(grayBGR_toDrawOn, e1, (0, 0, 255), 2)
+                cv2.ellipse(grayBGR_toDrawOn, e2, (0, 0, 255), 2)
 
                 
-                cv2.circle(gray1,tuple( c[2]),1,(0,255,0),2)
-                cv2.circle(gray1,tuple( h11),1,(0,255,0),2)
-                cv2.circle(gray1,tuple( h21),1,(0,255,0),2)
-                cv2.circle(gray1,tuple( w11),1,(0,255,0),2)
-                cv2.circle(gray1,tuple( w21),1,(0,255,0),2)
+                cv2.circle(grayBGR_toDrawOn,tuple( c[2]),1,(0,255,0),2)
+                cv2.circle(grayBGR_toDrawOn,tuple( h11),1,(0,255,0),2)
+                cv2.circle(grayBGR_toDrawOn,tuple( h21),1,(0,255,0),2)
+                cv2.circle(grayBGR_toDrawOn,tuple( w11),1,(0,255,0),2)
+                cv2.circle(grayBGR_toDrawOn,tuple( w21),1,(0,255,0),2)
                 
                 cntr_ring = self.chk_ring(depth_im,h11,h21,w11,w21,c[2])
                 try:
-                    ring_point = self.get_pose(cntr_ring[1],cntr_ring[0],cntr_ring[2])
+                    ring_point = self.get_pose(cntr_ring[1],cntr_ring[0],cntr_ring[2],depth_im,"ring")
                     
                 except Exception as e:
                     print(e)
-            return gray1
-
+            return grayBGR_toDrawOn
 
     def calc_rgb_distance_mask(self, image, rgb_value, minDistance):
         rangeImage = image - np.array(rgb_value)
@@ -360,7 +397,7 @@ class color_localizer:
             mask = cv2.dilate(mask, kernel)
         return mask
 
-    def find_color(self,image, depth_image):
+    def find_color(self,image, depth_image, grayBGR_toDrawOn):
         '''
         hsvIm = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
 
@@ -589,7 +626,11 @@ class color_localizer:
                         continue
                     
                     print(f"\tcylinder detected --> {colorsDict[i]}")
-                    imageGray = cv2.rectangle(imageGray, (x, y),(x+w,y+h), borderColor ,2)
+                    try:
+                        self.get_pose((x+w/2),(y+h/2),C,depth_image,"cylinder")
+                    except Exception as e:
+                        print(e)
+                    grayBGR_toDrawOn = cv2.rectangle(grayBGR_toDrawOn, (x, y),(x+w,y+h), borderColor ,2)
         
         """
         contour, hierarchy = cv2.findContours(red_mask1, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
@@ -599,7 +640,7 @@ class color_localizer:
                 x, y, w, h = cv2.boundingRect(cont)
                 image = cv2.rectangle(image, (x, y),(x+w,y+h), (0,255,0),2)
         """
-        return imageGray
+        return grayBGR_toDrawOn
         # return cv2.cvtColor(final_mask,cv2.COLOR_GRAY2BGR)
 
     def find_objects(self):
@@ -631,10 +672,10 @@ class color_localizer:
         except CvBridgeError as e:
             print(e)
 
-
-        #markedImage = self.find_color(rgb_image, depth_image)
-        markedImage = self.find_elipses_first(rgb_image, depth_image,depth_image_message.header.stamp)
-
+        grayImage = cv2.cvtColor(rgb_image,cv2.COLOR_BGR2GRAY)
+        grayImage = cv2.cvtColor(grayImage,cv2.COLOR_GRAY2BGR)
+        markedImage = self.find_color(rgb_image, depth_image, grayImage)
+        markedImage = self.find_elipses_first(rgb_image, depth_image,depth_image_message.header.stamp, grayImage)
 
         self.pic_pub.publish(CvBridge().cv2_to_imgmsg(markedImage, encoding="passthrough"))
         #self.markers_pub.publish(self.m_arr)
@@ -669,7 +710,7 @@ def main():
 
         rate = rospy.Rate(1.25)
         while not rospy.is_shutdown():
-            #print("hello!")
+            # print("hello!")
             color_finder.find_objects()
             #print("hello")
             #print("\n-----------\n")
