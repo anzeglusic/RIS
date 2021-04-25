@@ -4,6 +4,7 @@ import sys
 import rospy
 import dlib
 import cv2
+import os
 import numpy as np
 import tf2_geometry_msgs
 import tf2_ros
@@ -25,7 +26,7 @@ class face_localizer:
         # The function for performin HOG face detection
         #self.face_detector = dlib.get_frontal_face_detector()
         #! TODO: change path, so it will be independet to the user
-        self.face_net = cv2.dnn.readNetFromCaffe('deploy.prototxt.txt', 'res10_300x300_ssd_iter_140000.caffemodel')
+        self.face_net = cv2.dnn.readNetFromCaffe(os.getcwd()+'deploy.prototxt.txt', 'res10_300x300_ssd_iter_140000.caffemodel')
         # A help variable for holding the dimensions of the image
         self.dims = (0, 0, 0)
 
