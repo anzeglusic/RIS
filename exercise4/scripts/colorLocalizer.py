@@ -79,11 +79,13 @@ class color_localizer:
             if good:
                 #print("we good")
                 avgdist = sum(i)/3
+                # print(f"\t>  {de[cent[1],cent[0]]}")
+                # print(f"\t\t {avgdist}")
                 #hardcodana natancnost ker zadeva zna mal zajebavat mogoč obstaja bolj robusten način
                 if(avgdist>3):
                     continue
                 #print(de.shape)
-                if de[cent[1],cent[0]] > avgdist+0.15:
+                if de[cent[1],cent[0]] > avgdist+0.15 or (np.isnan(de[cent[1],cent[0]]) and (not np.isnan(avgdist))):
                     print("center je dlje od povprečja točk")
                     #MOŽNO DA JE TREBA ZAMENAT!!
                     # for z in i:
@@ -91,7 +93,7 @@ class color_localizer:
                     return (cent[1],cent[0],avgdist)
         return None
 
-    def get_pose(self,xin,yin,dist, depth_im,objectType):
+    def get_pose(self,xin,yin,dist, depth_im,objectType,depth_stamp):
         # Calculate the position of the detected ellipse
         print(dist)
         k_f = 525 # kinect focal length in pixels
@@ -110,7 +112,8 @@ class color_localizer:
         point_s.point.y = 0
         point_s.point.z = x
         point_s.header.frame_id = "camera_rgb_optical_frame"
-        point_s.header.stamp = rospy.Time(0)
+        # point_s.header.stamp = rospy.Time(0)
+        point_s.header.stamp = depth_stamp
 
         # Get the point in the "map" coordinate system
         point_world = self.tf_buf.transform(point_s, "map")
@@ -129,22 +132,26 @@ class color_localizer:
         if objectType == "ring":
             for elipse in self.found_rings:
                 pointsDist = np.sqrt((elipse["x"]-point_world.point.x)**2+(elipse["y"]-point_world.point.y)**2)
-                if pointsDist < 0.5 or dist>2:
-                    return
+                # if pointsDist < 0.5 or dist>2:
+                #     return
+                # if pointsDist < 0.5:
+                #     return
                 allDist.append(pointsDist)
             # allDist = np.array(allDist)
             self.found_rings.append({"x":point_world.point.x, "y":point_world.point.y})
         elif objectType == "cylinder":
             for cylinder in self.found_cylinders:
                 pointsDist = np.sqrt((cylinder["x"]-point_world.point.x)**2+(cylinder["y"]-point_world.point.y)**2)
-                if pointsDist < 0.5 or dist>2:
+                # if pointsDist < 0.5 or dist>2:
+                #     return
+                if dist>2:
                     return
                 allDist.append(pointsDist)
             # allDist = np.array(allDist)
             self.found_cylinders.append({"x":point_world.point.x, "y":point_world.point.y})
 
 
-        pprint(sorted(allDist))
+        #!pprint(sorted(allDist))
 
 
         # Create a Pose object with the same position
@@ -165,7 +172,10 @@ class color_localizer:
         marker.lifetime = rospy.Duration.from_sec(0)
         marker.id = self.nM
         marker.scale = Vector3(0.1, 0.1, 0.1)
-        marker.color = ColorRGBA(0, 1, 0, 1)
+        if objectType == "ring":
+            marker.color = ColorRGBA(1, 0, 0, 1)
+        else:
+            marker.color = ColorRGBA(0, 1, 0, 1)
         self.m_arr.markers.append(marker)
 
         self.markers_pub.publish(self.m_arr)
@@ -190,11 +200,51 @@ class color_localizer:
         w2 = el[0] + rot.dot(w2)
         return h1,h2,w1,w2
     
-    def find_elipses_first(self,image,depth_image,stamp,grayBGR_toDrawOn):
+    def calc_thresholds(self, frame):
+        # Do histogram equlization
+        img = cv2.equalizeHist(frame)
+            
+        threshDict = {}
+        # Binarize the image - original
+        ret, thresh = cv2.threshold(img, 50, 255, 0)
+        ret, thresh = cv2.threshold(img, 50, 255, cv2.THRESH_BINARY)
+        threshDict["normal"] = thresh
 
+        # binary + otsu
+        ret, thresh = cv2.threshold(img, 50, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        threshDict["binaryOtsu"] = thresh
+
+        # # gauss + binary + otsu
+        img2 = cv2.GaussianBlur(img,(5,5),2)
+        ret, thresh = cv2.threshold(img2, 50, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        # threshDict["gaussBinaryOtsu"] = thresh
+        
+        # # adaptive mean threshold
+        thresh = cv2.adaptiveThreshold(img,255,cv2.ADAPTIVE_THRESH_MEAN_C,\
+                cv2.THRESH_BINARY,3,2)
+        # threshDict["adaptiveMean"] = thresh
+        
+        # # adaptive gaussian threshold
+        thresh = cv2.adaptiveThreshold(img,255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C,\
+            cv2.THRESH_BINARY,3,2)
+        # threshDict["adaptiveGauss"] = thresh
+
+        return threshDict
+
+    def find_elipses_first(self,image,depth_image,im_stamp,depth_stamp,grayBGR_toDrawOn):
+        print(im_stamp.to_sec())
+        print(depth_stamp.to_sec())
+        diff = (im_stamp.to_sec()-depth_stamp.to_sec())
+        print(diff)
+        print()
+        if (np.abs(diff) > 0.5):
+            print("skip")
+            return grayBGR_toDrawOn
+
+        # change depth image
         minValue = np.nanmin(depth_image)
         maxValue = np.nanmax(depth_image)
-        depth_im = depth_image
+        depth_im = depth_image.copy()
         temp_mask = ~np.isfinite(depth_image)
         nanToValue = maxValue*1.25
         depth_image[temp_mask] = nanToValue
@@ -202,34 +252,39 @@ class color_localizer:
         depth_image = depth_image * 255/(nanToValue - minValue)
         depth_image = np.round(depth_image)
         depth_image = depth_image.astype(np.uint8)
+
+
         # print(depth_image)
         # print(np.min(depth_image))
         # print(np.max(depth_image))
         # print(depth_image.shape)
 
+
         frame = image.copy()
 
-        imagesToTest = [
-                        frame[:,:,0],
-                        frame[:,:,1],
-                        frame[:,:,2],
-                        cv2.cvtColor(image,cv2.COLOR_BGR2GRAY),
-                        cv2.cvtColor(image,cv2.COLOR_BGR2HSV)[:,:,0],
-                        cv2.cvtColor(image,cv2.COLOR_BGR2HSV)[:,:,1],
-                        cv2.cvtColor(image,cv2.COLOR_BGR2HSV)[:,:,2],
-                        depth_image
+        imagesToTest =  [
+                         frame[:,:,0]
+                        , frame[:,:,1]
+                        , frame[:,:,2]
+                        , cv2.cvtColor(frame,cv2.COLOR_BGR2GRAY)
+                        , cv2.cvtColor(frame,cv2.COLOR_BGR2HSV)[:,:,0]
+                        , cv2.cvtColor(frame,cv2.COLOR_BGR2HSV)[:,:,1]
+                        , cv2.cvtColor(frame,cv2.COLOR_BGR2HSV)[:,:,2]
+                        # , depth_image
                         ]
 
         # Set the dimensions of the image
         dims = frame.shape
 
+        # return cv2.addWeighted(depth_image,0.5,cv2.cvtColor(frame,cv2.COLOR_BGR2HSV)[:,:,2],0.5,0)
+
         # Tranform image to gayscale
-        gray1 = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        gray1 = cv2.cvtColor(gray1,cv2.COLOR_GRAY2BGR)
+        # gray1 = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        # gray1 = cv2.cvtColor(gray1,cv2.COLOR_GRAY2BGR)
         # gray1 = cv2.cvtColor(depth_image,cv2.COLOR_GRAY2BGR)
 
         # return cv2.cvtColor(gray,cv2.COLOR_GRAY2BGR)
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+        # gray = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
         # gray[:,:,1] = 255
         # gray[:,:,2] = 255
         # sat = gray[:,:,1] < 128
@@ -237,130 +292,201 @@ class color_localizer:
         # return cv2.cvtColor(gray,cv2.COLOR_HSV2BGR)
         # return cv2.cvtColor(gray[:,:,2],cv2.COLOR_GRAY2BGR)
 
+        allFramesAnalized = []
+
         for i in range(len(imagesToTest)):
-            gray = imagesToTest[i]
-
-            # Do histogram equlization
-            img = cv2.equalizeHist(gray)
+            currentImage = imagesToTest[i]
             
-            threshDict = {}
-            # Binarize the image - original
-            # ret, thresh = cv2.threshold(img, 50, 255, 0)
-            ret, thresh = cv2.threshold(img, 50, 255, cv2.THRESH_BINARY)
-            threshDict["normal"] = thresh
+            threshDict = self.calc_thresholds(currentImage)
 
-            # binary + otsu
-            ret, thresh = cv2.threshold(img, 50, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-            threshDict["binaryOtsu"] = thresh
+            allFramesAnalized.append(threshDict)
 
-            # gauss + binary + otsu
-            img2 = cv2.GaussianBlur(img,(5,5),2)
-            ret, thresh = cv2.threshold(img2, 50, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-            threshDict["gaussBinaryOtsu"] = thresh
-            
-            # adaptive mean threshold
-            thresh = cv2.adaptiveThreshold(img,255,cv2.ADAPTIVE_THRESH_MEAN_C,\
-                    cv2.THRESH_BINARY,11,2)
-            threshDict["adaptiveMean"] = thresh
-            
-            # adaptive gaussian threshold
-            thresh = cv2.adaptiveThreshold(img,255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C,\
-                cv2.THRESH_BINARY,11,2)
-            threshDict["adaptiveGauss"] = thresh
-
-            # t = threshDict["normal"]
-            # pprint(t)
-            t = None
-            for i,key in enumerate(threshDict):
-                if i==0:
-                    t = threshDict[key]
+        # t = threshDict["normal"]
+        # pprint(t)
+        t = None
+        counter = 0
+        eachAvg = []
+        for threshDict in allFramesAnalized:
+            avg = None
+            for j,key in enumerate(threshDict):
+                # current frame
+                if j==0:
+                    avg = threshDict[key]/len(allFramesAnalized)
                 else:
-                    part1 = i/(i+1)
-                    part2 = 1-part1
+                    avg += threshDict[key]/len(allFramesAnalized)
+                #all frames
+                if counter==0:
+                    t = threshDict[key]
+                    counter += 1
+                else:
+                    part1 = counter/(counter+1)
+                    part2 = 1/(counter+1)
                     t = cv2.addWeighted(t,part1, threshDict[key],part2, 0)
+                    counter += 1
+            eachAvg.append(avg)
             
-            thresh = t
+        thresh = t
 
-            thresh = cv2.Canny(gray,100,200)
+        # return thresh
 
-            #return cv2.cvtColor(thresh,cv2.COLOR_GRAY2RGB)
+        thresh = cv2.Canny(thresh,100,200)
+        # return thresh
+
+        # toReturn = cv2.cvtColor(thresh,cv2.COLOR_GRAY2BGR)
 
 
+        depthThresh = self.calc_thresholds(depth_image)
+        depth_t = None
+        for i, key in enumerate(depthThresh):
+            if i==0:
+                depth_t = depthThresh[key]
+            else:
+                part1 = i/(i+1)
+                part2 = 1/(i+1)
+                depth_t = cv2.addWeighted(depth_t,part1, depthThresh[key],part2, 0)
+        
+
+        # return cv2.addWeighted(depth_t,0.5, t,0.5, 0)
+        # return cv2.vconcat([t,depth_t])
+        
+        depth_t = cv2.Canny(depth_t, 100,200)
+
+        # toReturn = cv2.cvtColor(t,cv2.COLOR_GRAY2BGR)
+        # toReturn = cv2.cvtColor(cv2.addWeighted(depth_t,0.5, t, 0.5,0),cv2.COLOR_GRAY2BGR)
+        # return toReturn
+        toReturn = image.copy()
+        toReturn[:,:,0] = thresh
+        toReturn[:,:,1] = 0
+        toReturn[:,:,2] = depth_t
+        bestShift = -1000
+        bestScore = 0
+        for shiftX in range(-100,100):
+            M = np.float32([[1,0,shiftX],[0,1,0]])
+            toReturn[:,:,2] = cv2.warpAffine(depth_t,M,(toReturn.shape[1],toReturn.shape[0])).astype(np.uint8)
+
+            b = np.sum((toReturn[:,:,0]*toReturn[:,:,2])>0)
+            c = np.sum(toReturn[:,:,0]==255)
+            d = np.sum(toReturn[:,:,2]==255)
+            # print(f"\t\t\tb: {b}")
+            # print(f"\t\t\tc: {c}")
+            # print(f"\t\t\td: {d}\n")
+            # print(b/c)
+            b = b/(c+d-b)
+            # b = np.sum(((toReturn[:,:,0]==255)toReturn[:,:,2])>0)/(toReturn.shape[0]*toReturn.shape[1])
+            if b > bestScore:
+                bestShift = shiftX
+                bestScore = b
+            # print(b)
+        print(f"\t\t\tbestShift: {bestShift}")
+        print(f"\t\t\tbestScore: {bestScore}")
+        shiftX = bestShift
+        M = np.float32([[1,0,shiftX],[0,1,0]])
+        toReturn[:,:,2] = cv2.warpAffine(depth_t,M,(toReturn.shape[1],toReturn.shape[0])).astype(np.uint8)
+        depth_im_shifted = cv2.warpAffine(depth_im,M,(depth_im.shape[1],depth_im.shape[0]))
+        # grayBGR_toDrawOn = cv2.addWeighted(grayBGR_toDrawOn,0.5,cv2.cvtColor(toReturn[:,:,2],cv2.COLOR_GRAY2BGR).astype(np.uint8),0.5,0)
+        # return depth_im_shifted
+        # toReturn[(toReturn[:,:,0]*toReturn[:,:,2])>0] = [0,255,0]
+        # return toReturn
+        # toReturn[:,:,2] = (depth_t==255)*depth_t + (depth_t==0)*toReturn[:,:,2]
+        # toReturn[:,:,2] = (thresh==255)*depth_t + (thresh==0)*toReturn[:,:,2]
+
+        # return (toReturn[:,:,0]-toReturn[:,:,2]).astype(np.uint8)
+
+        # return toReturn
+        # return depth_t
+        # edges = toReturn.copy()
+        # edges = cv2.cvtColor(cv2.addWeighted(cv2.cvtColor(frame,cv2.COLOR_BGR2HSV)[:,:,2],0.5, depth_image,0.5, 0),cv2.COLOR_GRAY2BGR)
+        # edges[:,:,:] = 0
+        # edges[:,:,0] = thresh
+        # edges[:,:,1] = cv2.cvtColor(image,cv2.COLOR_BGR2GRAY) 
+        # edges[:,:,2] = depth_t
+        # edges[thresh==255] = [255,0,0]
+        # edges[depth_t==255] = [0,0,255]
+        # edges[((thresh==255)*1 + (depth_t==255)*1)==2] = [255,0,255]
+
+        # return toReturn
+        # return edges
+        # return cv2.vconcat([toReturn,edges])
+        
 
 
-            kernel = np.ones((5,5), "uint8")
+        kernel = np.ones((5,5), "uint8")
 
-            # threshDict["adaptiveGauss"] = cv2.erode(threshDict["adaptiveGauss"], kernel)
-            #return cv2.cvtColor(cv2.bitwise_not(threshDict["adaptiveGauss"]),cv2.COLOR_GRAY2RGB)
+        # threshDict["adaptiveGauss"] = cv2.erode(threshDict["adaptiveGauss"], kernel)
+        #return cv2.cvtColor(cv2.bitwise_not(threshDict["adaptiveGauss"]),cv2.COLOR_GRAY2RGB)
 
-            # Extract contours
-            contours, hierarchy = cv2.findContours(thresh, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+        # Extract contours
+        contours, hierarchy = cv2.findContours(thresh, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
 
-            # Example how to draw the contours
-            # cv2.drawContours(frame, contours, -1, (255, 0, 0), 3)
+        # Example how to draw the contours
+        # cv2.drawContours(frame, contours, -1, (255, 0, 0), 3)
 
-            # Fit elipses to all extracted contours
-            elps = []
-            for cnt in contours:
-                #     print cnt
-                #     print cnt.shape
-                if cnt.shape[0] >= 20:
-                    ellipse = cv2.fitEllipse(cnt)
-                    elps.append(ellipse)
+        # Fit elipses to all extracted contours
+        elps = []
+        for cnt in contours:
+            #     print cnt
+            #     print cnt.shape
+            if cnt.shape[0] >= 20:
+                ellipse = cv2.fitEllipse(cnt)
+                elps.append(ellipse)
 
-            # Find two elipses with same centers
-            candidates = []
-            for n in range(len(elps)):
-                for m in range(n + 1, len(elps)):
-                    e1 = elps[n]
-                    e2 = elps[m]
-                    dist = np.sqrt(((e1[0][0] - e2[0][0]) ** 2 + (e1[0][1] - e2[0][1]) ** 2))
-                    avg_cent = (int((e1[0][0] + e2[0][0])/2), int((e1[0][1] + e2[0][1])/2))
-                    #             print dist
-                    #preverimo da sta res 2 razlicne elipse in en vec za malo različnih elips
-                    if dist < 5 and np.abs(e1[1][0]-e2[1][0])>1 and np.abs(e1[1][1]-e2[1][1]) > 1:
-                        #print()
-                        conf = True
-                        #precerimo da ne dodajamo vec kot en isti par elips
-                        for d in candidates:
-                            dis = np.sqrt(((avg_cent[0] - d[2][0]) ** 2 + (avg_cent[1] - d[2][1]) ** 2))
-                            if dis < 5:
-                                conf = False
-                        if conf:
-                            candidates.append((e1,e2,avg_cent))
-            ##print(len(candidates))
-            #rabimo trimat tiste ki so si izredno blizu
+        # Find two elipses with same centers
+        candidates = []
+        biggest = []
+        smallest = []
+        for n in range(len(elps)):
+            for m in range(n + 1, len(elps)):
+                e1 = elps[n]
+                e2 = elps[m]
+                dist = np.sqrt(((e1[0][0] - e2[0][0]) ** 2 + (e1[0][1] - e2[0][1]) ** 2))
+                avg_cent = (int((e1[0][0] + e2[0][0])/2), int((e1[0][1] + e2[0][1])/2))
+                #             print dist
+                #preverimo da sta res 2 razlicne elipse in en vec za malo različnih elips
+                if dist < 5 and np.abs(e1[1][0]-e2[1][0])>1 and np.abs(e1[1][1]-e2[1][1]) > 1:
+                    #print()
+                    conf = True
+                    #precerimo da ne dodajamo vec kot en isti par elips
+                    for d in candidates:
+                        dis = np.sqrt(((avg_cent[0] - d[2][0]) ** 2 + (avg_cent[1] - d[2][1]) ** 2))
+                        if dis < 5:
+                            conf = False
+                    if conf:
+                        candidates.append((e1,e2,avg_cent))
+        ##print(len(candidates))
+        #rabimo trimat tiste ki so si izredno blizu
+        
+        for c in candidates:
+            #print("candidates found",)
+            # the centers of the ellipses
+            e1 = c[0]
+            e2 = c[1]
+
+            h1,h2,w1,w2 = self.calc_pnts(e1)
+            h11,h21,w11,w21 = self.calc_pnts(e2)
+            h11= np.round((h11+h1)/2).astype(int)
+            h21= np.round((h21+h2)/2).astype(int)
+            w11= np.round((w11+w1)/2).astype(int)
+            w21= np.round((w21+w2)/2).astype(int)
+            # drawing the ellipses on the image
+            cv2.ellipse(grayBGR_toDrawOn, e1, (0, 0, 255), 2)
+            cv2.ellipse(grayBGR_toDrawOn, e2, (0, 0, 255), 2)
+
             
-            for c in candidates:
-                #print("candidates found",)
-                # the centers of the ellipses
-                e1 = c[0]
-                e2 = c[1]
-
-                h1,h2,w1,w2 = self.calc_pnts(e1)
-                h11,h21,w11,w21 = self.calc_pnts(e2)
-                h11= np.round((h11+h1)/2).astype(int)
-                h21= np.round((h21+h2)/2).astype(int)
-                w11= np.round((w11+w1)/2).astype(int)
-                w21= np.round((w21+w2)/2).astype(int)
-                # drawing the ellipses on the image
-                cv2.ellipse(grayBGR_toDrawOn, e1, (0, 0, 255), 2)
-                cv2.ellipse(grayBGR_toDrawOn, e2, (0, 0, 255), 2)
-
+            cv2.circle(grayBGR_toDrawOn,tuple( c[2]),1,(0,255,0),2)
+            cv2.circle(grayBGR_toDrawOn,tuple( h11),1,(0,255,0),2)
+            cv2.circle(grayBGR_toDrawOn,tuple( h21),1,(0,255,0),2)
+            cv2.circle(grayBGR_toDrawOn,tuple( w11),1,(0,255,0),2)
+            cv2.circle(grayBGR_toDrawOn,tuple( w21),1,(0,255,0),2)
+            
+            cntr_ring = self.chk_ring(depth_im_shifted,h11,h21,w11,w21,c[2])
+            # cntr_ring = self.chk_ring(depth_im,h11,h21,w11,w21,c[2])
+            try:
+                ring_point = self.get_pose(cntr_ring[1],cntr_ring[0],cntr_ring[2],depth_im_shifted,"ring",depth_stamp)
+                # ring_point = self.get_pose(cntr_ring[1],cntr_ring[0],cntr_ring[2],depth_im,"ring")
                 
-                cv2.circle(grayBGR_toDrawOn,tuple( c[2]),1,(0,255,0),2)
-                cv2.circle(grayBGR_toDrawOn,tuple( h11),1,(0,255,0),2)
-                cv2.circle(grayBGR_toDrawOn,tuple( h21),1,(0,255,0),2)
-                cv2.circle(grayBGR_toDrawOn,tuple( w11),1,(0,255,0),2)
-                cv2.circle(grayBGR_toDrawOn,tuple( w21),1,(0,255,0),2)
-                
-                cntr_ring = self.chk_ring(depth_im,h11,h21,w11,w21,c[2])
-                try:
-                    ring_point = self.get_pose(cntr_ring[1],cntr_ring[0],cntr_ring[2],depth_im,"ring")
-                    
-                except Exception as e:
-                    print(e)
-            return grayBGR_toDrawOn
+            except Exception as e:
+                print(e)
+        return grayBGR_toDrawOn
 
     def calc_rgb_distance_mask(self, image, rgb_value, minDistance):
         rangeImage = image - np.array(rgb_value)
@@ -397,7 +523,7 @@ class color_localizer:
             mask = cv2.dilate(mask, kernel)
         return mask
 
-    def find_color(self,image, depth_image, grayBGR_toDrawOn):
+    def find_color(self,image, depth_image, grayBGR_toDrawOn,depth_stamp):
         '''
         hsvIm = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
 
@@ -627,7 +753,7 @@ class color_localizer:
                     
                     print(f"\tcylinder detected --> {colorsDict[i]}")
                     try:
-                        self.get_pose((x+w/2),(y+h/2),C,depth_image,"cylinder")
+                        self.get_pose((x+w/2),(y+h/2),C,depth_image,"cylinder",depth_stamp)
                     except Exception as e:
                         print(e)
                     grayBGR_toDrawOn = cv2.rectangle(grayBGR_toDrawOn, (x, y),(x+w,y+h), borderColor ,2)
@@ -674,8 +800,8 @@ class color_localizer:
 
         grayImage = cv2.cvtColor(rgb_image,cv2.COLOR_BGR2GRAY)
         grayImage = cv2.cvtColor(grayImage,cv2.COLOR_GRAY2BGR)
-        markedImage = self.find_color(rgb_image, depth_image, grayImage)
-        markedImage = self.find_elipses_first(rgb_image, depth_image,depth_image_message.header.stamp, grayImage)
+        markedImage = self.find_color(rgb_image, depth_image, grayImage,depth_image_message.header.stamp)
+        markedImage = self.find_elipses_first(rgb_image, depth_image,rgb_image_message.header.stamp, depth_image_message.header.stamp, markedImage)
 
         self.pic_pub.publish(CvBridge().cv2_to_imgmsg(markedImage, encoding="passthrough"))
         #self.markers_pub.publish(self.m_arr)
