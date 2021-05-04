@@ -219,29 +219,29 @@ class color_localizer:
         # # gauss + binary + otsu
         img2 = cv2.GaussianBlur(img,(5,5),2)
         ret, thresh = cv2.threshold(img2, 50, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-        # threshDict["gaussBinaryOtsu"] = thresh
+        threshDict["gaussBinaryOtsu"] = thresh
         
         # # adaptive mean threshold
         thresh = cv2.adaptiveThreshold(img,255,cv2.ADAPTIVE_THRESH_MEAN_C,\
                 cv2.THRESH_BINARY,3,2)
-        # threshDict["adaptiveMean"] = thresh
+        threshDict["adaptiveMean"] = thresh
         
         # # adaptive gaussian threshold
         thresh = cv2.adaptiveThreshold(img,255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C,\
             cv2.THRESH_BINARY,3,2)
-        # threshDict["adaptiveGauss"] = thresh
+        threshDict["adaptiveGauss"] = thresh
 
         return threshDict
 
     def find_elipses_first(self,image,depth_image,im_stamp,depth_stamp,grayBGR_toDrawOn):
-        print(im_stamp.to_sec())
-        print(depth_stamp.to_sec())
-        diff = (im_stamp.to_sec()-depth_stamp.to_sec())
-        print(diff)
+        print(f"rgb_stamp_sec:    {im_stamp.to_sec()}")
+        print(f"depth_stamp_sec:  {depth_stamp.to_sec()}")
+        diff = (depth_stamp.to_sec()-im_stamp.to_sec())
+        print(f"diff:             {diff}")
         print()
         if (np.abs(diff) > 0.5):
             print("skip")
-            return grayBGR_toDrawOn
+            return grayBGR_toDrawOn,depth_image
 
         # change depth image
         minValue = np.nanmin(depth_image)
@@ -418,7 +418,7 @@ class color_localizer:
 
         # threshDict["adaptiveGauss"] = cv2.erode(threshDict["adaptiveGauss"], kernel)
         #return cv2.cvtColor(cv2.bitwise_not(threshDict["adaptiveGauss"]),cv2.COLOR_GRAY2RGB)
-
+        # return t,depth_im_shifted
         # Extract contours
         contours, hierarchy = cv2.findContours(thresh, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
 
@@ -434,32 +434,123 @@ class color_localizer:
                 ellipse = cv2.fitEllipse(cnt)
                 elps.append(ellipse)
 
+        #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! LOWER CODE IS NOT TO BE TOUCHED !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         # Find two elipses with same centers
+        """
+        ((62.60783004760742, 82.68326568603516), --> (x,y)
+        (32.40898513793945, 39.01688003540039), --> (širina,višina)
+        134.35227966308594) --> naklon
+        """
         candidates = []
-        biggest = []
-        smallest = []
         for n in range(len(elps)):
             for m in range(n + 1, len(elps)):
                 e1 = elps[n]
                 e2 = elps[m]
+                # pprint(e1)
+                # pprint(e2)
+                # print("----")
                 dist = np.sqrt(((e1[0][0] - e2[0][0]) ** 2 + (e1[0][1] - e2[0][1]) ** 2))
                 avg_cent = (int((e1[0][0] + e2[0][0])/2), int((e1[0][1] + e2[0][1])/2))
                 #             print dist
-                #preverimo da sta res 2 razlicne elipse in en vec za malo različnih elips
-                if dist < 5 and np.abs(e1[1][0]-e2[1][0])>1 and np.abs(e1[1][1]-e2[1][1]) > 1:
-                    #print()
-                    conf = True
-                    #precerimo da ne dodajamo vec kot en isti par elips
-                    for d in candidates:
-                        dis = np.sqrt(((avg_cent[0] - d[2][0]) ** 2 + (avg_cent[1] - d[2][1]) ** 2))
-                        if dis < 5:
-                            conf = False
-                    if conf:
-                        candidates.append((e1,e2,avg_cent))
+                # candidates.append((e1,e2,avg_cent))
+                # continue
+                # cv2.ellipse(grayBGR_toDrawOn, e1, (255, 0, 0), 2)
+                # cv2.ellipse(grayBGR_toDrawOn, e2, (255, 0, 0), 2)
+
+                # centers must be less then 5px appart
+                if dist > 5:
+                    continue
+                
+                diff_w = e1[1][0] - e2[1][0]
+                diff_h = e1[1][1] - e2[1][1]
+                # width and height of e1 must be bouth smaller/bigger then from e2
+                if (diff_w == 0) or (diff_h == 0) or ((diff_h*diff_w)<0):
+                    continue
+
+                # width and height must be smaller then 100
+                if np.abs(diff_w)>100 or np.abs(diff_h)>100:
+                    continue
+                
+                
+                acceptNew = True
+                for i,c in enumerate(candidates):
+                    (c_e1, c_e2, c_avg_cent) = c
+                    # check if centers are almost the same
+                    centers_dist = np.sqrt((c_avg_cent[0]-avg_cent[0])**2 + (c_avg_cent[1]-avg_cent[1])**2)
+                    # print(f"\tcent_dist: {centers_dist}")
+                    
+                    # check if they have same centers
+                    if centers_dist < 5:
+                        acceptNew = False
+                        
+                        diff_w = e1[1][0] - e2[1][0]
+                        diff_h = e1[1][1] - e2[1][1]
+                        avgDiff = np.abs((diff_w + diff_h)/2)
+                        
+                        c_diff_w = c_e1[1][0] - c_e2[1][0]
+                        c_diff_h = c_e1[1][1] - c_e2[1][1]
+                        c_avgDiff = np.abs((c_diff_w + c_diff_h)/2)
+
+
+                        # print(f"\t\t\t\t\tchecking candidates {i}")
+                        # print(f"\tcenters:")
+                        # print(f"\t\te1:   {e1[0]}")
+                        # print(f"\t\te2:   {e2[0]}")
+                        # print(f"\t\tc_e1: {c_e1[0]}")
+                        # print(f"\t\tc_e2: {c_e2[0]}")
+                        # print(f"\tsize:")
+                        # print(f"\t\te1:   {e1[1]}")
+                        # print(f"\t\te2:   {e2[1]}")
+                        # print(f"\t\tc_e1: {c_e1[1]}")
+                        # print(f"\t\tc_e2: {c_e2[1]}")
+                        # print(f"\tangle:")
+                        # print(f"\t\te1:   {e1[2]}")
+                        # print(f"\t\te2:   {e2[2]}")
+                        # print(f"\t\tc_e1: {c_e1[2]}")
+                        # print(f"\t\tc_e2: {c_e2[2]}")
+                        # print(f"\tdiff:")
+                        # print(f"\t\tnew:  {avgDiff}")
+                        # print(f"\t\torg:  {c_avgDiff}")
+                        # print("----")
+                        
+                        # check if average difference of width and height is bigger in new elipses 
+                        if avgDiff > c_avgDiff:
+                            # print(F"replacement:")
+                            # print(F"\toriginal: {e1[1][0]/e1[1][1] - e2[1][0]/e2[1][1]}")
+                            # print(F"\tnew:      {c_e1[1][0]/c_e1[1][1] - c_e2[1][0]/c_e2[1][1]}")
+                            candidates[i] = (e1, e2, avg_cent)
+
+                
+                if acceptNew == True:
+                    # print(F"appendment:")
+                    # print(F"\tnew: {e1[1][0]/e1[1][1] - e2[1][0]/e2[1][1]}")
+                    candidates.append((e1,e2,avg_cent))
+
+
+
+                # #preverimo da sta res 2 razlicne elipse in en vec za malo različnih elips
+                # if dist < 5 and np.abs(e1[1][0]-e2[1][0])>1 and np.abs(e1[1][1]-e2[1][1]) > 1:
+                #     #print()
+                #     conf = True
+                #     #precerimo da ne dodajamo vec kot en isti par elips
+                #     for d in candidates:
+                #         dis = np.sqrt(((avg_cent[0] - d[2][0]) ** 2 + (avg_cent[1] - d[2][1]) ** 2))
+                #         if dis < 5:
+                #             conf = False
+                #     if conf:
+                #         candidates.append((e1,e2,avg_cent))
         ##print(len(candidates))
         #rabimo trimat tiste ki so si izredno blizu
+        #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! UPPER CODE IS NOT TO BE TOUCHED !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         
         for c in candidates:
+
+            # print(c[0][0])
+            # print(f"\t{c[0][1]}")
+            # print(c[1][0])
+            # print(f"\t{c[1][1]}")
+            # print("----")
+
             #print("candidates found",)
             # the centers of the ellipses
             e1 = c[0]
