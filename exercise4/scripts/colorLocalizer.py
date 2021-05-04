@@ -12,6 +12,7 @@ import tf2_ros
 from pprint import pprint
 #import matplotlib.pyplot as plt
 from sensor_msgs.msg import Image
+from nav_msgs.msg import Odometry
 from geometry_msgs.msg import PointStamped, Vector3, Pose, Point, Twist
 from cv_bridge import CvBridge, CvBridgeError
 from visualization_msgs.msg import Marker, MarkerArray
@@ -219,26 +220,27 @@ class color_localizer:
         # # gauss + binary + otsu
         img2 = cv2.GaussianBlur(img,(5,5),2)
         ret, thresh = cv2.threshold(img2, 50, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-        threshDict["gaussBinaryOtsu"] = thresh
+        # threshDict["gaussBinaryOtsu"] = thresh
         
         # # adaptive mean threshold
         thresh = cv2.adaptiveThreshold(img,255,cv2.ADAPTIVE_THRESH_MEAN_C,\
                 cv2.THRESH_BINARY,3,2)
-        threshDict["adaptiveMean"] = thresh
+        # threshDict["adaptiveMean"] = thresh
         
         # # adaptive gaussian threshold
         thresh = cv2.adaptiveThreshold(img,255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C,\
             cv2.THRESH_BINARY,3,2)
-        threshDict["adaptiveGauss"] = thresh
+        # threshDict["adaptiveGauss"] = thresh
 
         return threshDict
 
-    def find_elipses_first(self,image,depth_image,im_stamp,depth_stamp,grayBGR_toDrawOn):
+    def find_elipses_first(self,image,depth_image,im_stamp,depth_stamp,grayBGR_toDrawOn, rotation):
         print(f"rgb_stamp_sec:    {im_stamp.to_sec()}")
         print(f"depth_stamp_sec:  {depth_stamp.to_sec()}")
         diff = (depth_stamp.to_sec()-im_stamp.to_sec())
         print(f"diff:             {diff}")
         print()
+        
         if (np.abs(diff) > 0.5):
             print("skip")
             return grayBGR_toDrawOn,depth_image
@@ -360,9 +362,11 @@ class color_localizer:
         toReturn[:,:,0] = thresh
         toReturn[:,:,1] = 0
         toReturn[:,:,2] = depth_t
-        bestShift = -1000
+        bestShift = 0
         bestScore = 0
-        for shiftX in range(-100,100):
+
+        # print(round(np.abs(rotation),2))
+        for shiftX in ([0] if round(np.abs(rotation),2)==0 else range(-100,100)):
             M = np.float32([[1,0,shiftX],[0,1,0]])
             toReturn[:,:,2] = cv2.warpAffine(depth_t,M,(toReturn.shape[1],toReturn.shape[0]),borderValue=np.nan).astype(np.uint8)
 
@@ -893,6 +897,12 @@ class color_localizer:
         except Exception as e:
             print(e)
             return 0
+
+        try:
+            rotation = rospy.wait_for_message("/odom", Odometry).twist.twist.angular.z
+        except Exception as e:
+            print(e)
+            return 0
         
 
 
@@ -909,7 +919,7 @@ class color_localizer:
 
         grayImage = cv2.cvtColor(rgb_image,cv2.COLOR_BGR2GRAY)
         grayImage = cv2.cvtColor(grayImage,cv2.COLOR_GRAY2BGR)
-        markedImage, depth_im_shifted = self.find_elipses_first(rgb_image, depth_image,rgb_image_message.header.stamp, depth_image_message.header.stamp, grayImage)
+        markedImage, depth_im_shifted = self.find_elipses_first(rgb_image, depth_image,rgb_image_message.header.stamp, depth_image_message.header.stamp, grayImage,rotation)
         markedImage = self.find_color(rgb_image, depth_im_shifted, markedImage,depth_image_message.header.stamp)
         self.pic_pub.publish(CvBridge().cv2_to_imgmsg(markedImage, encoding="passthrough"))
         #self.markers_pub.publish(self.m_arr)
