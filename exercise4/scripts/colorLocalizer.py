@@ -95,7 +95,7 @@ class color_localizer:
 
     def get_pose(self,xin,yin,dist, depth_im,objectType,depth_stamp):
         # Calculate the position of the detected ellipse
-        print(dist)
+        print(f"dist: {dist}")
         k_f = 525 # kinect focal length in pixels
 
         xin = -(xin - depth_im.shape[1]/2)
@@ -114,6 +114,8 @@ class color_localizer:
         point_s.header.frame_id = "camera_rgb_optical_frame"
         # point_s.header.stamp = rospy.Time(0)
         point_s.header.stamp = depth_stamp
+        # if objectType == "cylinder":
+            # point_s.header.stamp = rospy.Time(0)
 
         # Get the point in the "map" coordinate system
         point_world = self.tf_buf.transform(point_s, "map")
@@ -144,14 +146,14 @@ class color_localizer:
                 pointsDist = np.sqrt((cylinder["x"]-point_world.point.x)**2+(cylinder["y"]-point_world.point.y)**2)
                 # if pointsDist < 0.5 or dist>2:
                 #     return
-                if dist>2:
-                    return
+                #! if dist>2:
+                    #! return
                 allDist.append(pointsDist)
             # allDist = np.array(allDist)
             self.found_cylinders.append({"x":point_world.point.x, "y":point_world.point.y})
 
 
-        #!pprint(sorted(allDist))
+        # pprint(sorted(allDist))
 
 
         # Create a Pose object with the same position
@@ -362,7 +364,7 @@ class color_localizer:
         bestScore = 0
         for shiftX in range(-100,100):
             M = np.float32([[1,0,shiftX],[0,1,0]])
-            toReturn[:,:,2] = cv2.warpAffine(depth_t,M,(toReturn.shape[1],toReturn.shape[0])).astype(np.uint8)
+            toReturn[:,:,2] = cv2.warpAffine(depth_t,M,(toReturn.shape[1],toReturn.shape[0]),borderValue=np.nan).astype(np.uint8)
 
             b = np.sum((toReturn[:,:,0]*toReturn[:,:,2])>0)
             c = np.sum(toReturn[:,:,0]==255)
@@ -381,8 +383,10 @@ class color_localizer:
         print(f"\t\t\tbestScore: {bestScore}")
         shiftX = bestShift
         M = np.float32([[1,0,shiftX],[0,1,0]])
-        toReturn[:,:,2] = cv2.warpAffine(depth_t,M,(toReturn.shape[1],toReturn.shape[0])).astype(np.uint8)
-        depth_im_shifted = cv2.warpAffine(depth_im,M,(depth_im.shape[1],depth_im.shape[0]))
+        toReturn[:,:,2] = cv2.warpAffine(depth_t,M,(toReturn.shape[1],toReturn.shape[0]),borderValue=np.nan).astype(np.uint8)
+        depth_im_shifted = cv2.warpAffine(depth_im,M,(depth_im.shape[1],depth_im.shape[0]),borderValue=np.nan)
+        # print(np.nanmin(depth_im_shifted),np.nanmax(depth_im_shifted))
+        # print(np.sum(np.isnan(depth_im_shifted)))
         # grayBGR_toDrawOn = cv2.addWeighted(grayBGR_toDrawOn,0.5,cv2.cvtColor(toReturn[:,:,2],cv2.COLOR_GRAY2BGR).astype(np.uint8),0.5,0)
         # return depth_im_shifted
         # toReturn[(toReturn[:,:,0]*toReturn[:,:,2])>0] = [0,255,0]
@@ -485,8 +489,8 @@ class color_localizer:
                 # ring_point = self.get_pose(cntr_ring[1],cntr_ring[0],cntr_ring[2],depth_im,"ring")
                 
             except Exception as e:
-                print(e)
-        return grayBGR_toDrawOn
+                print(f"Ring error: {e}")
+        return grayBGR_toDrawOn, depth_im_shifted
 
     def calc_rgb_distance_mask(self, image, rgb_value, minDistance):
         rangeImage = image - np.array(rgb_value)
@@ -610,13 +614,13 @@ class color_localizer:
 
 
 
-        final_mask = cv2.bitwise_or(red_mask,red_mask)
-        final_mask = cv2.bitwise_or(final_mask,green_mask)
-        final_mask = cv2.bitwise_or(final_mask,blue_mask)
-        final_mask = cv2.bitwise_or(final_mask,yellow_mask)
-        final_mask = cv2.bitwise_or(final_mask,cyan_mask)
-        final_mask = cv2.bitwise_or(final_mask,black_mask)
-        final_mask = cv2.bitwise_or(final_mask,white_mask)
+        # final_mask = cv2.bitwise_or(red_mask,red_mask)
+        # final_mask = cv2.bitwise_or(final_mask,green_mask)
+        # final_mask = cv2.bitwise_or(final_mask,blue_mask)
+        # final_mask = cv2.bitwise_or(final_mask,yellow_mask)
+        # final_mask = cv2.bitwise_or(final_mask,cyan_mask)
+        # final_mask = cv2.bitwise_or(final_mask,black_mask)
+        # final_mask = cv2.bitwise_or(final_mask,white_mask)
         # final_mask = cv2.bitwise_and(final_mask,bitMaskForAnd)
 
         # final_mask = black_mask
@@ -646,6 +650,7 @@ class color_localizer:
                         4:"cyan",
                         5:"black",
                         6:"white"}
+        centerRowIndex = depth_image.shape[0]//2
         for mask, borderColor, colorDistance in zip(masksList,colorsForBorder,colorDistanceList):
             i += 1
             contour, hierarchy = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
@@ -654,6 +659,9 @@ class color_localizer:
                 area = cv2.contourArea(cont)
                 if(area > 300):
                     x, y, w, h = cv2.boundingRect(cont)
+                    # check if rectangle doesnt cross center line
+                    if y>centerRowIndex or (y+h)<=centerRowIndex:
+                        continue
                     depth_cut = depth_image[y:(y+h),x:(x+w)]
                     image_cut = image[y:(y+h),x:(x+w)]
                     dist_cut = colorDistance[y:(y+h),x:(x+w)]
@@ -662,7 +670,8 @@ class color_localizer:
                     # print(mask_cut.shape)
                     mask_row_sum = np.sum(mask_cut>0,1)
                     # print("\t",mask_row_sum.shape)
-                    bestRowIndx = np.argmax(mask_row_sum)
+                    # bestRowIndx = np.argmax(mask_row_sum)
+                    bestRowIndx = centerRowIndex-y
                     mask_row = mask_cut[bestRowIndx,:]>0
                     depth_row = depth_cut[bestRowIndx,:]
 
@@ -725,16 +734,16 @@ class color_localizer:
                     rowIndx2 = bestRowIndx
                     rowIndx3 = bestRowIndx+up_shif
                     if rowIndx1 < 0:
-                        a = depth_cut[bestRowIndx+up_shif*2][bestColumnIndx]
+                        a = depth_cut[bestRowIndx+up_shif*2,bestColumnIndx]
                     else:
-                        a = depth_cut[bestRowIndx-up_shif][bestColumnIndx]
+                        a = depth_cut[bestRowIndx-up_shif,bestColumnIndx]
                     
-                    b = depth_cut[bestRowIndx][bestColumnIndx]
+                    b = depth_cut[bestRowIndx,bestColumnIndx]
     
                     if rowIndx3 >= h :
-                        c = depth_cut[bestRowIndx-up_shif*2][bestColumnIndx]
+                        c = depth_cut[bestRowIndx-up_shif*2,bestColumnIndx]
                     else:
-                        c = depth_cut[bestRowIndx+up_shif][bestColumnIndx]
+                        c = depth_cut[bestRowIndx+up_shif,bestColumnIndx]
                     # print(colorsDict[i])
                     # print(a)
                     # print(f"\t{np.abs(a-b)}")
@@ -752,11 +761,16 @@ class color_localizer:
                         continue
                     
                     print(f"\tcylinder detected --> {colorsDict[i]}")
+                    print(f"\tselected point ditance: {depth_image[y+bestRowIndx,x+bestColumnIndx]}")
+                    # pprint(depth_cut[bestRowIndx,:])
                     try:
-                        self.get_pose((x+w/2),(y+h/2),C,depth_image,"cylinder",depth_stamp)
+                        # self.get_pose((x+w/2),(y+h/2),C,depth_image,"cylinder",depth_stamp)
+                        self.get_pose((x+bestColumnIndx),(y+bestRowIndx),C,depth_image,"cylinder",depth_stamp)
                     except Exception as e:
-                        print(e)
+                        print(f"Cylinder error: {e}")
                     grayBGR_toDrawOn = cv2.rectangle(grayBGR_toDrawOn, (x, y),(x+w,y+h), borderColor ,2)
+                    grayBGR_toDrawOn = cv2.rectangle(grayBGR_toDrawOn, (x, y+bestRowIndx),(x+w,y+bestRowIndx), borderColor ,2)
+                    grayBGR_toDrawOn = cv2.rectangle(grayBGR_toDrawOn, (x+bestColumnIndx-5, y+bestRowIndx-5),(x+bestColumnIndx+5,y+bestRowIndx+5), (255-borderColor[0],255-borderColor[1],255-borderColor[2]) ,2)
         
         """
         contour, hierarchy = cv2.findContours(red_mask1, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
@@ -766,11 +780,15 @@ class color_localizer:
                 x, y, w, h = cv2.boundingRect(cont)
                 image = cv2.rectangle(image, (x, y),(x+w,y+h), (0,255,0),2)
         """
+        # grayBGR_toDrawOn = cv2.rectangle(grayBGR_toDrawOn,(0,235),(640,245),(0,255,0),2)
+        # print(grayBGR_toDrawOn.shape)
+        # grayBGR_toDrawOn = cv2.rectangle(grayBGR_toDrawOn, (0, centerRowIndex-10),(640,centerRowIndex+10), (0,0,0) ,2)
         return grayBGR_toDrawOn
         # return cv2.cvtColor(final_mask,cv2.COLOR_GRAY2BGR)
 
     def find_objects(self):
         #print('I got a new image!')
+        print("--------------------------------------------------------")
 
         # Get the next rgb and depth images that are posted from the camera
         try:
@@ -800,9 +818,8 @@ class color_localizer:
 
         grayImage = cv2.cvtColor(rgb_image,cv2.COLOR_BGR2GRAY)
         grayImage = cv2.cvtColor(grayImage,cv2.COLOR_GRAY2BGR)
-        markedImage = self.find_color(rgb_image, depth_image, grayImage,depth_image_message.header.stamp)
-        markedImage = self.find_elipses_first(rgb_image, depth_image,rgb_image_message.header.stamp, depth_image_message.header.stamp, markedImage)
-
+        markedImage, depth_im_shifted = self.find_elipses_first(rgb_image, depth_image,rgb_image_message.header.stamp, depth_image_message.header.stamp, grayImage)
+        markedImage = self.find_color(rgb_image, depth_im_shifted, markedImage,depth_image_message.header.stamp)
         self.pic_pub.publish(CvBridge().cv2_to_imgmsg(markedImage, encoding="passthrough"))
         #self.markers_pub.publish(self.m_arr)
 
