@@ -305,6 +305,7 @@ void tapa(const geometry_msgs::Point::ConstPtr &mg) {
             sleep(10);
         } else {
             */
+	if (z2 < 0.5) {
         if (dirrr == 1 && !went[make_pair(yy1-0.5, make_pair(xx1, 1))]) {
         
                 went[make_pair(yy1-0.5, make_pair(xx1, 1))] = true;
@@ -359,6 +360,7 @@ void tapa(const geometry_msgs::Point::ConstPtr &mg) {
                 msg.data = "retract";
                 roko.publish(msg);
             }
+	}
         // cout << "POZDRAAAAAAAAAAAAAAV" << endl;
             //system("/home/iletavcioski/ROS/src/exercise3/src/pozdrav.sh");
         
