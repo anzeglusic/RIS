@@ -284,23 +284,23 @@ void tapa(const geometry_msgs::Point::ConstPtr &mg) {
         if (z2 >= 0.5) {
             int nasdir = 0;
             for (int i = 0; i < 4; i++) {
-                if (preveri15(x2, y2, i)) {
+                if (preveri15(y2, x2, i)) {
                      nasdir = i;
                 }
             }
             cout << "SMER " << nasdir << endl;
            if (nasdir == 1) {
-                went[make_pair(yy1-0.5, make_pair(xx1, 1))] = true;
-                vozi(yy11, xx11, yy1-0.5, xx1,1);
+                went[make_pair(yy1-0.25, make_pair(xx1, 1))] = true;
+                vozi(yy11, xx11, yy1-0.25, xx1,1);
            } else if (nasdir == 2) {
-               went[make_pair(yy1, make_pair(xx1-0.5, 2))] = true;
-            vozi(yy11, xx11, yy1, xx1-0.5,2);
+               went[make_pair(yy1, make_pair(xx1-0.25, 2))] = true;
+            vozi(yy11, xx11, yy1, xx1-0.25,2);
            } else if (nasdir == 3) {
-                went[make_pair(yy1+0.5, make_pair(xx1, 3))] = true;
-            vozi(yy11, xx11, yy1+0.5, xx1,3);
+                went[make_pair(yy1+0.25, make_pair(xx1, 3))] = true;
+            vozi(yy11, xx11, yy1+0.25, xx1,3);
            } else if (nasdir == 0) {
-               went[make_pair(yy1, make_pair(xx1+0.5, 0))] = true;
-            vozi(yy11, xx11, yy1, xx1+0.5,0);
+               went[make_pair(yy1, make_pair(xx1+0.25, 0))] = true;
+            vozi(yy11, xx11, yy1, xx1+0.25,0);
            }
             sleep(10);
         } else {
