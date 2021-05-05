@@ -31,16 +31,42 @@ print("lenCounter:")
 print(f"\t{lenCounter}\n")
 
 
-for img in colorsList:
-    rgb0 = np.array([img["r0"], img["g0"], img["b0"]])
-    rgb0 = np.array([[[255,0,10]]]).astype(np.uint8)
-    print(rgb0.shape)
-    hsvColor = cv2.cvtColor(rgb0,cv2.COLOR_RGB2HSV)[0][0]
-    print(hsvColor)
-    break
+for i,img in enumerate(colorsList):
+    rgb0 = np.array([[[img["r0"], img["g0"], img["b0"]]]]).astype(np.uint8)
+    rgb1 = np.array([[[img["r1"], img["g1"], img["b1"]]]]).astype(np.uint8)
+    rgb2 = np.array([[[img["r2"], img["g2"], img["b2"]]]]).astype(np.uint8)
+    rgb3 = np.array([[[img["r3"], img["g3"], img["b3"]]]]).astype(np.uint8)
+    # rgb0 = np.array([[[255,0,5]]]).astype(np.uint8)
+    hsvColor0 = cv2.cvtColor(rgb0,cv2.COLOR_RGB2HSV)[0][0]
+    hsvColor0[0] = int((float(hsvColor0[0])/180)*255)
 
-#! delete bottom row
-quit()
+    hsvColor1 = cv2.cvtColor(rgb1,cv2.COLOR_RGB2HSV)[0][0]
+    hsvColor1[0] = int((float(hsvColor1[0])/180)*255)
+
+    hsvColor2 = cv2.cvtColor(rgb2,cv2.COLOR_RGB2HSV)[0][0]
+    hsvColor2[0] = int((float(hsvColor2[0])/180)*255)
+
+    hsvColor3 = cv2.cvtColor(rgb3,cv2.COLOR_RGB2HSV)[0][0]
+    hsvColor3[0] = int((float(hsvColor3[0])/180)*255)
+    # print(rgb0[0][0],hsvColor)
+
+    colorsList[i]["r0"] = hsvColor0[0]
+    colorsList[i]["g0"] = hsvColor0[1]
+    colorsList[i]["b0"] = hsvColor0[2]
+
+    colorsList[i]["r1"] = hsvColor1[0]
+    colorsList[i]["g1"] = hsvColor1[1]
+    colorsList[i]["b1"] = hsvColor1[2]
+
+    colorsList[i]["r2"] = hsvColor2[0]
+    colorsList[i]["g2"] = hsvColor2[1]
+    colorsList[i]["b2"] = hsvColor2[2]
+
+    colorsList[i]["r3"] = hsvColor3[0]
+    colorsList[i]["g3"] = hsvColor3[1]
+    colorsList[i]["b3"] = hsvColor3[2]
+    
+
 
 colorDistributionCounter = {}
 for img in colorsList:
