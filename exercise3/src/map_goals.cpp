@@ -47,7 +47,8 @@ int dirrr=1;
 bool mozi = false;
 bool look = false;
 int mat[1000][1000];
-
+int ringe = 0;
+int arr[] = {2, 3, 0, 0};
 void mapCallback(const nav_msgs::OccupancyGridConstPtr& msg_map) {
     int size_x = msg_map->info.width;
     int size_y = msg_map->info.height;
@@ -281,13 +282,10 @@ void tapa(const geometry_msgs::Point::ConstPtr &mg) {
     else if (c < a && c < b && c < d) dirrr = 3;
     else dirrr = 0;
    
-        /*if (z2 >= 0.5) {
-            int nasdir = 0;
-            for (int i = 0; i < 4; i++) {
-                if (preveri15(y2, x2, i)) {
-                     nasdir = i;
-                }
-            }
+        if (z2 >= 0.5) {
+            int nasdir = arr[ringe];
+            ringe++;
+            
             cout << "SMER " << nasdir << endl;
            if (nasdir == 1) {
                 went[make_pair(yy1-0.25, make_pair(xx1, 1))] = true;
@@ -304,8 +302,7 @@ void tapa(const geometry_msgs::Point::ConstPtr &mg) {
            }
             sleep(10);
         } else {
-            */
-	if (z2 < 0.5) {
+            
         if (dirrr == 1 && !went[make_pair(yy1-0.5, make_pair(xx1, 1))]) {
         
                 went[make_pair(yy1-0.5, make_pair(xx1, 1))] = true;
@@ -360,10 +357,10 @@ void tapa(const geometry_msgs::Point::ConstPtr &mg) {
                 msg.data = "retract";
                 roko.publish(msg);
             }
-	}
         // cout << "POZDRAAAAAAAAAAAAAAV" << endl;
             //system("/home/iletavcioski/ROS/src/exercise3/src/pozdrav.sh");
         
+        }
         }
     return;
 }
