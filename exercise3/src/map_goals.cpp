@@ -136,7 +136,7 @@ void vozi(int y3, int x3, double y, double x, int dir) {
     goal_pub.publish(goal);
     if (stevec == 0)
         sleep(5);
-    if (look) sleep(10);
+    if (look) sleep(5);
     
      if (y == 0.5 && x == -0.5 && dir == 3) konec = true;
     return;
