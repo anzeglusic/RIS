@@ -30,10 +30,6 @@ class color_localizer:
         self.bridge = CvBridge()
         self.m_arr = MarkerArray()
         self.nM = 0
-        # Subscribe to the image and/or depth topic
-        # self.image_sub = rospy.Subscriber("/camera/rgb/image_raw", Image, self.image_callback)
-        # self.depth_sub = rospy.Subscriber("/camera/depth/image_raw", Image, self.depth_callback)
-
         # Publiser for the visualization markers
         self.markers_pub = rospy.Publisher('ring_markers', MarkerArray, queue_size=1000)
         self.pic_pub = rospy.Publisher('face_im', Image, queue_size=1000)
@@ -46,26 +42,202 @@ class color_localizer:
         
         #notri hranimo "priblizen center slike" pod katerim je mnzoica 100 ter normala stene na kateri je
         #key so stevilke znotraj imamo pa prvo povprecje vseh tock in nato se vse tocke (np.array) shranjene v seznamu
-        # self.detected_pos_fin = {}
+        self.detected_pos_fin = {}
         # self.detected_norm_fin = {}
         # self.entries = 0
         # self.range = 0.2
     
+    def avg_point(self,col):
+        sumax = 0
+        sumay = 0
+        sumaz = 0
+        sz = len(self.detected_pos_gin[col])
+        for i in self.detected_pos_gin[col]:
+            sumax += i[0]
+            sumay += i[1]
+            sumaz += i[2]
+        self.detected_pos_gin[col].append((sumax/sz,sumay/sz,sumaz/sz))
+    
+    #pos_ring je tuple koordinate kroga, color ring je char znotraj 'bgrywc'
+    def acum_rings(self, pos_ring, color_ring):
+        #preverimo ali je ze definirana barva)
+        if color_ring in self.detected_pos_fin:
+            self.detected_pos_fin[color_ring][len(self.detected_pos_fin[color_ring])-1] = pos_ring
+            self.avg_point(color_ring)
+        else:
+            self.detected_pos_fin[color_ring] = [pos_ring,pos_ring]
+
+
+    def calc_rgb(self,point):
+        p0 = point[0:3] 
+        p1 = point[3:6]
+        p2 = point[6:9]
+        # print(f"p0: {p0}")
+        # print(f"p1: {p1}")
+        # print(f"p2: {p2}")
+
+        distances = { "red":{}
+                    , "blue":{}
+                    , "green": {}
+                    , "black": {}
+                    , "white": {}
+                    , "yellow": {}
+                    }
+        # red
+        color = np.array([0,0,255])
+        calculatedPoint = p0-color
+        dist = np.sqrt(calculatedPoint[0]**2 + calculatedPoint[1]**2 + calculatedPoint[2]**2)
+        distances["red"]["p0"] = dist
+        
+        calculatedPoint = p1-color
+        dist = np.sqrt(calculatedPoint[0]**2 + calculatedPoint[1]**2 + calculatedPoint[2]**2)
+        distances["red"]["p1"] = dist
+        
+        calculatedPoint = p2-color
+        dist = np.sqrt(calculatedPoint[0]**2 + calculatedPoint[1]**2 + calculatedPoint[2]**2)
+        distances["red"]["p2"] = dist
+
+        #  blue
+        color = np.array([255,0,0])
+        calculatedPoint = p0-color
+        dist = np.sqrt(calculatedPoint[0]**2 + calculatedPoint[1]**2 + calculatedPoint[2]**2)
+        distances["blue"]["p0"] = dist
+        
+        calculatedPoint = p1-color
+        dist = np.sqrt(calculatedPoint[0]**2 + calculatedPoint[1]**2 + calculatedPoint[2]**2)
+        distances["blue"]["p1"] = dist
+        
+        calculatedPoint = p2-color
+        dist = np.sqrt(calculatedPoint[0]**2 + calculatedPoint[1]**2 + calculatedPoint[2]**2)
+        distances["blue"]["p2"] = dist
+        
+        # cyan --> blue
+        color = np.array([255,255,0])
+        calculatedPoint = p0-color
+        dist = np.sqrt(calculatedPoint[0]**2 + calculatedPoint[1]**2 + calculatedPoint[2]**2)
+        distances["blue"]["p0"] = min(dist,distances["blue"]["p0"])
+        
+        calculatedPoint = p1-color
+        dist = np.sqrt(calculatedPoint[0]**2 + calculatedPoint[1]**2 + calculatedPoint[2]**2)
+        distances["blue"]["p1"] = min(dist,distances["blue"]["p1"])
+        
+        calculatedPoint = p2-color
+        dist = np.sqrt(calculatedPoint[0]**2 + calculatedPoint[1]**2 + calculatedPoint[2]**2)
+        distances["blue"]["p2"] = min(dist,distances["blue"]["p2"])
+
+        # green
+        color = np.array([0,255,0])
+        calculatedPoint = p0-color
+        dist = np.sqrt(calculatedPoint[0]**2 + calculatedPoint[1]**2 + calculatedPoint[2]**2)
+        distances["green"]["p0"] = dist
+        
+        calculatedPoint = p1-color
+        dist = np.sqrt(calculatedPoint[0]**2 + calculatedPoint[1]**2 + calculatedPoint[2]**2)
+        distances["green"]["p1"] = dist
+        
+        calculatedPoint = p2-color
+        dist = np.sqrt(calculatedPoint[0]**2 + calculatedPoint[1]**2 + calculatedPoint[2]**2)
+        distances["green"]["p2"] = dist
+
+        # black
+        color = np.array([0,0,0])
+        calculatedPoint = p0-color
+        dist = np.sqrt(calculatedPoint[0]**2 + calculatedPoint[1]**2 + calculatedPoint[2]**2)
+        distances["black"]["p0"] = dist
+        
+        calculatedPoint = p1-color
+        dist = np.sqrt(calculatedPoint[0]**2 + calculatedPoint[1]**2 + calculatedPoint[2]**2)
+        distances["black"]["p1"] = dist
+        
+        calculatedPoint = p2-color
+        dist = np.sqrt(calculatedPoint[0]**2 + calculatedPoint[1]**2 + calculatedPoint[2]**2)
+        distances["black"]["p2"] = dist
+
+        # white
+        color = np.array([255,255,255])
+        calculatedPoint = p0-color
+        dist = np.sqrt(calculatedPoint[0]**2 + calculatedPoint[1]**2 + calculatedPoint[2]**2)
+        distances["white"]["p0"] = dist
+        
+        calculatedPoint = p1-color
+        dist = np.sqrt(calculatedPoint[0]**2 + calculatedPoint[1]**2 + calculatedPoint[2]**2)
+        distances["white"]["p1"] = dist
+        
+        calculatedPoint = p2-color
+        dist = np.sqrt(calculatedPoint[0]**2 + calculatedPoint[1]**2 + calculatedPoint[2]**2)
+        distances["white"]["p2"] = dist
+
+        # yellow
+        color = np.array([0,255,255])
+        calculatedPoint = p0-color
+        dist = np.sqrt(calculatedPoint[0]**2 + calculatedPoint[1]**2 + calculatedPoint[2]**2)
+        distances["yellow"]["p0"] = dist
+        
+        calculatedPoint = p1-color
+        dist = np.sqrt(calculatedPoint[0]**2 + calculatedPoint[1]**2 + calculatedPoint[2]**2)
+        distances["yellow"]["p1"] = dist
+        
+        calculatedPoint = p2-color
+        dist = np.sqrt(calculatedPoint[0]**2 + calculatedPoint[1]**2 + calculatedPoint[2]**2)
+        distances["yellow"]["p2"] = dist
+        
+
+        bestScore = np.array([1,1,1])*np.sqrt(255**2 + 255**2 + 255**2)
+        color = ["nothing","nothing","nothing"]
+        for colorKey in distances:
+            score0 = distances[colorKey]["p0"]
+            if score0 < bestScore[0]:
+                bestScore[0] = score0
+                color[0] = colorKey
+            
+            score1 = distances[colorKey]["p1"]
+            if score1 < bestScore[1]:
+                bestScore[1] = score1
+                color[1] = colorKey
+            
+            score2 = distances[colorKey]["p2"]
+            if score2 < bestScore[2]:
+                bestScore[2] = score2
+                color[2] = colorKey
+        
+        counter = np.array([0,0,0])
+        counter[0] = np.sum([color[0]==color[0],color[1]==color[0],color[2]==color[0]])
+        counter[1] = np.sum([color[0]==color[1],color[1]==color[1],color[2]==color[1]])
+        counter[2] = np.sum([color[0]==color[2],color[1]==color[2],color[2]==color[2]])
+        # print(counter)
+        if np.sum(counter)==3:
+            col = color[np.argmin(bestScore)]
+        else:
+            col = color[np.argmax(counter)]
+        
+        if col == "black":
+            return "c"
+        if col == "white":
+            return "w"
+        if col == "blue":
+            return "b"
+        if col == "yellow":
+            return "y"
+        if col == "red":
+            return "r"
+        if col == "green":
+            return "g"
+            
     def chk_ring(self,de,h1,h2,w1,w2,cent):
         #depoth im je for some reason 480x640
+        #sprememeba 1: dodal sem da shrani se koordinate v sliki notr MOZNO DA JIH BO TREBA OBRNT
         cmb_me = []
         if(h1[0]>=0 and h1[1]>=0 and h1[0]<640 and h1[1]<480 and de[h1[1],h1[0]]):
-            print(de[h1[1],h1[0]])
-            cmb_me.append(de[h1[1],h1[0]])
+            cmb_me.append(de[h1[1],h1[0]],h1[1],h[0]) #koordinate v sliki
         
         if(h2[0]>=0 and h2[1]>=0 and h2[0]<640 and h2[1]<480 and de[h2[1],h2[0]]):
-            cmb_me.append(de[h2[1],h2[0]])
+            cmb_me.append(de[h2[1],h2[0]],h2[1],h2[0])
         
         if(w1[0]>=0 and w1[1]>=0 and w1[0]<640 and w1[1]<480 and de[w1[1],w1[0]]):
-            cmb_me.append(de[w1[1],w1[0]])
+            cmb_me.append(de[w1[1],w1[0]],w1[1],w1[0])
         
         if(w2[0]>=0 and w2[1]>=0 and w2[0]<640 and w2[1]<480 and de[w2[1],w2[0]]):
-            cmb_me.append(de[w2[1],w2[0]])
+            cmb_me.append(de[w2[1],w2[0]],w2[1],w2[0])
         if len(cmb_me)<3:
             #print("garbo")
             return None
@@ -74,12 +246,16 @@ class color_localizer:
             #preverimo ce so vse 3 točke manj kto 20cm narazen(to je največji možn diameter kroga
             good = True
             for j in itertools.combinations(i,2):
-                if np.abs(j[0] - j[1])>0.2:
+                """EDIT NI NUJNO DA JE TAKO DELOVANJE KOMBINACIJ """
+                if np.abs(j[0][0] - j[1][0])>0.2:
                     good = False
                     break
             if good:
                 #print("we good")
-                avgdist = sum(i)/3
+                """avgdist = sum(i)/3 ne bo delal na trenutni iteraciji"""
+                avgdist = (i[0][0] + i[1][0] + i[2][0])/3
+
+
                 # print(f"\t>  {de[cent[1],cent[0]]}")
                 # print(f"\t\t {avgdist}")
                 #hardcodana natancnost ker zadeva zna mal zajebavat mogoč obstaja bolj robusten način
@@ -91,7 +267,8 @@ class color_localizer:
                     #MOŽNO DA JE TREBA ZAMENAT!!
                     # for z in i:
                     #     print(f"\t{z}")
-                    return (cent[1],cent[0],avgdist)
+                    """EDIT VRAČAMO VSE TRI TOČKE"""
+                    return (cent[1],cent[0],avgdist,i)
         return None
 
     def get_pose(self,xin,yin,dist, depth_im,objectType,depth_stamp):
@@ -121,14 +298,6 @@ class color_localizer:
         # Get the point in the "map" coordinate system
         point_world = self.tf_buf.transform(point_s, "map")
 
-        # print(f"\nlocal point")
-        # print(f"\tx: {point_s.point.x}")
-        # print(f"\ty: {point_s.point.y}")
-        # print(f"\tz: {point_s.point.z}")
-        # print(f"world point")
-        # print(f"\tx: {point_world.point.x}")
-        # print(f"\ty: {point_world.point.y}")
-        # print(f"\tz: {point_world.point.z}")
 
 
         allDist = []
@@ -182,6 +351,8 @@ class color_localizer:
         self.m_arr.markers.append(marker)
 
         self.markers_pub.publish(self.m_arr)
+        
+        return pose
 
     #dela as intended!
     def calc_pnts(self, el):
@@ -258,10 +429,6 @@ class color_localizer:
         depth_image = depth_image.astype(np.uint8)
 
 
-        # print(depth_image)
-        # print(np.min(depth_image))
-        # print(np.max(depth_image))
-        # print(depth_image.shape)
 
 
         frame = image.copy()
@@ -280,21 +447,6 @@ class color_localizer:
         # Set the dimensions of the image
         dims = frame.shape
 
-        # return cv2.addWeighted(depth_image,0.5,cv2.cvtColor(frame,cv2.COLOR_BGR2HSV)[:,:,2],0.5,0)
-
-        # Tranform image to gayscale
-        # gray1 = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        # gray1 = cv2.cvtColor(gray1,cv2.COLOR_GRAY2BGR)
-        # gray1 = cv2.cvtColor(depth_image,cv2.COLOR_GRAY2BGR)
-
-        # return cv2.cvtColor(gray,cv2.COLOR_GRAY2BGR)
-        # gray = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-        # gray[:,:,1] = 255
-        # gray[:,:,2] = 255
-        # sat = gray[:,:,1] < 128
-        # gray[sat] = [0,0,0]
-        # return cv2.cvtColor(gray,cv2.COLOR_HSV2BGR)
-        # return cv2.cvtColor(gray[:,:,2],cv2.COLOR_GRAY2BGR)
 
         allFramesAnalized = []
 
@@ -389,40 +541,9 @@ class color_localizer:
         M = np.float32([[1,0,shiftX],[0,1,0]])
         toReturn[:,:,2] = cv2.warpAffine(depth_t,M,(toReturn.shape[1],toReturn.shape[0]),borderValue=np.nan).astype(np.uint8)
         depth_im_shifted = cv2.warpAffine(depth_im,M,(depth_im.shape[1],depth_im.shape[0]),borderValue=np.nan)
-        # print(np.nanmin(depth_im_shifted),np.nanmax(depth_im_shifted))
-        # print(np.sum(np.isnan(depth_im_shifted)))
-        # grayBGR_toDrawOn = cv2.addWeighted(grayBGR_toDrawOn,0.5,cv2.cvtColor(toReturn[:,:,2],cv2.COLOR_GRAY2BGR).astype(np.uint8),0.5,0)
-        # return depth_im_shifted
-        # toReturn[(toReturn[:,:,0]*toReturn[:,:,2])>0] = [0,255,0]
-        # return toReturn
-        # toReturn[:,:,2] = (depth_t==255)*depth_t + (depth_t==0)*toReturn[:,:,2]
-        # toReturn[:,:,2] = (thresh==255)*depth_t + (thresh==0)*toReturn[:,:,2]
-
-        # return (toReturn[:,:,0]-toReturn[:,:,2]).astype(np.uint8)
-
-        # return toReturn
-        # return depth_t
-        # edges = toReturn.copy()
-        # edges = cv2.cvtColor(cv2.addWeighted(cv2.cvtColor(frame,cv2.COLOR_BGR2HSV)[:,:,2],0.5, depth_image,0.5, 0),cv2.COLOR_GRAY2BGR)
-        # edges[:,:,:] = 0
-        # edges[:,:,0] = thresh
-        # edges[:,:,1] = cv2.cvtColor(image,cv2.COLOR_BGR2GRAY) 
-        # edges[:,:,2] = depth_t
-        # edges[thresh==255] = [255,0,0]
-        # edges[depth_t==255] = [0,0,255]
-        # edges[((thresh==255)*1 + (depth_t==255)*1)==2] = [255,0,255]
-
-        # return toReturn
-        # return edges
-        # return cv2.vconcat([toReturn,edges])
         
-
-
         kernel = np.ones((5,5), "uint8")
 
-        # threshDict["adaptiveGauss"] = cv2.erode(threshDict["adaptiveGauss"], kernel)
-        #return cv2.cvtColor(cv2.bitwise_not(threshDict["adaptiveGauss"]),cv2.COLOR_GRAY2RGB)
-        # return t,depth_im_shifted
         # Extract contours
         contours, hierarchy = cv2.findContours(thresh, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
 
@@ -495,29 +616,6 @@ class color_localizer:
                         c_diff_h = c_e1[1][1] - c_e2[1][1]
                         c_avgDiff = np.abs((c_diff_w + c_diff_h)/2)
 
-
-                        # print(f"\t\t\t\t\tchecking candidates {i}")
-                        # print(f"\tcenters:")
-                        # print(f"\t\te1:   {e1[0]}")
-                        # print(f"\t\te2:   {e2[0]}")
-                        # print(f"\t\tc_e1: {c_e1[0]}")
-                        # print(f"\t\tc_e2: {c_e2[0]}")
-                        # print(f"\tsize:")
-                        # print(f"\t\te1:   {e1[1]}")
-                        # print(f"\t\te2:   {e2[1]}")
-                        # print(f"\t\tc_e1: {c_e1[1]}")
-                        # print(f"\t\tc_e2: {c_e2[1]}")
-                        # print(f"\tangle:")
-                        # print(f"\t\te1:   {e1[2]}")
-                        # print(f"\t\te2:   {e2[2]}")
-                        # print(f"\t\tc_e1: {c_e1[2]}")
-                        # print(f"\t\tc_e2: {c_e2[2]}")
-                        # print(f"\tdiff:")
-                        # print(f"\t\tnew:  {avgDiff}")
-                        # print(f"\t\torg:  {c_avgDiff}")
-                        # print("----")
-                        
-                        # check if average difference of width and height is bigger in new elipses 
                         if avgDiff > c_avgDiff:
                             # print(F"replacement:")
                             # print(F"\toriginal: {e1[1][0]/e1[1][1] - e2[1][0]/e2[1][1]}")
@@ -578,9 +676,14 @@ class color_localizer:
             cv2.circle(grayBGR_toDrawOn,tuple( w21),1,(0,255,0),2)
             
             cntr_ring = self.chk_ring(depth_im_shifted,h11,h21,w11,w21,c[2])
+            #EDIT ali so koordinate pravilne
+            pnts = np.array( (image[cntr_ring[3][0][1],cntr_ring[3][0][2]], image[cntr_ring[3][1][1],cntr_ring[3][1][2]],image[cntr_ring[3][2][1],cntr_ring[3][2][2]]))
+            color = self.findcolor(pnts)
+            
             # cntr_ring = self.chk_ring(depth_im,h11,h21,w11,w21,c[2])
             try:
                 ring_point = self.get_pose(cntr_ring[1],cntr_ring[0],cntr_ring[2],depth_im_shifted,"ring",depth_stamp)
+                self.acum_rings(np.array((ring_point.position.x,ring_point.position.y,ring_point.position.z),color)
                 # ring_point = self.get_pose(cntr_ring[1],cntr_ring[0],cntr_ring[2],depth_im,"ring")
                 
             except Exception as e:
@@ -623,30 +726,6 @@ class color_localizer:
         return mask
 
     def find_color(self,image, depth_image, grayBGR_toDrawOn,depth_stamp):
-        '''
-        hsvIm = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
-
-        red_low = np.array([136, 87, 11], np.uint8)
-        red_up = np.array([180, 255, 255], np.uint8)
-        red_mask = cv2.inRange(hsvIm, red_low, red_up)
-
-        red_low1 = np.array([0, 87, 11], np.uint8)
-        red_up1 = np.array([18, 255, 255], np.uint8)
-        red_mask1 = cv2.inRange(hsvIm, red_low1, red_up1)
-
-        green_low = np.array([25,52,72], np.uint8)
-        green_up = np.array([102, 255, 255], np.uint8)
-        green_mask = cv2.inRange(hsvIm, green_low, green_up)
-
-        blue_low = np.array([94,80,2], np.uint8)
-        blue_up = np.array([120, 255, 255], np.uint8)
-        blue_mask = cv2.inRange(hsvIm, blue_low, blue_up)
-
-
-        black_low = np.array([0,0,0], np.uint8)
-        black_up = np.array([180, 255, 60], np.uint8)
-        black_mask = cv2.inRange(hsvIm, black_low, black_up)
-        '''
         # red
         red_mask, red_distance = self.calc_rgb_distance_mask(image, [0,0,255], 100)
 
@@ -706,23 +785,6 @@ class color_localizer:
         # white
         white_mask = self.calc_mask(mask=white_mask,kernel=kernel,kernel1=kernel1,operations=operations)
         res_white = cv2.bitwise_and(image, image, mask = white_mask)
-
-
-
-        # final_mask = cv2.bitwise_or(red_mask,red_mask)
-        # final_mask = cv2.bitwise_or(final_mask,green_mask)
-        # final_mask = cv2.bitwise_or(final_mask,blue_mask)
-        # final_mask = cv2.bitwise_or(final_mask,yellow_mask)
-        # final_mask = cv2.bitwise_or(final_mask,cyan_mask)
-        # final_mask = cv2.bitwise_or(final_mask,black_mask)
-        # final_mask = cv2.bitwise_or(final_mask,white_mask)
-        # final_mask = cv2.bitwise_and(final_mask,bitMaskForAnd)
-
-        # final_mask = black_mask
-
-        # return green_mask
-        # return final_mask
-        # return cv2.Canny(final_mask,100,200)
 
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         imageGray = cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
@@ -794,10 +856,6 @@ class color_localizer:
                             counter -= 1
                             break
                         counter += 1
-                    # print(f"\tcolumn indx: {bestColumnIndx}")
-                    # print(tempColumnRow)
-                    # print(mask_row)
-                    # print(f"\tcounter: {counter}")
 
                     shift = np.floor((counter*2)/5).astype(int)
                     if shift < 1:
@@ -839,17 +897,6 @@ class color_localizer:
                         c = depth_cut[bestRowIndx-up_shif*2,bestColumnIndx]
                     else:
                         c = depth_cut[bestRowIndx+up_shif,bestColumnIndx]
-                    # print(colorsDict[i])
-                    # print(a)
-                    # print(f"\t{np.abs(a-b)}")
-                    # print(b)
-                    # print(f"\t{np.abs(b-c)}")
-                    # print(c)
-                    # print(f"\t{np.abs(a-c)}")
-                    # print(a)
-                    # print()
-                    # if c > 2:
-                    #     continue
 
                     distThreshold = 0.005
                     if np.abs(a-b)>distThreshold or np.abs(a-c)>distThreshold or np.abs(b-c)>distThreshold:
