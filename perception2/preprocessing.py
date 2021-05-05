@@ -3,6 +3,11 @@ from pprint import pprint
 import pandas
 import sklearn
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import KFold
+from sklearn.neighbors import KNeighborsClassifier
+import numpy as np
+from skimage.color import rgb2hsv
+import cv2
 
 lib_of_files2 = {}
 name = "/home/code8master/Desktop/wsROS/src/RIS/perception2/safe.json"
@@ -25,14 +30,26 @@ for img in lib_of_files2["list"]:
 print("lenCounter:")
 print(f"\t{lenCounter}\n")
 
-colorCounter = {}
+
 for img in colorsList:
-    if img["color"] in colorCounter:
-        colorCounter[img["color"]] += 1
+    rgb0 = np.array([img["r0"], img["g0"], img["b0"]])
+    rgb0 = np.array([[[255,0,10]]]).astype(np.uint8)
+    print(rgb0.shape)
+    hsvColor = cv2.cvtColor(rgb0,cv2.COLOR_RGB2HSV)[0][0]
+    print(hsvColor)
+    break
+
+#! delete bottom row
+quit()
+
+colorDistributionCounter = {}
+for img in colorsList:
+    if img["color"] in colorDistributionCounter:
+        colorDistributionCounter[img["color"]] += 1
     else:
-        colorCounter[img["color"]] = 1
-print("colorCounter:")
-print(f"\t{colorCounter}\n")
+        colorDistributionCounter[img["color"]] = 1
+print("colorDistributionCounter:")
+print(f"\t{colorDistributionCounter}\n")
 
 counter = 0
 permutations = {}
@@ -72,10 +89,278 @@ print(f"\t{len(listOfPermutatedColors)}\n")
 
 
 
-
 df = pandas.DataFrame(listOfPermutatedColors)
 df.to_pickle("dfOfPermutatedColors.pkl")
 
 
+
 print(df)
 
+print("-----")
+df_np = df.to_numpy()
+print(df_np)
+
+
+Y = df_np[:,0]
+X = df_np[:,1:]
+
+print("\nY:")
+print(Y)
+print("\nX:")
+print(X)
+
+randomForest = RandomForestClassifier(n_estimators=100
+                                    , criterion="gini"
+                                    , max_depth=None
+                                    , min_samples_split=2
+                                    , min_samples_leaf=1
+                                    , min_weight_fraction_leaf=0.0
+                                    , max_features="auto"
+                                    , max_leaf_nodes=None
+                                    , min_impurity_decrease=0.0
+                                    , bootstrap=True
+                                    , oob_score=True
+                                    , n_jobs=-1
+                                    , random_state=None
+                                    , verbose=0
+                                    , warm_start=False
+                                    , class_weight=None
+                                    , ccp_alpha=0.0
+                                    , max_samples=400
+                                    )
+
+
+
+print("-------------------------------------------------------------")
+randomForest_fit = randomForest.fit(X,Y)
+print("\nRandom Forest:")
+print(f"\tscore: {randomForest_fit.oob_score_}\n")
+
+print("-------------------------------------------------------------")
+
+knn = KNeighborsClassifier(   n_neighbors=5
+                            , weights="distance"
+                            , algorithm="auto"
+                            , n_jobs=-1
+                            )
+kf = KFold(n_splits=10, shuffle=True)
+loopCounter = 0
+overAllCounterCorrect = 0
+overAllCounterFalse = 0
+for train,test in kf.split(df_np):
+    # print(df_np.shape)
+    # print(train.shape)
+    # print(test.shape)
+    Y_kf = Y[train]
+    X_kf = X[train,:]
+    Y_kf_test = Y[test]
+    X_kf_test = X[test,:]
+    knn.fit(X_kf, Y_kf)
+    prediction = knn.predict(X_kf_test)
+
+    correctCounter = 0
+    wrongCounter = 0
+    colorDistribution = { "b":0
+                        , "g":0
+                        , "r":0
+                        , "y":0
+                        , "w":0
+                        , "c":0
+                        }
+    for i in range(X_kf_test.shape[0]):
+        if prediction[i] == Y_kf_test[i]:
+            correctCounter += 1
+            overAllCounterCorrect += 1
+        else:
+            wrongCounter += 1
+            overAllCounterFalse += 1
+        colorDistribution[prediction[i]] += 1
+    print(f"\tKNN[split:{loopCounter}]:")
+    print(f"\t\tcolorDistribution: {colorDistribution}")
+    print(f"\t\tcorrectCounter:    {correctCounter}")
+    print(f"\t\twrongCounter:      {wrongCounter}")
+    loopCounter += 1
+
+print(f"KNN:")
+print(f"\toverAllCoutnerCorrect: {overAllCounterCorrect}")
+print(f"\toverAllCoutnerFalse:   {overAllCounterFalse}")
+print(f"\tscore:                 {overAllCounterCorrect/(overAllCounterCorrect+overAllCounterFalse)}")
+print("-------------------------------------------------------------")
+
+#----------------------------------------------------------------------------------------
+def calc_rgb_distance_mask(point):
+    p0 = point[0:3] 
+    p1 = point[3:6]
+    p2 = point[6:9]
+    # print(f"p0: {p0}")
+    # print(f"p1: {p1}")
+    # print(f"p2: {p2}")
+
+    distances = { "red":{}
+                , "blue":{}
+                , "green": {}
+                , "black": {}
+                , "white": {}
+                , "yellow": {}
+                }
+    # red
+    color = np.array([0,0,255])
+    calculatedPoint = p0-color
+    dist = np.sqrt(calculatedPoint[0]**2 + calculatedPoint[1]**2 + calculatedPoint[2]**2)
+    distances["red"]["p0"] = dist
+    
+    calculatedPoint = p1-color
+    dist = np.sqrt(calculatedPoint[0]**2 + calculatedPoint[1]**2 + calculatedPoint[2]**2)
+    distances["red"]["p1"] = dist
+    
+    calculatedPoint = p2-color
+    dist = np.sqrt(calculatedPoint[0]**2 + calculatedPoint[1]**2 + calculatedPoint[2]**2)
+    distances["red"]["p2"] = dist
+
+    #  blue
+    color = np.array([255,0,0])
+    calculatedPoint = p0-color
+    dist = np.sqrt(calculatedPoint[0]**2 + calculatedPoint[1]**2 + calculatedPoint[2]**2)
+    distances["blue"]["p0"] = dist
+    
+    calculatedPoint = p1-color
+    dist = np.sqrt(calculatedPoint[0]**2 + calculatedPoint[1]**2 + calculatedPoint[2]**2)
+    distances["blue"]["p1"] = dist
+    
+    calculatedPoint = p2-color
+    dist = np.sqrt(calculatedPoint[0]**2 + calculatedPoint[1]**2 + calculatedPoint[2]**2)
+    distances["blue"]["p2"] = dist
+    
+    # cyan --> blue
+    color = np.array([255,255,0])
+    calculatedPoint = p0-color
+    dist = np.sqrt(calculatedPoint[0]**2 + calculatedPoint[1]**2 + calculatedPoint[2]**2)
+    distances["blue"]["p0"] = min(dist,distances["blue"]["p0"])
+    
+    calculatedPoint = p1-color
+    dist = np.sqrt(calculatedPoint[0]**2 + calculatedPoint[1]**2 + calculatedPoint[2]**2)
+    distances["blue"]["p1"] = min(dist,distances["blue"]["p1"])
+    
+    calculatedPoint = p2-color
+    dist = np.sqrt(calculatedPoint[0]**2 + calculatedPoint[1]**2 + calculatedPoint[2]**2)
+    distances["blue"]["p2"] = min(dist,distances["blue"]["p2"])
+
+    # green
+    color = np.array([0,255,0])
+    calculatedPoint = p0-color
+    dist = np.sqrt(calculatedPoint[0]**2 + calculatedPoint[1]**2 + calculatedPoint[2]**2)
+    distances["green"]["p0"] = dist
+    
+    calculatedPoint = p1-color
+    dist = np.sqrt(calculatedPoint[0]**2 + calculatedPoint[1]**2 + calculatedPoint[2]**2)
+    distances["green"]["p1"] = dist
+    
+    calculatedPoint = p2-color
+    dist = np.sqrt(calculatedPoint[0]**2 + calculatedPoint[1]**2 + calculatedPoint[2]**2)
+    distances["green"]["p2"] = dist
+
+    # black
+    color = np.array([0,0,0])
+    calculatedPoint = p0-color
+    dist = np.sqrt(calculatedPoint[0]**2 + calculatedPoint[1]**2 + calculatedPoint[2]**2)
+    distances["black"]["p0"] = dist
+    
+    calculatedPoint = p1-color
+    dist = np.sqrt(calculatedPoint[0]**2 + calculatedPoint[1]**2 + calculatedPoint[2]**2)
+    distances["black"]["p1"] = dist
+    
+    calculatedPoint = p2-color
+    dist = np.sqrt(calculatedPoint[0]**2 + calculatedPoint[1]**2 + calculatedPoint[2]**2)
+    distances["black"]["p2"] = dist
+
+    # white
+    color = np.array([255,255,255])
+    calculatedPoint = p0-color
+    dist = np.sqrt(calculatedPoint[0]**2 + calculatedPoint[1]**2 + calculatedPoint[2]**2)
+    distances["white"]["p0"] = dist
+    
+    calculatedPoint = p1-color
+    dist = np.sqrt(calculatedPoint[0]**2 + calculatedPoint[1]**2 + calculatedPoint[2]**2)
+    distances["white"]["p1"] = dist
+    
+    calculatedPoint = p2-color
+    dist = np.sqrt(calculatedPoint[0]**2 + calculatedPoint[1]**2 + calculatedPoint[2]**2)
+    distances["white"]["p2"] = dist
+
+    # yellow
+    color = np.array([0,255,255])
+    calculatedPoint = p0-color
+    dist = np.sqrt(calculatedPoint[0]**2 + calculatedPoint[1]**2 + calculatedPoint[2]**2)
+    distances["yellow"]["p0"] = dist
+    
+    calculatedPoint = p1-color
+    dist = np.sqrt(calculatedPoint[0]**2 + calculatedPoint[1]**2 + calculatedPoint[2]**2)
+    distances["yellow"]["p1"] = dist
+    
+    calculatedPoint = p2-color
+    dist = np.sqrt(calculatedPoint[0]**2 + calculatedPoint[1]**2 + calculatedPoint[2]**2)
+    distances["yellow"]["p2"] = dist
+    
+
+    bestScore = np.array([1,1,1])*np.sqrt(255**2 + 255**2 + 255**2)
+    color = ["nothing","nothing","nothing"]
+    for colorKey in distances:
+        score0 = distances[colorKey]["p0"]
+        if score0 < bestScore[0]:
+            bestScore[0] = score0
+            color[0] = colorKey
+        
+        score1 = distances[colorKey]["p1"]
+        if score1 < bestScore[1]:
+            bestScore[1] = score1
+            color[1] = colorKey
+        
+        score2 = distances[colorKey]["p2"]
+        if score2 < bestScore[2]:
+            bestScore[2] = score2
+            color[2] = colorKey
+    
+    counter = np.array([0,0,0])
+    counter[0] = np.sum([color[0]==color[0],color[1]==color[0],color[2]==color[0]])
+    counter[1] = np.sum([color[0]==color[1],color[1]==color[1],color[2]==color[1]])
+    counter[2] = np.sum([color[0]==color[2],color[1]==color[2],color[2]==color[2]])
+    # print(counter)
+    if np.sum(counter)==3:
+        col = color[np.argmin(bestScore)]
+    else:
+        col = color[np.argmax(counter)]
+    
+    if col == "black":
+        return "c"
+    if col == "white":
+        return "w"
+    if col == "blue":
+        return "b"
+    if col == "yellow":
+        return "y"
+    if col == "red":
+        return "r"
+    if col == "green":
+        return "g"
+#----------------------------------------------------------------------------------------
+
+correctCounter = 0
+wrongCounter = 0
+colorDistribution = { "b":0
+                    , "g":0
+                    , "r":0
+                    , "y":0
+                    , "w":0
+                    , "c":0
+                    }
+for i in range(X.shape[0]):
+    foundColor = calc_rgb_distance_mask(X[i,:])
+    if foundColor == Y[i]:
+        correctCounter += 1
+    else:
+        wrongCounter += 1
+    colorDistribution[foundColor] += 1
+print("RGB-cube-distnace:")
+print(f"\tcolorDistribution: {colorDistribution}")
+print(f"\tcorrectCounter:    {correctCounter}")
+print(f"\twrongCounter:      {wrongCounter}")
