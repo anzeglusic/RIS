@@ -281,7 +281,7 @@ void tapa(const geometry_msgs::Point::ConstPtr &mg) {
     else if (c < a && c < b && c < d) dirrr = 3;
     else dirrr = 0;
    
-        if (z2 >= 0.5) {
+        /*if (z2 >= 0.5) {
             int nasdir = 0;
             for (int i = 0; i < 4; i++) {
                 if (preveri15(y2, x2, i)) {
@@ -304,6 +304,7 @@ void tapa(const geometry_msgs::Point::ConstPtr &mg) {
            }
             sleep(10);
         } else {
+            */
         if (dirrr == 1 && !went[make_pair(yy1-0.5, make_pair(xx1, 1))]) {
         
                 went[make_pair(yy1-0.5, make_pair(xx1, 1))] = true;
@@ -360,7 +361,7 @@ void tapa(const geometry_msgs::Point::ConstPtr &mg) {
             }
         // cout << "POZDRAAAAAAAAAAAAAAV" << endl;
             //system("/home/iletavcioski/ROS/src/exercise3/src/pozdrav.sh");
-        } 
+        
         }
     return;
 }
