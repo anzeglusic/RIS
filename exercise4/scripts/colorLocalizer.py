@@ -19,7 +19,7 @@ from visualization_msgs.msg import Marker, MarkerArray
 from std_msgs.msg import ColorRGBA
 import pickle
 
-modelsDir = "/home/code8master/Desktop/wsROS/src/RIS/exercise4/scripts"
+modelsDir = "/home/sebastjan/Documents/faks/3letnk/ris/ROS_task/src/exercise4/scripts"
 
 class color_localizer:
 
@@ -63,6 +63,28 @@ class color_localizer:
         # self.detected_norm_fin = {}
         # self.entries = 0
         # self.range = 0.2
+    
+    def chose_color(self,colorDict):
+        b = colorDict["b"]
+        g = colorDict["g"]
+        r = colorDict["r"]
+        c = colorDict["c"]
+        w = colorDict["w"]
+        y = colorDict["y"]
+
+        # black is selected if no other is selected
+        c = 0
+        # white is considered to be blue
+        b += w
+        w = 0
+
+        tag =   ["b","g","r","y","w","c"]
+        value = [ b , g , r , y , w , c ]
+
+        if np.sum(value) < 3:
+            return 'c'
+        bestIndx = np.argmax(value)
+        return tag[bestIndx]
     
     def checkPosition(self):
         '''
@@ -164,13 +186,9 @@ class color_localizer:
                     marker.lifetime = rospy.Duration.from_sec(0)
                     marker.id = self.nM
                     marker.scale = Vector3(0.1, 0.1, 0.1)
-                    best_color_score = -1
-                    best_color = ""
-                    for color_char in area["color"]:
-                        temp = area["color"][color_char]
-                        if temp > best_color_score:
-                            best_color_score = temp
-                            best_color = color_char
+                    
+                    best_color = self.chose_color(area["color"])
+                    
                     area["avgMarkerId"] = self.nM
                         
                     marker.color = self.rgba_from_char(best_color)
@@ -197,13 +215,7 @@ class color_localizer:
                     marker.lifetime = rospy.Duration.from_sec(0)
                     marker.id = area["avgMarkerId"]
                     marker.scale = Vector3(0.1, 0.1, 0.1)
-                    best_color_score = -1
-                    best_color = ""
-                    for color_char in area["color"]:
-                        temp = area["color"][color_char]
-                        if temp > best_color_score:
-                            best_color_score = temp
-                            best_color = color_char
+                    best_color = self.chose_color(area["color"])
                         
                     marker.color = self.rgba_from_char(best_color)
                     self.m_arr.markers.append(marker)
