@@ -18,8 +18,10 @@ from cv_bridge import CvBridge, CvBridgeError
 from visualization_msgs.msg import Marker, MarkerArray
 from std_msgs.msg import ColorRGBA
 import pickle
+import subprocess
 
-modelsDir = "/home/sebastjan/Documents/faks/3letnk/ris/ROS_task/src/exercise4/scripts"
+# /home/sebastjan/Documents/faks/3letnk/ris/ROS_task/src/exercise4/scripts
+modelsDir = "/home/code8master/Desktop/wsROS/src/RIS/exercise4/scripts"
 
 class color_localizer:
 
@@ -72,6 +74,8 @@ class color_localizer:
         w = colorDict["w"]
         y = colorDict["y"]
 
+        numOfDetections = np.sum([ b , g , r , y , w , c ])
+
         # black is selected if no other is selected
         c = 0
         # white is considered to be blue
@@ -81,7 +85,8 @@ class color_localizer:
         tag =   ["b","g","r","y","w","c"]
         value = [ b , g , r , y , w , c ]
 
-        if np.sum(value) < 3:
+        if np.sum(value)==0 and numOfDetections>10:
+            print("NOT ENOUGHF COLORS DETECTED")
             return 'c'
         bestIndx = np.argmax(value)
         return tag[bestIndx]
@@ -129,6 +134,18 @@ class color_localizer:
                     self.points_pub.publish(Point(area["averagePostion"][0],area["averagePostion"][1],0))    
                 else:
                     print("SOMETHING WENT FUCKING WRONG !!!!!!!")
+                best_color = self.chose_color(area["color"])
+                d = { "w":"white"
+                    , "c" : "black"
+                    , "y" : "yellow"
+                    , "r" : "red"
+                    , "g" : "green"
+                    , "b" : "blue"
+                }
+                color_word = d[best_color]
+                pprint(area["color"])
+                #
+                subprocess.run(["rosrun" , "sound_play", "say.py", f"{color_word} {objectType}"])
 
             
     def addPosition(self, newPosition, objectType, color_char):
@@ -287,20 +304,47 @@ class color_localizer:
 
         print(f"BGR: {arr}")
         print(f"VSH: {arr2}\n")
-        
+
         y = self.knn_RGB.predict(arr)
+        c1 = y[0]
         print(f"knn_BGR:")
         print(f"\tprediction: {y[0]}")
         y = self.random_forest_RGB.predict(arr)
+        c2 = y[0]
         print(f"random_forest_RGB:")
         print(f"\tprediction: {y[0]}")
 
         y = self.knn_HSV.predict(arr2)
+        c3 = y[0]
         print(f"knn_HSV:")
         print(f"\tprediction: {y[0]}")
         y = self.random_forest_HSV.predict(arr2)
+        c4 = y[0]
         print(f"random_forest_HSV:")
         print(f"\tprediction: {y[0]}")
+
+        d = {
+            "w": 0,
+            "b": 0,
+            "c": 0,
+            "r": 0,
+            "g": 0,
+            "y": 0
+        }
+        d[c1] += 1
+        d[c2] += 1
+        d[c3] += 1
+        d[c4] += 1
+
+        ar =    ["b","g","r","y","w","c"]
+        ar_num =[d["b"],d["g"],d["r"],d["y"],d["w"],d["c"]]
+        if np.sum(np.array(ar_num)==1)==4:
+            return "c"
+        
+        temp = ar[np.argmax(np.array(ar_num))]
+        print(f"!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! --> {temp}")
+        return temp
+        
 
         return y[0]
 

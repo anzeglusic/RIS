@@ -37,8 +37,8 @@ int yy11 = 259;
 int xx11 = 255;
 
 string s1 = "-1";
-double z[] = {1, 0.7, 0, -0.7};
-double w[] = {0, 0.7, 1, 0.7};
+double z[] = {1, 0.7, 0, -0.7, -0.93};
+double w[] = {0, 0.7, 1, 0.7, 0.36};
 map<pair<double, pair<double, int> >,bool> looked;
 map<pair<double, pair<double, int> >,bool> went;
 map<pair<double, pair<double, int> >,bool> can;
@@ -48,9 +48,9 @@ bool mozi = false;
 bool look = false;
 int mat[1000][1000];
 int ringe = 0;
-int arr[] = {2, 3, 0, 0};
-double ary[] = {0.1, 0.25, 0, 0};
-double arx[] = {-0.25, 0, 0.25, 0.25};
+int arr[] = {2, 0, 3, 0};
+double ary[] = {0.1, 0, 0.25, 0};
+double arx[] = {-0.25, 0.25, 0, 0.25};
 void mapCallback(const nav_msgs::OccupancyGridConstPtr& msg_map) {
     int size_x = msg_map->info.width;
     int size_y = msg_map->info.height;
@@ -263,7 +263,10 @@ bool preveri15(int my, int mx, int dir) {
     }
     return cc;
 }
-
+int cil = 0;
+int arc[] = {0, 1, 2, 0};
+int brci = 0;
+int brrin = 0;
 void tapa(const geometry_msgs::Point::ConstPtr &mg) {
     cout << "DOJDE" << dirrr << endl;
     y2 = mg->y;
@@ -285,79 +288,115 @@ void tapa(const geometry_msgs::Point::ConstPtr &mg) {
     else dirrr = 0;
    
         if (z2 >= 0.5) {
-            int nasdir = arr[ringe];
+            brrin = brrin + 1;
+            if (brrin == 4){ 
+                brrin = 3;
+                cout << "Imamo tri ringe" << endl;
+                return;
+             }
+            int nasdir = 4;
+            if (xx1 <= -1) ringe = 1;
+            else if (xx1 <= 0 && yy1 >= 1) ringe = 0;
+            else if (xx1 >= 2 && yy1 <= 0 ) ringe = 2;
+            else if (xx1 >= 1 && yy1 >= 1) ringe = 3;
+            else cout << "NE GRE TAM" << endl;
+            nasdir = arr[ringe];
             double yr = ary[ringe];
             double xr = arx[ringe];
-            ringe++;
             
             cout << "SMER " << nasdir << endl;
            if (nasdir == 1) {
                
                 vozi(yy11, xx11, yy1+yr, xx1+xr,1);
+                sleep(10);
            } else if (nasdir == 2) {
               
             vozi(yy11, xx11, yy1+yr, xx1+xr,2);
+            sleep(10);
            } else if (nasdir == 3) {
                
             vozi(yy11, xx11, yy1+yr, xx1+xr,3);
+            sleep(10);
            } else if (nasdir == 0) {
                
             vozi(yy11, xx11, yy1+yr, xx1+xr,0);
-           }
             sleep(10);
+           }
+           else return;
         } else {
-            
-        if (dirrr == 1 && !went[make_pair(yy1-0.5, make_pair(xx1, 1))]) {
+            //dirrr = arc[cil];
+            brci = brci + 1;
+            if (brci == 4) {
+                brci = 3;
+                 cout << "IMAMO 3 CILINDRE" << endl;
+                 return;
+            }
+            cil++;
+            double dx = 0;
+            if (dirrr == 3) dirrr = 0;
+            dirrr = 4;
+            if (xx1 <= -1 && yy1 >= 0 && yy1 <= 1 ) dirrr = 0;
+            else if (yy1 >= 2) dirrr = 1;
+            else if (xx1 >= 2) dirrr = 2;
+            else if (xx1 <= 0 && xx1  >= -1 && yy1 <= -1 && yy1 >= -2 )dx = 0.5, dirrr = 3;
+            else 
+                cout << "NE GRE TAM" << endl;
+        if (dirrr == 1) {
         
-                went[make_pair(yy1-0.5, make_pair(xx1, 1))] = true;
+              
                 vozi(yy11, xx11, yy1-0.5, xx1,1);
-            
+            sleep(10);
             //cout << "POZDRAAAAAAAAAAAAAAV" << endl;
             //system("/home/iletavcioski/ROS/src/exercise3/src/pozdrav.sh");
             if (z2 < 0.5) {
                 std_msgs::String msg;
                 msg.data = "extend";
                 roko.publish(msg);
-                sleep(5);
+                sleep(10);
                 msg.data = "retract";
                 roko.publish(msg);
             }
-        } else if (dirrr == 2 && !went[make_pair(yy1, make_pair(xx1-0.5, 2))]) {
-            went[make_pair(yy1, make_pair(xx1-0.5, 2))] = true;
-            vozi(yy11, xx11, yy1, xx1-0.5,2);
+        } else if (dirrr == 2 ) {
+           
+            vozi(yy11, xx11, yy1, xx1-0.45,2);
+            sleep(10);
             if (z2 < 0.5) {
                 std_msgs::String msg;
                 msg.data = "extend";
                 roko.publish(msg);
-                sleep(5);
+                sleep(10);
                 msg.data = "retract";
                 roko.publish(msg);
             }
             //cout << "POZDRAAAAAAAAAAAAAAV" << endl;
             //system("/home/iletavcioski/ROS/src/exercise3/src/pozdrav.sh");
-        } else if (dirrr == 3 && !went[make_pair(yy1+0.5, make_pair(xx1, 3))]) {
-            went[make_pair(yy1+0.5, make_pair(xx1, 3))] = true;
-            vozi(yy11, xx11, yy1+0.5, xx1,3);
+        } else if (dirrr == 3) {
+           if (dx == 0.5)
+            vozi(yy11, xx11, yy1+0.5, xx1 + dx,4);
+            else
+            vozi(yy11, xx11, yy1+0.5, xx1 + dx,3);
+            sleep(10);
             std_msgs::String msg;
             if (z2 < 0.5) {
                 std_msgs::String msg;
                 msg.data = "extend";
                 roko.publish(msg);
-                sleep(5);
+                sleep(10);
                 msg.data = "retract";
                 roko.publish(msg);
             }
         // cout << "POZDRAAAAAAAAAAAAAAV" << endl;
             //system("/home/iletavcioski/ROS/src/exercise3/src/pozdrav.sh");
-            sleep(20);
-        } else if (dirrr == 0 && !went[make_pair(yy1, make_pair(xx1+0.5, 0))]) {
-            went[make_pair(yy1, make_pair(xx1+0.5, 0))] = true;
+            //sleep(20);
+        } else if (dirrr == 0 ) {
+            
             vozi(yy11, xx11, yy1, xx1+0.5,0);
+            sleep(10);
             if (z2 < 0.5) {
                 std_msgs::String msg;
                 msg.data = "extend";
                 roko.publish(msg);
-                sleep(5);
+                sleep(10);
                 msg.data = "retract";
                 roko.publish(msg);
             }
@@ -365,6 +404,8 @@ void tapa(const geometry_msgs::Point::ConstPtr &mg) {
             //system("/home/iletavcioski/ROS/src/exercise3/src/pozdrav.sh");
         
         }
+        else return;
+        sleep(5);
         }
     return;
 }
