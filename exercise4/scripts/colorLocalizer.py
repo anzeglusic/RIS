@@ -257,10 +257,40 @@ class color_localizer:
         p1 = point[1,:]
         p2 = point[2,:]
 
+        hsvColor0 = cv2.cvtColor(np.array([[p0]]),cv2.COLOR_BGR2HSV)[0][0]
+        hsvColor0[0] = int((float(hsvColor0[0])/180)*255)
 
-        # arr = np.array([[p0[0],p0[1],p0[2],p1[0],p1[1],p1[2],p2[0],p2[1],p2[2]]])
-        # y = self.random_forest_RGB.predict(arr)
-        # print(f"\tprediction: {y}")
+        hsvColor1 = cv2.cvtColor(np.array([[p1]]),cv2.COLOR_BGR2HSV)[0][0]
+        hsvColor1[0] = int((float(hsvColor1[0])/180)*255)
+
+        hsvColor2 = cv2.cvtColor(np.array([[p2]]),cv2.COLOR_BGR2HSV)[0][0]
+        hsvColor2[0] = int((float(hsvColor2[0])/180)*255)
+        
+        arr = np.array([[p0[0],p0[1],p0[2],p1[0],p1[1],p1[2],p2[0],p2[1],p2[2]]])
+
+        arr2 = np.array([[   hsvColor0[2],hsvColor0[1],hsvColor0[0],
+                            hsvColor1[2],hsvColor1[1],hsvColor1[0],
+                            hsvColor2[2],hsvColor2[1],hsvColor2[0]
+                        ]])
+
+        print(f"BGR: {arr}")
+        print(f"VSH: {arr2}\n")
+        
+        y = self.knn_RGB.predict(arr)
+        print(f"knn_BGR:")
+        print(f"\tprediction: {y[0]}")
+        y = self.random_forest_RGB.predict(arr)
+        print(f"random_forest_RGB:")
+        print(f"\tprediction: {y[0]}")
+
+        y = self.knn_HSV.predict(arr2)
+        print(f"knn_HSV:")
+        print(f"\tprediction: {y[0]}")
+        y = self.random_forest_HSV.predict(arr2)
+        print(f"random_forest_HSV:")
+        print(f"\tprediction: {y[0]}")
+
+        return y[0]
 
         # print(f"p0: {p0}")
         # print(f"p1: {p1}")
@@ -1082,8 +1112,9 @@ class color_localizer:
                         # print(f"Širina:{interval[0]-interval[1]}\n\tna razdalji:{depth_image[centerRowIndex,presekiIndex[cnt]]}")
                         if np.abs(interval[0]-interval[1]) <= 20 or depth_image[centerRowIndex,presekiIndex[cnt]]>2.5:
                             return
-                        pose = self.get_pose(presekiIndex[cnt],centerRowIndex,depth_image[centerRowIndex,presekiIndex[cnt]],depth_image,"cylinder",depth_stamp,self.calc_rgb(points))
-                        self.addPosition(np.array([pose.position.x,pose.position.y,pose.position.z]),"cylinder",self.calc_rgb(points))
+                        colorToPush = self.calc_rgb(points)
+                        pose = self.get_pose(presekiIndex[cnt],centerRowIndex,depth_image[centerRowIndex,presekiIndex[cnt]],depth_image,"cylinder",depth_stamp,colorToPush)
+                        self.addPosition(np.array([pose.position.x,pose.position.y,pose.position.z]),"cylinder",colorToPush)
                     except Exception as e:
                         print(f"find_cylinderDEPTH error: {e}")
                         return
