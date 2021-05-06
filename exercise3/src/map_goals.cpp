@@ -49,6 +49,8 @@ bool look = false;
 int mat[1000][1000];
 int ringe = 0;
 int arr[] = {2, 3, 0, 0};
+double ary[] = {0.1, 0.25, 0, 0};
+double arx[] = {-0.25, 0, 0.25, 0.25};
 void mapCallback(const nav_msgs::OccupancyGridConstPtr& msg_map) {
     int size_x = msg_map->info.width;
     int size_y = msg_map->info.height;
@@ -284,21 +286,23 @@ void tapa(const geometry_msgs::Point::ConstPtr &mg) {
    
         if (z2 >= 0.5) {
             int nasdir = arr[ringe];
+            double yr = ary[ringe];
+            double xr = arx[ringe];
             ringe++;
             
             cout << "SMER " << nasdir << endl;
            if (nasdir == 1) {
-                went[make_pair(yy1-0.25, make_pair(xx1, 1))] = true;
-                vozi(yy11, xx11, yy1-0.25, xx1,1);
+               
+                vozi(yy11, xx11, yy1+yr, xx1+xr,1);
            } else if (nasdir == 2) {
-               went[make_pair(yy1, make_pair(xx1-0.25, 2))] = true;
-            vozi(yy11, xx11, yy1, xx1-0.25,2);
+              
+            vozi(yy11, xx11, yy1+yr, xx1+xr,2);
            } else if (nasdir == 3) {
-                went[make_pair(yy1+0.25, make_pair(xx1, 3))] = true;
-            vozi(yy11, xx11, yy1+0.25, xx1,3);
+               
+            vozi(yy11, xx11, yy1+yr, xx1+xr,3);
            } else if (nasdir == 0) {
-               went[make_pair(yy1, make_pair(xx1+0.25, 0))] = true;
-            vozi(yy11, xx11, yy1, xx1+0.25,0);
+               
+            vozi(yy11, xx11, yy1+yr, xx1+xr,0);
            }
             sleep(10);
         } else {
@@ -477,7 +481,7 @@ int main(int argc, char** argv) {
        
         
         cout << y << " " << x << " " << mom << endl;
-        if (stevec > 54) return 0;
+        if (stevec > 60) return 0;
         int le = (mom + 3) % 4;
         int de = (mom + 1) % 4;
         int naz = (mom + 2) % 4;

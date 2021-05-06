@@ -58,6 +58,7 @@ class color_localizer:
         # self.detected_norm_fin = {}
         # self.entries = 0
         # self.range = 0.2
+    
     def checkPosition(self):
         # pprint(self.detected_pos_fin)
         for color in self.detected_pos_fin:
@@ -931,6 +932,7 @@ class color_localizer:
                         5:"black",
                         6:"white"}
         centerRowIndex = depth_image.shape[0]//2
+        # print(depth_image[centerRowIndex])
         for mask, borderColor, colorDistance in zip(masksList,colorsForBorder,colorDistanceList):
             i += 1
             contour, hierarchy = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
