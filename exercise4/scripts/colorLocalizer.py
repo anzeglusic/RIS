@@ -65,6 +65,17 @@ class color_localizer:
         # self.detected_norm_fin = {}
         # self.entries = 0
         # self.range = 0.2
+
+        #! face detection start
+        self.marker_array = MarkerArray()
+        self.marker_num = 1
+        self.detected_pos_fin = {}
+        self.detected_norm_fin = {}
+        self.entries = 0
+        self.range = 0.2
+        self.face_net = cv2.dnn.readNetFromCaffe(os.path.dirname(os.path.abspath(__file__))+'/deploy.prototxt.txt', os.path.dirname(os.path.abspath(__file__))+'/res10_300x300_ssd_iter_140000.caffemodel')
+        self.dims = (0, 0, 0)
+        #! face detection end
     
     def chose_color(self,colorDict):
         b = colorDict["b"]
@@ -144,8 +155,8 @@ class color_localizer:
                 }
                 color_word = d[best_color]
                 pprint(area["color"])
-                #
-                subprocess.run(["rosrun" , "sound_play", "say.py", f"{color_word} {objectType}"])
+                #! to play a sound !!!!!!!!!!!!!!!!!!!!
+                #! subprocess.run(["rosrun" , "sound_play", "say.py", f"{color_word} {objectType}"])
 
             
     def addPosition(self, newPosition, objectType, color_char):
@@ -590,7 +601,7 @@ class color_localizer:
         point_world = self.tf_buf.transform(point_s, "map")
 
 
-
+        #! USELESS CODE
         allDist = []
         if objectType == "ring":
             for elipse in self.found_rings:
@@ -1426,6 +1437,8 @@ class color_localizer:
         markedImage, depth_im_shifted = self.find_elipses_first(rgb_image, depth_image,rgb_image_message.header.stamp, depth_image_message.header.stamp, grayImage)
         self.find_cylinderDEPTH(rgb_image, depth_im_shifted, markedImage,depth_image_message.header.stamp)
 
+        self.find_faces(rgb_image,depth_im_shifted,depth_image_message.header.stamp)
+
         self.checkPosition()
 
         # print(type(markedImage))
@@ -1456,6 +1469,523 @@ class color_localizer:
         #             candidates.append((e1,e2))
 
         return elps
+
+
+#! face detection start
+    def find_faces(self,rgb_image, depth_image, depth_image_stamp):
+        
+        # Set the dimensions of the image
+        self.dims = rgb_image.shape
+        h = self.dims[0]
+        w = self.dims[1]
+
+
+        # split image into 3 different images that are 1:1 format
+        # it is assumed that image is in format that the images' width is larger than height
+        if self.dims[0] < self.dims[1]:
+            num_of_dead_pixels = self.dims[1]-self.dims[0] # 160
+            shift_pixels = num_of_dead_pixels//2 # 80
+            rgb_image_left = rgb_image[:,0:self.dims[0],:] # 480x480
+            rgb_image_middle = rgb_image[:,shift_pixels:(shift_pixels+self.dims[0]),:] # 480x480
+            rgb_image_right = rgb_image[:,(self.dims[1]-self.dims[0]):,:] # 480x480
+        else:
+            print("\n\nSpodnja stranica bi morala biti daljša !!!!\n\n")
+
+        # h_custom and w_custom for custom sizes for multiplication
+        dims_custom = (0,0,0)
+        dims_custom = rgb_image_left.shape
+        h_custom = dims_custom[0]
+        w_custom = dims_custom[1]
+
+
+        imgL = cv2.resize(src=rgb_image_left, dsize=(300, 300))
+        imgM = cv2.resize(src=rgb_image_middle, dsize=(300, 300))
+        imgR = cv2.resize(src=rgb_image_right, dsize=(300, 300))
+
+
+
+        # Tranform image to gayscale
+        #gray = cv2.cvtColor(rgb_image, cv2.COLOR_BGR2GRAY)
+
+        # Do histogram equlization
+        #img = cv2.equalizeHist(gray)
+
+        # Detect the faces in the image
+        #face_rectangles = self.face_detector(rgb_image, 0)
+        blob = cv2.dnn.blobFromImages(images=[imgL,imgM,imgR], scalefactor=1.0, size=(300, 300), mean=(104.0, 177.0, 123.0))
+        self.face_net.setInput(blob)
+        face_detections = self.face_net.forward()
+        
+        right_image_shift = rgb_image.shape[1] - rgb_image.shape[0]
+        before_value = 1.0
+        detection_happend = False
+        string_prints = []
+        normals_found = []
+
+
+        good_face_detections = []
+        for i in range(0, face_detections.shape[2]):
+            imageIndx = int(face_detections[0,0,i,0]) # 0 == left, 1 == middle, 2 == right
+            confidence = face_detections[0, 0, i, 2]
+            if confidence>0.5:
+                box = face_detections[0,0,i,3:7] * np.array([w_custom,h_custom,w_custom,h_custom])
+                box = box.astype('int')
+                x1_custom, y1_custom, x2_custom, y2_custom = box[0], box[1], box[2], box[3]
+                
+                # y stay the same because original images' width is larger than its width
+                if imageIndx == 0: # left
+                    x1 = x1_custom
+                    y1 = y1_custom
+                    x2 = x2_custom
+                    y2 = y2_custom
+                elif imageIndx == 1: # middle
+                    x1 = shift_pixels + x1_custom
+                    y1 = y1_custom
+                    x2 = shift_pixels + x2_custom
+                    y2 = y2_custom
+                elif imageIndx == 2: # right
+                    x1 = right_image_shift + x1_custom
+                    y1 = y1_custom
+                    x2 = right_image_shift + x2_custom
+                    y2 = y2_custom
+                
+                # poskrbi za morebitne zaznave izven okvirja slike
+                if x1 < 0: # x1 preveč levo
+                    x1 = 0
+                if x1 > self.dims[1]-1: # x1 preveč desno
+                    x1 = self.dims[1]-1
+                if x2 < 0: # x2 preveč levo
+                    x2 = 0
+                if x2 > self.dims[1]-1: # x2 preveč desno
+                    x2 = self.dims[1]-1
+                if y1 < 0: # y1 preveč zgoray
+                    y1 = 0
+                if y1 > self.dims[0]-1: # y1 preveč spodaj
+                    y1 = self.dims[0]-1
+                if y2 < 0: # y2 preveč zgoraj
+                    y2 = 0
+                if y2 > self.dims[0]-1: # y2 preveč spodaj
+                    y2 = self.dims[0]-1
+                
+                this_dict = {
+                    "indx" : i,
+                    "imageIndx": imageIndx, # 0 == left, 1 == middle, 2 == right
+                    "confidence" : confidence,
+                    "x": (x1,x2),
+                    "y": (y1,y2)
+                    }
+                good_face_detections.append(this_dict)
+        
+        good_face_detections_sorted = sorted(good_face_detections,key=lambda tempDictionary: tempDictionary["confidence"],reverse=True)
+
+        good_face_detections_final = []
+        for good_detection in good_face_detections_sorted:
+            x1, x2 = good_detection["x"]
+            y1, y2 = good_detection["y"]
+            
+            is_good_detection = True
+            for checked_good_detection in good_face_detections_final:
+                if self.does_it_cross(checked_good_detection["x"], checked_good_detection["y"], (x1,x2), (y1,y2)):
+                    is_good_detection = False
+            
+            if is_good_detection:
+                good_face_detections_final.append(good_detection)
+
+
+
+        br = 0
+        for face in good_face_detections_final:
+            i = face["indx"]
+            imageIndx = face["imageIndx"]
+            confidence = face["confidence"]
+            (x1, x2) = face["x"]
+            (y1,y2) = face["y"]
+
+            # Extract region containing face
+            face_region = rgb_image[y1:y2, x1:x2]
+            if min(face_region.shape)==0:
+                continue
+
+            """im_ms = Image()
+            im_ms.header.stamp = rospy.Time(0)
+            im_ms.header.frame_id = 'map'
+            im_ms.height = face_region.shape[0]
+            im_ms.width = face_region.shape[1]
+            im_ms.data = face_region"""
+            
+            #self.pic_pub.publish(im_ms)
+            #self.pic_pub.publish(CvBridge().cv2_to_imgmsg(face_region, encoding="passthrough"))
+
+            # Visualize the extracted face
+            #cv2.imshow("ImWindow", face_region)
+            #cv2.waitKey(1)
+
+            #self.pic_pub = rospy.Publisher('face_im', Image, queue_size=1000)
+
+            # Find the distance to the detected face
+            #assert y1 != y2, "Y sta ista !!!!!!!!!!!"
+            #assert x1 != x2, "X sta ista !!!!!!!!!!!"
+            face_distance = float(np.nanmean(depth_image[y1:y2,x1:x2]))
+            im = depth_image[y1:y2,x1:x2]
+            norm = self.get_normal(depth_image, (x1,y1,x2,y2) ,depth_image_stamp,face_distance, face_region)
+            normals_found.append(norm)
+
+            print('Norm of face', norm)
+
+            print('Distance to face', face_distance)
+            #trans = tf2_ros.Buffer().lookup_transform('mapa', 'base_link', rospy.Time(0))
+            #print('my position ',trans)
+            # Get the time that the depth image was recieved
+            depth_time = depth_image_stamp
+
+            # Find the location of the detected face
+            pose = self.get_pose_face((x1,x2,y1,y2), face_distance, depth_time)
+            
+
+    def does_it_cross(self, a_cords_x, a_cords_y, b_cords_x, b_cords_y):
+        # it answers the qustion if rectangles cross in any way
+        # returns True --> coardinates cross
+        # returns False --> coardinates DONT cross
+        a_x1, a_x2 = a_cords_x
+        a_y1, a_y2 = a_cords_y
+        
+        b_x1, b_x2 = b_cords_x
+        b_y1, b_y2 = b_cords_y
+
+        # check if B has anything inside A
+        if (a_x1 <= b_x1 <= a_x2 or a_x1 <= b_x2 <= a_x2) and (a_y1 <= b_y1 <= a_y2 or a_y1 <= b_y2 <= a_y2):
+            return True
+        # check if A has anything inside B
+        if (b_x1 <= a_x1 <= b_x2 or b_x1 <= a_x2 <= b_x2) and (b_y1 <= a_y1 <= b_y2 or b_y1 <= a_y2 <= b_y2):
+            return True
+        
+        return False
+
+    def get_normal(self, depth_image, face_cord, stamp,dist, face_region):
+        face_x1, face_y1, face_x2, face_y2 = face_cord
+        image = depth_image[face_y1:face_y2, face_x1:face_x2]
+        shift_left = face_x1
+        shift_top = face_y1
+
+        if min(depth_image.shape) == 0:
+            return None
+
+
+        biggerDim = np.argmax(image.shape) 
+        # print(f"bigger dimention: {biggerDim}")
+        bigLen = image.shape[biggerDim]
+        smallLen = image.shape[~biggerDim]
+        # print(f"bigLen = {bigLen}")
+        # print(f"smallLen = {smallLen}")
+        x1 = y1 = None # top-left
+        x2 = y2 = None # bottom-right
+        x3 = y3 = None # top-right
+            
+        for big_i in range(bigLen//2):
+            whatPart = big_i/bigLen
+            small_i = round(whatPart*smallLen)
+            if biggerDim == 0:
+                # bottom-left point
+                if (x2==None and np.isnan(image[(bigLen-1)-big_i][small_i])==False):
+                    x2 = small_i
+                    y2 = (bigLen-1)-big_i
+                # bottom-right point
+                if (x1==None and np.isnan(image[(bigLen-1)-big_i][(smallLen-1)-small_i])==False):
+                    x1 = (smallLen-1)-small_i
+                    y1 = (bigLen-1)-big_i
+                # top-right point
+                if (x3==None and np.isnan(image[big_i][(smallLen-1)-small_i])==False):
+                    x3 = (smallLen-1)-small_i
+                    y3 = big_i
+            else:
+                # bottom-left point
+                if (x2==None and np.isnan(image[(smallLen-1)-small_i][big_i])==False):
+                    x2 = big_i
+                    y2 = (smallLen-1)-small_i
+                # bottom-right point
+                if (x1==None and np.isnan(image[(smallLen-1)-small_i][(bigLen-1)-big_i])==False):
+                    x1 = (bigLen-1)-big_i
+                    y1 = (smallLen-1)-small_i
+                # top-right point
+                if (x3==None and np.isnan(image[small_i][(bigLen-1)-big_i])==False):
+                    x3 = small_i
+                    y3 = (bigLen-1)-big_i
+
+
+        if x1 == None or x2 == None or x3 == None:
+            return None
+        # else:
+        #     x1 = (face_x1+face_x2)//2+2
+        #     x2 = (face_x1+face_x2)//2-2
+        #     x3 = (face_x1+face_x2)//2
+        #     y1 = (face_y1+face_y2)//2+2
+        #     y2 = (face_y1+face_y2)//2-2
+        #     y3 = (face_y1+face_y2)//2
+
+        x1 += shift_left
+        y1 += shift_top
+
+        x2 += shift_left
+        y2 += shift_top
+        
+        x3 += shift_left
+        y3 += shift_top
+        
+        
+
+        #print("\n< 1 > image [{:>3}] [{:>3}] = {:}".format(y1,x1,depth_image[y1][x1]))
+        #print("< 2 > image [{:>3}] [{:>3}] = {:}".format(y2,x2,depth_image[y2][x2]))
+        #print("< 3 > image [{:>3}] [{:>3}] = {:}".format(y3,x3,depth_image[y3][x3]))
+
+
+
+        v1_cor = self.get_pose_face((x1,x1,y1,y1),depth_image[y1,x1],stamp)
+        
+        v2_cor = self.get_pose_face((x2,x2,y2,y2),depth_image[y2,x2],stamp)
+        
+        v3_cor = self.get_pose_face((x3,x3,y3,y3),depth_image[y3,x3],stamp)
+
+        # try:
+        #     # print("\n coords of points:")
+        #     # print(f"\n{v1_cor.position}")
+        #     # print(f"\n{v2_cor.position}")
+        #     # print(f"\n{v3_cor.position}")
+        # except:
+        #     pass
+        
+        
+        try: 
+            #print(v1_cor,v2_cor,v3_cor)
+            v3_cor.position.z += 0.1
+
+            #rospy.sleep(2)
+            v1 = np.array([v1_cor.position.x,v1_cor.position.y, v1_cor.position.z] )
+            v2 = np.array([v2_cor.position.x,v2_cor.position.y, v2_cor.position.z] )
+            v3 = np.array([v3_cor.position.x,v3_cor.position.y, v3_cor.position.z] )
+
+            print(f"v1:  {v1}")
+            print(f"v2:  {v2}")
+            print(f"v3:  {v3}")
+
+            v12 =v2-v1
+            v13 =v3-v1
+            
+            v23 = v3-v2
+
+            d12 = np.linalg.norm(v12)
+            d13 = np.linalg.norm(v13)
+            d23 = np.linalg.norm(v23)
+            print(f"\n\tv12:  {v12}")
+            print(f"\tv13:  {v13}")
+            print(f"\tv13:  {v23}")
+            print("\t----")
+            print(f"\td12:  {d12}")
+            print(f"\td13:  {d13}")
+            print(f"\td23:  {d23}\n")
+
+            if d12>0.2 or d13>0.2 or d23>0.2:
+                print("Exiting like a pro!!!!!!!!!!!!")
+                return None
+            
+
+
+            norm = np.cross(v12,v13)
+            norm = norm/np.linalg.norm(norm)*0.5
+            print(f"norm: {norm}")
+
+            orig_arr = v1
+            dest_arr = v1-norm
+            print("before:",norm)
+
+            #for pose in [v1_cor,v2_cor,v3_cor]:
+            """
+                if pose is not None:
+                    # Create a marker used for visualization
+                    self.marker_num += 1
+                    marker = Marker()
+                    marker.header.stamp = rospy.Time(0)
+                    marker.header.frame_id = 'map'
+                    marker.pose = pose
+                    marker.type = Marker.CUBE
+                    marker.action = Marker.ADD
+                    marker.frame_locked = False
+                    marker.lifetime = rospy.Duration.from_sec(10)
+                    marker.id = self.marker_num
+                    marker.scale = Vector3(0.1, 0.1, 0.1)
+                    if pose == v1_cor:
+                        marker.color = ColorRGBA(1,0,0,1)
+                    elif pose == v2_cor:
+                        marker.color = ColorRGBA(0,0,1,1)
+                    else:
+                        marker.color = ColorRGBA(0, 1, 0, 1)
+                    #self.marker_array.markers.append(marker)
+
+            #self.marker_array.markers.append(self.get_arrow_points(Vector3(1,1,1),Point(orig_arr[0],orig_arr[1],orig_arr[2]),Point(dest_arr[0],dest_arr[1],dest_arr[2]),3))
+            self.markers_pub.publish(self.marker_array)
+            """
+            doit = self.norm_accumulator(norm,v1,dist) #! ACCUMULATOR IS CALLED
+            # TODO: spremeni, da bo z akumulatorjem pozicij iz te skripte
+            print(f"\n\n\n")
+            pprint(self.detected_pos_fin)
+            print(f"\n\n\n")
+            if doit:
+                self.marker_array.markers.append(self.get_arrow_points(Vector3(1,1,1),Point(orig_arr[0],orig_arr[1],orig_arr[2]),Point(dest_arr[0],dest_arr[1],dest_arr[2]),3))
+                self.markers_pub.publish(self.marker_array)
+                self.pic_pub.publish(CvBridge().cv2_to_imgmsg(face_region, encoding="passthrough"))
+            print("after:",norm)
+            #self.points_pub.publish(Point(orig_arr[0],orig_arr[1],orig_arr[2]))
+            #self.points_pub.publish(Point(dest_arr[0],dest_arr[1],dest_arr[2]))
+            #ustvarimo Image msg
+            # Refrence :image = depth_image[face_y1:face_y2, face_x1:face_x2]
+            """im_ms = Image()
+            im_ms.header.stamp = rospy.Time(0)
+            im_ms.header.frame_id = 'map'
+            im_ms.height = image.shape[0]
+            im_ms.width = image.shape[1]
+            im_ms.data = image
+            
+            self.pic_pub.publish(im_ms)"""
+
+        except Exception as e:
+            print(e)
+            norm = None
+        return norm
+
+    def get_pose_face(self,coords,dist,stamp):
+        # Calculate the position of the detected face
+
+        k_f = 554 # kinect focal length in pixels
+
+        x1, x2, y1, y2 = coords
+
+        face_x = self.dims[1] / 2 - (x1+x2)/2.
+        face_y = self.dims[0] / 2 - (y1+y2)/2.
+
+        angle_to_target = np.arctan2(face_x,k_f)
+
+        # Get the angles in the base_link relative coordinate system
+        x = dist*np.cos(angle_to_target)
+        y = dist*np.sin(angle_to_target)
+
+        ### Define a stamped message for transformation - directly in "base_link"
+        #point_s = PointStamped()
+        #point_s.point.x = x
+        #point_s.point.y = y
+        #point_s.point.z = 0.3
+        #point_s.header.frame_id = "base_link"
+        #point_s.header.stamp = rospy.Time(0)
+
+        # Define a stamped message for transformation - in the "camera rgb frame"
+        point_s = PointStamped()
+        point_s.point.x = -y
+        point_s.point.y = 0
+        point_s.point.z = x
+        point_s.header.frame_id = "camera_rgb_optical_frame"
+        point_s.header.stamp = stamp
+
+        # Get the point in the "map" coordinate system
+        try:
+            point_world = self.tf_buf.transform(point_s, "map")
+
+            # Create a Pose object with the same position
+            pose = Pose()
+            pose.position.x = point_world.point.x
+            pose.position.y = point_world.point.y
+            pose.position.z = point_world.point.z
+        except Exception as e:
+            print(e)
+            pose = None
+
+        return pose
+
+    def norm_accumulator(self, norm, center_point,dist1):
+        found = -1
+        if norm.size == 0  or center_point.size == 0 or dist1>1.5:
+            print("huh")
+            return False
+        print("central point",center_point)
+        if self.detected_pos_fin:
+
+            for i in self.detected_pos_fin:
+                dist = np.linalg.norm(center_point-self.detected_pos_fin[i][0])
+                print("distance:",dist," ",i)
+                #ce si je sredinska tocka dovolj blizu preverimo se kosinusno podobnost normal
+                if dist<0.5:
+                    c_sim = np.dot(norm,self.detected_norm_fin[i][0])/(np.linalg.norm(norm)*np.linalg.norm(self.detected_norm_fin[i][0]))
+                    print("similarity:",c_sim)
+                    if c_sim>0.5:
+                        found = i
+            if found >=0:
+                print("najdeno ujemanje:",found)
+                n = len(self.detected_pos_fin[found])
+                #dodamo točko na koncu seznama točk  ce le ta nima 5 elementov(+1 za povprecje)
+                if n < 6:
+                    self.detected_pos_fin[found].append(center_point)
+                    self.detected_norm_fin[found].append(norm)
+                    #zracunamo nova povprecja racunamo od 1 naprej saj prvi je povprecje
+                    self.detected_pos_fin[found][0] = np.array([sum([x[0] for x in self.detected_pos_fin[found][1:]])/n,sum([x[1] for x in self.detected_pos_fin[found][1:]])/n,sum([x[2] for x in self.detected_pos_fin[found][1:]])/n])
+                    self.detected_norm_fin[found][0] = np.array([sum([x[0] for x in self.detected_norm_fin[found][1:]])/n,sum([x[1] for x in self.detected_norm_fin[found][1:]])/n,sum([x[2] for x in self.detected_norm_fin[found][1:]])/n])
+                #ce smo sedaj polni posljemo normalo kot point!!
+                print(self.detected_pos_fin[found][1:])
+                if n == 6:
+                    #poslji povprecni norm
+                    print(n)
+                    #self.points_pub(Point(self.detected_norm_fin[found][0][0],self.detected_norm_fin[found][0][1],self.detected_norm_fin[found][0][2]))
+                    act_norm = self.detected_pos_fin[found][0]-self.detected_norm_fin[found][0]
+                    #self.twist_pub.publish(Vector3(act_norm[0],act_norm[1],act_norm[2]),Vector3(self.detected_pos_fin[found][0][0],self.detected_pos_fin[found][0][1],self.detected_pos_fin[found][0][2]))
+                    #dodamo se enega v norm da blokiramo aktivacijo tega ifa
+                    self.detected_norm_fin[found].append(np.array([-1,-1,-1]))
+                    self.detected_pos_fin[found].append(np.array([-1,-1,-1]))
+
+                    return False
+            else:
+                print("ni bilo ujemanj:1")
+
+                #ustvarimo nov entry
+                self.detected_pos_fin[self.entries] = [center_point,center_point]
+                self.detected_norm_fin[self.entries] =[norm,norm]
+                act_norm = self.detected_pos_fin[self.entries][0]-self.detected_norm_fin[self.entries][0]
+                #self.points_pub(Point(self.detected_pos_fin[found][0][0],self.detected_pos_fin[found][0][1],self.detected_pos_fin[found][0][2]))
+                #! self.twist_pub.publish(Vector3(act_norm[0],act_norm[1],act_norm[2]),Vector3(self.detected_pos_fin[self.entries][0][0],self.detected_pos_fin[self.entries][0][1],self.detected_pos_fin[self.entries][0][2]))
+                self.entries += 1
+                return True
+
+        else:
+            print("ni bilo ujemanj:")
+            #ustvarimo nov entry
+            self.detected_pos_fin[self.entries] = [center_point,center_point]
+            self.detected_norm_fin[self.entries] =[norm,norm]
+            act_norm = self.detected_pos_fin[self.entries][0]-self.detected_norm_fin[self.entries][0]
+            #self.points_pub(Point(self.detected_pos_fin[found][0][0],self.detected_pos_fin[found][0][1],self.detected_pos_fin[found][0][2]))
+            #! self.twist_pub.publish(Vector3(act_norm[1],act_norm[1],act_norm[2]),Vector3(self.detected_pos_fin[self.entries][0][0],self.detected_pos_fin[self.entries][0][1],self.detected_pos_fin[self.entries][0][2]))
+            self.entries += 1
+            return True
+        
+        #posljemo None nazaj da vemo da nismo dokoncno dolocili nobene tocke
+        return False
+    
+    def get_arrow_points(self, scale, head, tail, idn):
+        self.marker_num += 1
+        m = Marker()
+        m.action = Marker.ADD
+        m.header.frame_id= 'map'
+        m.header.stamp = rospy.Time.now()
+        m.ns = 'points_arrow'
+        m.id = self.marker_num
+        m.type = Marker.ARROW
+        m.pose.orientation.y = 0
+        m.pose.orientation.w = 1
+        m.scale = scale
+        m.color.r = 0.2
+        m.color.g = 0.5
+        m.color.b = 1.0
+        m.color.a = 0.3
+
+        m.points = [tail,head]
+        return m
+       
+
+#! face detection end
 
 def main():
 
