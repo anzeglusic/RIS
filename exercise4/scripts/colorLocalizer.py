@@ -21,12 +21,13 @@ import pickle
 import subprocess
 
 # /home/sebastjan/Documents/faks/3letnk/ris/ROS_task/src/exercise4/scripts
-modelsDir = "/home/code8master/Desktop/wsROS/src/RIS/exercise4/scripts"
 
+#modelsDir = "/home/code8master/Desktop/wsROS/src/RIS/exercise4/scripts"
+modelsDir = '/'.join(os.path.realpath(__file__).split('/')[0:-1])+'/'
 class color_localizer:
 
     def __init__(self):
-
+        print()
         self.found_rings = []
         self.found_cylinders = []
         
