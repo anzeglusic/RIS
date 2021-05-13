@@ -193,7 +193,9 @@ class color_localizer:
         }
         '''
         # make normal of magnitude 1
-        if not face_normal is None:
+        if objectType == "face":
+            if face_normal is None:
+                return
             face_normal = face_normal/np.sqrt(face_normal[0]**2 + face_normal[1]**2 + face_normal[2]**2)
         
         unique_position = True
@@ -203,7 +205,7 @@ class color_localizer:
             dist = np.sqrt(dist_vector[0]**2 + dist_vector[1]**2 + dist_vector[2]**2)
             if objectType=="face":
                 # TODO: check if the oriantation (normal) is correct --> it oculd be that the face is on the other side of the wall
-                c_sim = np.dot(face_normal,area_avg)/(np.linalg.norm(face_normal)*np.linalg.norm(self.area_avg))
+                c_sim = np.abs(np.dot(face_normal,area_avg)/(np.linalg.norm(face_normal)*np.linalg.norm(area_avg)))
                 print("similarity:",c_sim)
                 if c_sim<=0.5:
                     continue
@@ -222,7 +224,7 @@ class color_localizer:
                 # collection of normals
                 area["detectedNormals"].append(face_normal)
                 # average normal
-                print(area["detectedNormals"]
+                print(area["detectedNormals"])
                 area["averageNormal"] = np.sum(area["detectedNormals"],axis=0)/len(area["detectedNormals"])
                 area["averageNormal"] = area["averageNormal"]/np.sqrt(area["averageNormal"][0]**2 + area["averageNormal"][1]**2 + area["averageNormal"][2]**2)
             
