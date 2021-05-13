@@ -40,7 +40,8 @@ class color_localizer:
         
         self.positions = {
             "ring": [],
-            "cylinder": []
+            "cylinder": [],
+            "face": []
         }
         
         rospy.init_node('color_localizer', anonymous=True)
@@ -66,7 +67,11 @@ class color_localizer:
         # self.entries = 0
         # self.range = 0.2
 
+        self.showEveryDetection = True
+
+
         #! face detection start
+        self.faceNormalLength = 0.5
         self.marker_array = MarkerArray()
         self.marker_num = 1
         self.detected_pos_fin = {}
@@ -158,8 +163,7 @@ class color_localizer:
                 #! to play a sound !!!!!!!!!!!!!!!!!!!!
                 #! subprocess.run(["rosrun" , "sound_play", "say.py", f"{color_word} {objectType}"])
 
-            
-    def addPosition(self, newPosition, objectType, color_char):
+    def addPosition(self, newPosition, objectType, color_char, face_normal=None):
         '''
         positions = {
             "ring": [
@@ -173,82 +177,117 @@ class color_localizer:
                 { "averagePostion": np.array([x,y,z]), "detectedPositions": [ pos0, pos1, pos2, pos3], "color": {"b":0, "g":0, "r":0, ...}, "approached": False,"avgMarkerId": None  },
                 { "averagePostion": np.array([x,y,z]), "detectedPositions": [ pos0, pos1, pos2, pos3], "color": {"b":0, "g":0, "r":0, ...}, "approached": False,"avgMarkerId": None  }
                 
+            ],
+            "face": [
+                { 
+                    "averagePostion": np.array([x,y,z]),
+                    "averageNormal": np.array([x,y,z]),
+                    "detectedPositions": [ pos0, pos1, pos2, pos3],
+                    "detectedNormals": [ pos0, pos1, pos2, pos3],
+                    "approached": False,
+                    "avgMarkerId": None
+                },
+                ...
             ]
         }
         '''
+        # make normal of magnitude 1
+        if not face_normal is None:
+            face_normal = face_normal/np.sqrt(face_normal[0]**2 + face_normal[1]**2 + face_normal[2]**2)
+        
         unique_position = True
         for area in self.positions[objectType]:
             area_avg = area["averagePostion"]
             dist_vector = area_avg - newPosition
             dist = np.sqrt(dist_vector[0]**2 + dist_vector[1]**2 + dist_vector[2]**2)
-            if dist > 1:
+            if objectType=="face":
+                # TODO: check if the oriantation (normal) is correct --> it oculd be that the face is on the other side of the wall
+                print("Dist --> ",dist)
+            if dist > 0.5:
                 continue
             
             unique_position = False
-            # collection
+            
+            # depending on the type of object
+            if objectType=="cylinder" or objectType=="ring":
+                # color
+                area["color"][color_char] += 1
+            elif objectType=="face":
+                # collection of normals
+                area["detectedNormals"].append(face_normal)
+                # average normal
+                area["averageNormal"] = np.sum(area["detectedNormals"],axis=0)/len(area["detectedNormals"])
+                area["averageNormal"] = area["averageNormal"]/np.sqrt(area["averageNormal"][0]**2 + area["averageNormal"][1]**2 + area["averageNormal"][2]**2)
+            
+            # collection of positions
             area["detectedPositions"].append(newPosition.copy())
-            # color
-            area["color"][color_char] += 1
+            
             # average
             area["averagePostion"] = np.sum(area["detectedPositions"],axis=0)/len(area["detectedPositions"])
+            
             # average marker
+            if len(area["detectedPositions"])>3 and (objectType=="ring" or objectType=="cylinder"):
+                # Create a Pose object with the same position
+                pose = Pose()
+                pose.position.x = area["averagePostion"][0]
+                pose.position.y = area["averagePostion"][1]
+                pose.position.z = area["averagePostion"][2]+0.1
 
-            if len(area["detectedPositions"])>3:
+                # Create a marker used for visualization
+                self.nM += 1
+                marker = Marker()
+                marker.header.stamp = rospy.Time(0)
+                marker.header.frame_id = "map"
+                marker.pose = pose
+                marker.type = Marker.CUBE if objectType=="ring" else Marker.CYLINDER
+                marker.action = Marker.ADD
+                marker.frame_locked = False
+                marker.lifetime = rospy.Duration.from_sec(0)
+                marker.scale = Vector3(0.1, 0.1, 0.1)
+                
                 if area["avgMarkerId"] == None:
-                    #! FIRST
-                    # Create a Pose object with the same position
-                    pose = Pose()
-                    pose.position.x = area["averagePostion"][0]
-                    pose.position.y = area["averagePostion"][1]
-                    pose.position.z = area["averagePostion"][2]
-
-                    # Create a marker used for visualization
-                    self.nM += 1
-                    marker = Marker()
-                    marker.header.stamp = rospy.Time(0)
-                    marker.header.frame_id = "map"
-                    marker.pose = pose
-                    marker.type = Marker.CUBE if objectType=="ring" else Marker.CYLINDER
-                    marker.action = Marker.ADD
-                    marker.frame_locked = False
-                    marker.lifetime = rospy.Duration.from_sec(0)
                     marker.id = self.nM
-                    marker.scale = Vector3(0.1, 0.1, 0.1)
-                    
-                    best_color = self.chose_color(area["color"])
-                    
                     area["avgMarkerId"] = self.nM
-                        
-                    marker.color = self.rgba_from_char(best_color)
-                    self.m_arr.markers.append(marker)
-
-                    self.markers_pub.publish(self.m_arr)
                 else:
-                    #! UPDATE
-                    # Create a Pose object with the same position
-                    pose = Pose()
-                    pose.position.x = area["averagePostion"][0]
-                    pose.position.y = area["averagePostion"][1]
-                    pose.position.z = area["averagePostion"][2]
-
-                    # Create a marker used for visualization
-                    self.nM += 1
-                    marker = Marker()
-                    marker.header.stamp = rospy.Time(0)
-                    marker.header.frame_id = "map"
-                    marker.pose = pose
-                    marker.type = Marker.CUBE if objectType=="ring" else Marker.CYLINDER
-                    marker.action = Marker.ADD
-                    marker.frame_locked = False
-                    marker.lifetime = rospy.Duration.from_sec(0)
                     marker.id = area["avgMarkerId"]
-                    marker.scale = Vector3(0.1, 0.1, 0.1)
-                    best_color = self.chose_color(area["color"])
-                        
-                    marker.color = self.rgba_from_char(best_color)
-                    self.m_arr.markers.append(marker)
+                
+                best_color = self.chose_color(area["color"])
+                marker.color = self.rgba_from_char(best_color)
+                    
+                self.m_arr.markers.append(marker)
+                self.markers_pub.publish(self.m_arr)
+            elif len(area["detectedPositions"])>3 and objectType=="face":
+                self.nM += 1
+                marker = Marker()
+                marker.header.stamp = rospy.Time(0)
+                marker.header.frame_id = "map"
+                marker.action = Marker.ADD
+                marker.frame_locked = False
+                marker.lifetime = rospy.Duration.from_sec(0)
 
-                    self.markers_pub.publish(self.m_arr)
+                if area["avgMarkerId"] == None:
+                    marker.id = self.nM
+                    area["avgMarkerId"] = self.nM
+                else:
+                    marker.id = area["avgMarkerId"]
+                
+                marker.ns = 'points_arrow'
+                marker.type = Marker.ARROW
+                marker.pose.orientation.y = 0
+                marker.pose.orientation.w = 1
+                marker.scale = Vector3(1,1,1)
+                marker.color = ColorRGBA(1,0,0,0.5)
+                
+                orig_arr = area["averagePostion"].copy()
+                orig_arr[2] += 0.1
+                dest_arr = orig_arr - area["averageNormal"]*self.faceNormalLength
+                head = Point(orig_arr[0],orig_arr[1],orig_arr[2])
+                tail = Point(dest_arr[0],dest_arr[1],dest_arr[2])
+                
+                marker.points = [tail,head]
+                
+                self.m_arr.markers.append(marker)
+                self.markers_pub.publish(self.m_arr)
 
 
 
@@ -256,36 +295,63 @@ class color_localizer:
 
         
         if unique_position == True:
-            colorDict = {"r":0,"g":0,"b":0,"y":0,"w":0,"c":0}
-            colorDict[color_char] += 1
-            self.positions[objectType].append({ "averagePostion": newPosition.copy(),
-                                                "detectedPositions":[newPosition.copy()],
-                                                "color": colorDict,
-                                                "approached": False,
-                                                "avgMarkerId": None
-                                                })
+            if objectType=="ring" or objectType=="cylinder":
+                colorDict = {"r":0,"g":0,"b":0,"y":0,"w":0,"c":0}
+                colorDict[color_char] += 1
+                self.positions[objectType].append({ "averagePostion": newPosition.copy(),
+                                                    "detectedPositions":[newPosition.copy()],
+                                                    "color": colorDict,
+                                                    "approached": False,
+                                                    "avgMarkerId": None
+                                                    })
+            elif objectType=="face":
+                print("\n\nAdding new face\n\n")
+                self.positions[objectType].append({ "averagePostion": newPosition.copy(),
+                                                    "averageNormal": face_normal.copy(),
+                                                    "detectedPositions":[newPosition.copy()],
+                                                    "detectedNormals":[face_normal.copy()],
+                                                    "approached": False,
+                                                    "avgMarkerId": None
+                                                    })
+
         # Create a Pose object with the same position
         pose = Pose()
         pose.position.x = newPosition[0]
         pose.position.y = newPosition[1]
         pose.position.z = newPosition[2]
-
-        # Create a marker used for visualization
-        self.nM += 1
-        marker = Marker()
-        marker.header.stamp = rospy.Time(0)
-        marker.header.frame_id = "map"
-        marker.pose = pose
-        marker.type = Marker.CUBE if objectType=="ring" else Marker.CYLINDER
-        marker.action = Marker.ADD
-        marker.frame_locked = False
-        marker.lifetime = rospy.Duration.from_sec(0)
-        marker.id = self.nM
-        marker.scale = Vector3(0.1, 0.1, 0.1)
-        marker.color = ColorRGBA(0.5,0.5,0.5,0.25)
-        self.m_arr.markers.append(marker)
-
-        self.markers_pub.publish(self.m_arr)
+        if self.showEveryDetection==True:
+            # Create a marker used for visualization
+            self.nM += 1
+            marker = Marker()
+            marker.header.stamp = rospy.Time(0)
+            marker.header.frame_id = "map"
+            marker.action = Marker.ADD
+            marker.frame_locked = False
+            marker.lifetime = rospy.Duration.from_sec(0)
+            marker.id = self.nM
+            
+            if objectType=="ring" or objectType=="cylinder":
+                marker.type = Marker.CUBE if objectType=="ring" else Marker.CYLINDER
+                marker.pose = pose
+                marker.scale = Vector3(0.1, 0.1, 0.1)
+                marker.color = ColorRGBA(0.5,0.5,0.5,0.25)
+            elif objectType=="face":
+                marker.ns = 'points_arrow'
+                marker.type = Marker.ARROW
+                marker.pose.orientation.y = 0
+                marker.pose.orientation.w = 1
+                marker.scale = Vector3(1,1,1)
+                marker.color = ColorRGBA(0.5,0.5,0.5,0.1)
+                
+                orig_arr = newPosition
+                dest_arr = orig_arr - face_normal*self.faceNormalLength
+                head = Point(orig_arr[0],orig_arr[1],orig_arr[2])
+                tail = Point(dest_arr[0],dest_arr[1],dest_arr[2])
+                
+                marker.points = [tail,head]
+            
+            self.m_arr.markers.append(marker)
+            self.markers_pub.publish(self.m_arr)
     
     def calc_rgb(self,point):
         # print("\n!!!!!!!!!!!!!!!!!!!")
@@ -726,7 +792,6 @@ class color_localizer:
         diff = (depth_stamp.to_sec()-im_stamp.to_sec())
         print(f"diff:             {diff}")
         print()
-        # print(self.detected_pos_fin)
         
         if (np.abs(diff) > 0.5):
             pprint("skip")
@@ -1435,6 +1500,7 @@ class color_localizer:
         grayImage = self.bgr2gray(rgb_image)
         grayImage = self.gray2bgr(grayImage)
         markedImage, depth_im_shifted = self.find_elipses_first(rgb_image, depth_image,rgb_image_message.header.stamp, depth_image_message.header.stamp, grayImage)
+        # TODO: make it so it marks face and returns the image to display
         self.find_cylinderDEPTH(rgb_image, depth_im_shifted, markedImage,depth_image_message.header.stamp)
 
         self.find_faces(rgb_image,depth_im_shifted,depth_image_message.header.stamp)
@@ -1640,7 +1706,9 @@ class color_localizer:
 
             # Find the location of the detected face
             pose = self.get_pose_face((x1,x2,y1,y2), face_distance, depth_time)
-            
+            if pose != None:
+                newPosition = np.array([pose.position.x,pose.position.y, pose.position.z])
+                self.addPosition(newPosition, "face", color_char=None, face_normal=norm)          
 
     def does_it_cross(self, a_cords_x, a_cords_y, b_cords_x, b_cords_y):
         # it answers the qustion if rectangles cross in any way
@@ -1823,16 +1891,14 @@ class color_localizer:
             #self.marker_array.markers.append(self.get_arrow_points(Vector3(1,1,1),Point(orig_arr[0],orig_arr[1],orig_arr[2]),Point(dest_arr[0],dest_arr[1],dest_arr[2]),3))
             self.markers_pub.publish(self.marker_array)
             """
-            doit = self.norm_accumulator(norm,v1,dist) #! ACCUMULATOR IS CALLED
-            # TODO: spremeni, da bo z akumulatorjem pozicij iz te skripte
-            print(f"\n\n\n")
-            pprint(self.detected_pos_fin)
-            print(f"\n\n\n")
-            if doit:
-                self.marker_array.markers.append(self.get_arrow_points(Vector3(1,1,1),Point(orig_arr[0],orig_arr[1],orig_arr[2]),Point(dest_arr[0],dest_arr[1],dest_arr[2]),3))
-                self.markers_pub.publish(self.marker_array)
-                self.pic_pub.publish(CvBridge().cv2_to_imgmsg(face_region, encoding="passthrough"))
+            # doit = self.norm_accumulator(norm,v1,dist) #! ACCUMULATOR IS CALLED
+            # # TODO: spremeni, da bo z akumulatorjem pozicij iz te skripte
+            # if doit:
+            #     self.marker_array.markers.append(self.get_arrow_points(Vector3(1,1,1),Point(orig_arr[0],orig_arr[1],orig_arr[2]),Point(dest_arr[0],dest_arr[1],dest_arr[2]),3))
+            #     self.markers_pub.publish(self.marker_array)
+            #     self.pic_pub.publish(CvBridge().cv2_to_imgmsg(face_region, encoding="passthrough"))
             print("after:",norm)
+            
             #self.points_pub.publish(Point(orig_arr[0],orig_arr[1],orig_arr[2]))
             #self.points_pub.publish(Point(dest_arr[0],dest_arr[1],dest_arr[2]))
             #ustvarimo Image msg
