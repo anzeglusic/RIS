@@ -19,6 +19,7 @@ from visualization_msgs.msg import Marker, MarkerArray
 from std_msgs.msg import ColorRGBA
 import pickle
 import subprocess
+import pyzbar.pyzbar as pyzbar
 
 # /home/sebastjan/Documents/faks/3letnk/ris/ROS_task/src/exercise4/scripts
 
@@ -68,8 +69,13 @@ class color_localizer:
         # self.entries = 0
         # self.range = 0.2
 
-        self.showEveryDetection = True
-
+        self.showEveryDetection = False
+        #! digits detection start
+        self.dictm = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_6X6_250)
+        self.params =  cv2.aruco.DetectorParameters_create()
+        self.params.adaptiveThreshConstant = 25 # TODO: fine-tune for best performance
+        self.params.adaptiveThreshWinSizeStep = 2 # TODO: fine-tune for best performance
+        #! digits detection end
 
         #! face detection start
         self.faceNormalLength = 0.5
@@ -205,13 +211,13 @@ class color_localizer:
             dist = np.sqrt(dist_vector[0]**2 + dist_vector[1]**2 + dist_vector[2]**2)
             if objectType=="face":
                 # TODO: check if the oriantation (normal) is correct --> it oculd be that the face is on the other side of the wall
-                c_sim = np.abs(np.dot(face_normal,area_avg)/(np.linalg.norm(face_normal)*np.linalg.norm(area_avg)))
+                c_sim = np.dot(face_normal,area["averageNormal"])/(np.linalg.norm(face_normal)*np.linalg.norm(area["averageNormal"]))
                 print("similarity:",c_sim)
                 if c_sim<=0.5:
                     continue
                       
                 print("Dist --> ",dist)
-            if dist > 0.5:
+            if dist > 1:
                 continue
             
             unique_position = False
@@ -224,7 +230,7 @@ class color_localizer:
                 # collection of normals
                 area["detectedNormals"].append(face_normal)
                 # average normal
-                print(area["detectedNormals"])
+                # print(area["detectedNormals"])
                 area["averageNormal"] = np.sum(area["detectedNormals"],axis=0)/len(area["detectedNormals"])
                 area["averageNormal"] = area["averageNormal"]/np.sqrt(area["averageNormal"][0]**2 + area["averageNormal"][1]**2 + area["averageNormal"][2]**2)
             
@@ -431,159 +437,6 @@ class color_localizer:
         print(f"!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! --> {temp}")
         return temp
         
-
-        return y[0]
-
-        # print(f"p0: {p0}")
-        # print(f"p1: {p1}")
-        # print(f"p2: {p2}")
-
-        distances = { "red":{}
-                    , "blue":{}
-                    , "green": {}
-                    , "black": {}
-                    , "white": {}
-                    , "yellow": {}
-                    }
-        # red
-        color = np.array([0,0,255])
-        calculatedPoint = p0-color
-        dist = np.sqrt(calculatedPoint[0]**2 + calculatedPoint[1]**2 + calculatedPoint[2]**2)
-        distances["red"]["p0"] = dist
-        
-        calculatedPoint = p1-color
-        dist = np.sqrt(calculatedPoint[0]**2 + calculatedPoint[1]**2 + calculatedPoint[2]**2)
-        distances["red"]["p1"] = dist
-        
-        calculatedPoint = p2-color
-        dist = np.sqrt(calculatedPoint[0]**2 + calculatedPoint[1]**2 + calculatedPoint[2]**2)
-        distances["red"]["p2"] = dist
-
-        #  blue
-        color = np.array([255,0,0])
-        calculatedPoint = p0-color
-        dist = np.sqrt(calculatedPoint[0]**2 + calculatedPoint[1]**2 + calculatedPoint[2]**2)
-        distances["blue"]["p0"] = dist
-        
-        calculatedPoint = p1-color
-        dist = np.sqrt(calculatedPoint[0]**2 + calculatedPoint[1]**2 + calculatedPoint[2]**2)
-        distances["blue"]["p1"] = dist
-        
-        calculatedPoint = p2-color
-        dist = np.sqrt(calculatedPoint[0]**2 + calculatedPoint[1]**2 + calculatedPoint[2]**2)
-        distances["blue"]["p2"] = dist
-        
-        # cyan --> blue
-        color = np.array([255,255,0])
-        calculatedPoint = p0-color
-        dist = np.sqrt(calculatedPoint[0]**2 + calculatedPoint[1]**2 + calculatedPoint[2]**2)
-        distances["blue"]["p0"] = min(dist,distances["blue"]["p0"])
-        
-        calculatedPoint = p1-color
-        dist = np.sqrt(calculatedPoint[0]**2 + calculatedPoint[1]**2 + calculatedPoint[2]**2)
-        distances["blue"]["p1"] = min(dist,distances["blue"]["p1"])
-        
-        calculatedPoint = p2-color
-        dist = np.sqrt(calculatedPoint[0]**2 + calculatedPoint[1]**2 + calculatedPoint[2]**2)
-        distances["blue"]["p2"] = min(dist,distances["blue"]["p2"])
-
-        # green
-        color = np.array([0,255,0])
-        calculatedPoint = p0-color
-        dist = np.sqrt(calculatedPoint[0]**2 + calculatedPoint[1]**2 + calculatedPoint[2]**2)
-        distances["green"]["p0"] = dist
-        
-        calculatedPoint = p1-color
-        dist = np.sqrt(calculatedPoint[0]**2 + calculatedPoint[1]**2 + calculatedPoint[2]**2)
-        distances["green"]["p1"] = dist
-        
-        calculatedPoint = p2-color
-        dist = np.sqrt(calculatedPoint[0]**2 + calculatedPoint[1]**2 + calculatedPoint[2]**2)
-        distances["green"]["p2"] = dist
-
-        # black
-        color = np.array([0,0,0])
-        calculatedPoint = p0-color
-        dist = np.sqrt(calculatedPoint[0]**2 + calculatedPoint[1]**2 + calculatedPoint[2]**2)
-        distances["black"]["p0"] = dist
-        
-        calculatedPoint = p1-color
-        dist = np.sqrt(calculatedPoint[0]**2 + calculatedPoint[1]**2 + calculatedPoint[2]**2)
-        distances["black"]["p1"] = dist
-        
-        calculatedPoint = p2-color
-        dist = np.sqrt(calculatedPoint[0]**2 + calculatedPoint[1]**2 + calculatedPoint[2]**2)
-        distances["black"]["p2"] = dist
-
-        # white
-        color = np.array([255,255,255])
-        calculatedPoint = p0-color
-        dist = np.sqrt(calculatedPoint[0]**2 + calculatedPoint[1]**2 + calculatedPoint[2]**2)
-        distances["white"]["p0"] = dist
-        
-        calculatedPoint = p1-color
-        dist = np.sqrt(calculatedPoint[0]**2 + calculatedPoint[1]**2 + calculatedPoint[2]**2)
-        distances["white"]["p1"] = dist
-        
-        calculatedPoint = p2-color
-        dist = np.sqrt(calculatedPoint[0]**2 + calculatedPoint[1]**2 + calculatedPoint[2]**2)
-        distances["white"]["p2"] = dist
-
-        # yellow
-        color = np.array([0,255,255])
-        calculatedPoint = p0-color
-        dist = np.sqrt(calculatedPoint[0]**2 + calculatedPoint[1]**2 + calculatedPoint[2]**2)
-        distances["yellow"]["p0"] = dist
-        
-        calculatedPoint = p1-color
-        dist = np.sqrt(calculatedPoint[0]**2 + calculatedPoint[1]**2 + calculatedPoint[2]**2)
-        distances["yellow"]["p1"] = dist
-        
-        calculatedPoint = p2-color
-        dist = np.sqrt(calculatedPoint[0]**2 + calculatedPoint[1]**2 + calculatedPoint[2]**2)
-        distances["yellow"]["p2"] = dist
-        
-
-        bestScore = np.array([1,1,1])*np.sqrt(255**2 + 255**2 + 255**2)
-        color = ["nothing","nothing","nothing"]
-        for colorKey in distances:
-            score0 = distances[colorKey]["p0"]
-            if score0 < bestScore[0]:
-                bestScore[0] = score0
-                color[0] = colorKey
-            
-            score1 = distances[colorKey]["p1"]
-            if score1 < bestScore[1]:
-                bestScore[1] = score1
-                color[1] = colorKey
-            
-            score2 = distances[colorKey]["p2"]
-            if score2 < bestScore[2]:
-                bestScore[2] = score2
-                color[2] = colorKey
-        
-        counter = np.array([0,0,0])
-        counter[0] = np.sum([color[0]==color[0],color[1]==color[0],color[2]==color[0]])
-        counter[1] = np.sum([color[0]==color[1],color[1]==color[1],color[2]==color[1]])
-        counter[2] = np.sum([color[0]==color[2],color[1]==color[2],color[2]==color[2]])
-        # print(counter)
-        if np.sum(counter)==3:
-            col = color[np.argmin(bestScore)]
-        else:
-            col = color[np.argmax(counter)]
-        
-        if col == "black":
-            return "c"
-        if col == "white":
-            return "w"
-        if col == "blue":
-            return "b"
-        if col == "yellow":
-            return "y"
-        if col == "red":
-            return "r"
-        if col == "green":
-            return "g"
     
     def chk_ring(self,de,h1,h2,w1,w2,cent):
         #depoth im je for some reason 480x640
@@ -932,7 +785,7 @@ class color_localizer:
                 bestScore = b
             # print(b)
         print(f"\t\t\tbestShift: {bestShift}")
-        print(f"\t\t\tbestScore: {bestScore}")
+        print(f"\t\t\tbestScore: {bestScore}\n")
         shiftX = bestShift
         M = np.float32([[1,0,shiftX],[0,1,0]])
         toReturn[:,:,2] = cv2.warpAffine(depth_t,M,(toReturn.shape[1],toReturn.shape[0]),borderValue=np.nan).astype(np.uint8)
@@ -1513,7 +1366,8 @@ class color_localizer:
         self.find_cylinderDEPTH(rgb_image, depth_im_shifted, markedImage,depth_image_message.header.stamp)
 
         self.find_faces(rgb_image,depth_im_shifted,depth_image_message.header.stamp)
-
+        markedImage = self.find_QR(rgb_image,depth_im_shifted,depth_image_message.header.stamp, markedImage)
+        #! markedImage = self.find_digits(rgb_image,depth_im_shifted,depth_image_message.header.stamp, markedImage)
         self.checkPosition()
 
         # print(type(markedImage))
@@ -1544,9 +1398,39 @@ class color_localizer:
         #             candidates.append((e1,e2))
 
         return elps
-
-
-#! face detection start
+#! ================================================== digits start ==================================================
+    def find_digits(self, rgb_image, depth_image_shifted, stamp,grayBGR_toDrawOn):
+        # TODO: everything
+        corners, ids, rejected_corners = cv2.aruco.detectMarkers(rgb_image,self.dictm,parameters=self.params)
+        # print("\n\n\n")
+        # print("\n\n\n")
+        print()
+        return grayBGR_toDrawOn
+#! =================================================== digits end ===================================================
+# ===================================================================================================================
+#! ==================================================== QR start ====================================================
+    def find_QR(self, rgb_image, depth_image_shifted, stamp,grayBGR_toDrawOn):
+        decodedObjects = pyzbar.decode(rgb_image)
+        # print("\n\n\n")
+        # print(decodedObjects)
+        # print(len(decodedObjects))
+        # print("\n\n\n")
+        print()
+        for i,dObject in enumerate(decodedObjects):
+            print(f"QR-{i} in the image!")
+            print(f"\tdata:    {dObject.data}") # data in the QR code
+            print(f"\trect:    {dObject.rect}") # rectangle where the QR is in the image
+            print(f"\tpolygon: {dObject.polygon}") # polygon (probabily 4 points) where exatly is the QR code
+            
+            bgr_color = (0,255,0)
+            start_point = (dObject.rect.left,dObject.rect.top)
+            end_point = (dObject.rect.left+dObject.rect.width, dObject.rect.top+dObject.rect.height)
+            thickness = 5
+            grayBGR_toDrawOn = cv2.rectangle(grayBGR_toDrawOn, start_point, end_point, bgr_color, thickness)
+        return grayBGR_toDrawOn
+#! ===================================================== QR end =====================================================
+# ===================================================================================================================
+#! ============================================== face detection start ==============================================
     def find_faces(self,rgb_image, depth_image, depth_image_stamp):
         
         # Set the dimensions of the image
@@ -1840,9 +1724,9 @@ class color_localizer:
             v2 = np.array([v2_cor.position.x,v2_cor.position.y, v2_cor.position.z] )
             v3 = np.array([v3_cor.position.x,v3_cor.position.y, v3_cor.position.z] )
 
-            print(f"v1:  {v1}")
-            print(f"v2:  {v2}")
-            print(f"v3:  {v3}")
+            # print(f"v1:  {v1}")
+            # print(f"v2:  {v2}")
+            # print(f"v3:  {v3}")
 
             v12 =v2-v1
             v13 =v3-v1
@@ -1852,13 +1736,13 @@ class color_localizer:
             d12 = np.linalg.norm(v12)
             d13 = np.linalg.norm(v13)
             d23 = np.linalg.norm(v23)
-            print(f"\n\tv12:  {v12}")
-            print(f"\tv13:  {v13}")
-            print(f"\tv13:  {v23}")
-            print("\t----")
-            print(f"\td12:  {d12}")
-            print(f"\td13:  {d13}")
-            print(f"\td23:  {d23}\n")
+            # print(f"\n\tv12:  {v12}")
+            # print(f"\tv13:  {v13}")
+            # print(f"\tv13:  {v23}")
+            # print("\t----")
+            # print(f"\td12:  {d12}")
+            # print(f"\td13:  {d13}")
+            # print(f"\td23:  {d23}\n")
 
             if d12>0.2 or d13>0.2 or d23>0.2:
                 print("Exiting like a pro!!!!!!!!!!!!")
@@ -1868,11 +1752,11 @@ class color_localizer:
 
             norm = np.cross(v12,v13)
             norm = norm/np.linalg.norm(norm)*0.5
-            print(f"norm: {norm}")
+            # print(f"norm: {norm}")
 
             orig_arr = v1
             dest_arr = v1-norm
-            print("before:",norm)
+            # print("before:",norm)
 
             #for pose in [v1_cor,v2_cor,v3_cor]:
             """
@@ -2058,9 +1942,7 @@ class color_localizer:
 
         m.points = [tail,head]
         return m
-       
-
-#! face detection end
+#! =============================================== face detection end ===============================================
 
 def main():
 
