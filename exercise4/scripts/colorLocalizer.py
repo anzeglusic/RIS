@@ -74,10 +74,10 @@ class color_localizer:
         self.showEveryDetection = False
         
         #! digits detection start
-        self.dictm = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_6X6_250)
-        self.params =  cv2.aruco.DetectorParameters_create()
-        self.params.adaptiveThreshConstant = 25 # TODO: fine-tune for best performance
-        self.params.adaptiveThreshWinSizeStep = 2 # TODO: fine-tune for best performance
+        #self.dictm = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_6X6_250)
+        #self.params =  cv2.aruco.DetectorParameters_create()
+        #self.params.adaptiveThreshConstant = 25 # TODO: fine-tune for best performance
+        #self.params.adaptiveThreshWinSizeStep = 2 # TODO: fine-tune for best performance
         #! digits detection end
 
         self.qrNormalLength = 0.25
@@ -1581,11 +1581,12 @@ class color_localizer:
 #! ================================================== digits start ==================================================
     def find_digits(self, rgb_image, depth_image_shifted, stamp,grayBGR_toDrawOn):
         # TODO: everything
-        corners, ids, rejected_corners = cv2.aruco.detectMarkers(rgb_image,self.dictm,parameters=self.params)
+        #corners, ids, rejected_corners = cv2.aruco.detectMarkers(rgb_image,self.dictm,parameters=self.params)
         # print("\n\n\n")
         # print("\n\n\n")
         print()
-        return grayBGR_toDrawOn
+        pass
+        #return grayBGR_toDrawOn
 #! =================================================== digits end ===================================================
 # ===================================================================================================================
 #! ==================================================== QR start ====================================================
