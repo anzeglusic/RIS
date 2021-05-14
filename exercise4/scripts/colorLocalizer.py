@@ -43,7 +43,8 @@ class color_localizer:
         self.positions = {
             "ring": [],
             "cylinder": [],
-            "face": []
+            "face": [],
+            "QR": []
         }
         
         rospy.init_node('color_localizer', anonymous=True)
@@ -69,13 +70,17 @@ class color_localizer:
         # self.entries = 0
         # self.range = 0.2
 
+        #! togle za sive markerje
         self.showEveryDetection = False
+        
         #! digits detection start
         self.dictm = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_6X6_250)
         self.params =  cv2.aruco.DetectorParameters_create()
         self.params.adaptiveThreshConstant = 25 # TODO: fine-tune for best performance
         self.params.adaptiveThreshWinSizeStep = 2 # TODO: fine-tune for best performance
         #! digits detection end
+
+        self.qrNormalLength = 0.25
 
         #! face detection start
         self.faceNormalLength = 0.5
@@ -114,6 +119,7 @@ class color_localizer:
         bestIndx = np.argmax(value)
         return tag[bestIndx]
     
+    # TODO: change for the brain of task 3
     def checkPosition(self):
         '''
         positions = {
@@ -170,7 +176,7 @@ class color_localizer:
                 #! to play a sound !!!!!!!!!!!!!!!!!!!!
                 #! subprocess.run(["rosrun" , "sound_play", "say.py", f"{color_word} {objectType}"])
 
-    def addPosition(self, newPosition, objectType, color_char, face_normal=None):
+    def addPosition(self, newPosition, objectType, color_char, normal=None, data=None):
         '''
         positions = {
             "ring": [
@@ -180,9 +186,9 @@ class color_localizer:
                 
             ],
             "cylinder": [
-                { "averagePostion": np.array([x,y,z]), "detectedPositions": [ pos0, pos1, pos2, pos3], "color": {"b":0, "g":0, "r":0, ...}, "approached": False,"avgMarkerId": None  },
-                { "averagePostion": np.array([x,y,z]), "detectedPositions": [ pos0, pos1, pos2, pos3], "color": {"b":0, "g":0, "r":0, ...}, "approached": False,"avgMarkerId": None  },
-                { "averagePostion": np.array([x,y,z]), "detectedPositions": [ pos0, pos1, pos2, pos3], "color": {"b":0, "g":0, "r":0, ...}, "approached": False,"avgMarkerId": None  }
+                { "averagePostion": np.array([x,y,z]), "detectedPositions": [ pos0, pos1, pos2, pos3], "color": {"b":0, "g":0, "r":0, ...}, "approached": False,"avgMarkerId": None, "QR_index": None  },
+                { "averagePostion": np.array([x,y,z]), "detectedPositions": [ pos0, pos1, pos2, pos3], "color": {"b":0, "g":0, "r":0, ...}, "approached": False,"avgMarkerId": None, "QR_index": None  },
+                { "averagePostion": np.array([x,y,z]), "detectedPositions": [ pos0, pos1, pos2, pos3], "color": {"b":0, "g":0, "r":0, ...}, "approached": False,"avgMarkerId": None, "QR_index": None  }
                 
             ],
             "face": [
@@ -192,43 +198,65 @@ class color_localizer:
                     "detectedPositions": [ pos0, pos1, pos2, pos3],
                     "detectedNormals": [ pos0, pos1, pos2, pos3],
                     "approached": False,
-                    "avgMarkerId": None
+                    "avgMarkerId": None,
+                    "QR_index": None
+                },
+                ...
+            ],
+            "QR": [
+                { 
+                    "averagePostion": np.array([x,y,z]),
+                    "averageNormal": np.array([x,y,z]),
+                    "detectedPositions": [ pos0, pos1, pos2, pos3],
+                    "detectedNormals": [ pos0, pos1, pos2, pos3],
+                    "data": None,
+                    "avgMarkerId": None,
+                    "isAssigned": False
                 },
                 ...
             ]
         }
         '''
+        
         # make normal of magnitude 1
-        if objectType == "face":
-            if face_normal is None:
+        if objectType == "face" or objectType=="QR":
+            if normal is None:
                 return
-            face_normal = face_normal/np.sqrt(face_normal[0]**2 + face_normal[1]**2 + face_normal[2]**2)
+            normal = normal/np.sqrt(normal[0]**2 + normal[1]**2 + normal[2]**2)
         
         unique_position = True
         for area in self.positions[objectType]:
+            # check if normals are OK
+            if objectType=="face" or objectType=="QR":
+                c_sim = np.dot(normal,area["averageNormal"])/(np.linalg.norm(normal)*np.linalg.norm(area["averageNormal"]))
+                # print("similarity:",c_sim)
+                if c_sim<=0.5:
+                    continue
+            
             area_avg = area["averagePostion"]
             dist_vector = area_avg - newPosition
             dist = np.sqrt(dist_vector[0]**2 + dist_vector[1]**2 + dist_vector[2]**2)
-            if objectType=="face":
-                # TODO: check if the oriantation (normal) is correct --> it oculd be that the face is on the other side of the wall
-                c_sim = np.dot(face_normal,area["averageNormal"])/(np.linalg.norm(face_normal)*np.linalg.norm(area["averageNormal"]))
-                print("similarity:",c_sim)
-                if c_sim<=0.5:
-                    continue
                       
-                print("Dist --> ",dist)
-            if dist > 1:
+                # print("Dist --> ",dist)
+            if dist > 0.5:
                 continue
             
             unique_position = False
+
+            if objectType=="QR":
+                # print(data)
+                if area["data"] is None:
+                    area["data"] = data
+                else:
+                    assert area["data"]==data, "\n\n\tnovi QR podatki so drugačni kot so predvideni za to pozicijo"
             
             # depending on the type of object
             if objectType=="cylinder" or objectType=="ring":
                 # color
                 area["color"][color_char] += 1
-            elif objectType=="face":
+            elif objectType=="face" or objectType=="QR":
                 # collection of normals
-                area["detectedNormals"].append(face_normal)
+                area["detectedNormals"].append(normal)
                 # average normal
                 # print(area["detectedNormals"])
                 area["averageNormal"] = np.sum(area["detectedNormals"],axis=0)/len(area["detectedNormals"])
@@ -241,7 +269,7 @@ class color_localizer:
             area["averagePostion"] = np.sum(area["detectedPositions"],axis=0)/len(area["detectedPositions"])
             
             # average marker
-            if len(area["detectedPositions"])>3 and (objectType=="ring" or objectType=="cylinder"):
+            if objectType=="ring" or objectType=="cylinder":
                 # Create a Pose object with the same position
                 pose = Pose()
                 pose.position.x = area["averagePostion"][0]
@@ -271,7 +299,8 @@ class color_localizer:
                     
                 self.m_arr.markers.append(marker)
                 self.markers_pub.publish(self.m_arr)
-            elif len(area["detectedPositions"])>3 and objectType=="face":
+            
+            elif objectType=="face":
                 self.nM += 1
                 marker = Marker()
                 marker.header.stamp = rospy.Time(0)
@@ -303,6 +332,39 @@ class color_localizer:
                 
                 self.m_arr.markers.append(marker)
                 self.markers_pub.publish(self.m_arr)
+            
+            elif objectType=="QR":
+                self.nM += 1
+                marker = Marker()
+                marker.header.stamp = rospy.Time(0)
+                marker.header.frame_id = "map"
+                marker.action = Marker.ADD
+                marker.frame_locked = False
+                marker.lifetime = rospy.Duration.from_sec(0)
+
+                if area["avgMarkerId"] == None:
+                    marker.id = self.nM
+                    area["avgMarkerId"] = self.nM
+                else:
+                    marker.id = area["avgMarkerId"]
+                
+                marker.ns = 'points_arrow'
+                marker.type = Marker.ARROW
+                marker.pose.orientation.y = 0
+                marker.pose.orientation.w = 1
+                marker.scale = Vector3(0.5,0.5,0.5)
+                marker.color = ColorRGBA(0,0,1,0.5)
+                
+                orig_arr = area["averagePostion"].copy()
+                orig_arr[2] += 0.1
+                dest_arr = orig_arr - area["averageNormal"]*self.qrNormalLength
+                head = Point(orig_arr[0],orig_arr[1],orig_arr[2])
+                tail = Point(dest_arr[0],dest_arr[1],dest_arr[2])
+                
+                marker.points = [tail,head]
+                
+                self.m_arr.markers.append(marker)
+                self.markers_pub.publish(self.m_arr)
 
 
 
@@ -310,7 +372,7 @@ class color_localizer:
 
         
         if unique_position == True:
-            if objectType=="ring" or objectType=="cylinder":
+            if objectType=="ring":
                 colorDict = {"r":0,"g":0,"b":0,"y":0,"w":0,"c":0}
                 colorDict[color_char] += 1
                 self.positions[objectType].append({ "averagePostion": newPosition.copy(),
@@ -319,15 +381,40 @@ class color_localizer:
                                                     "approached": False,
                                                     "avgMarkerId": None
                                                     })
+            elif objectType=="cylinder":
+                colorDict = {"r":0,"g":0,"b":0,"y":0,"w":0,"c":0}
+                colorDict[color_char] += 1
+                self.positions[objectType].append({ "averagePostion": newPosition.copy(),
+                                                    "detectedPositions":[newPosition.copy()],
+                                                    "color": colorDict,
+                                                    "approached": False,
+                                                    "avgMarkerId": None,
+                                                    "QR_index": None
+                                                    })
             elif objectType=="face":
                 print("\n\nAdding new face\n\n")
                 self.positions[objectType].append({ "averagePostion": newPosition.copy(),
-                                                    "averageNormal": face_normal.copy(),
+                                                    "averageNormal": normal.copy(),
                                                     "detectedPositions":[newPosition.copy()],
-                                                    "detectedNormals":[face_normal.copy()],
+                                                    "detectedNormals":[normal.copy()],
                                                     "approached": False,
-                                                    "avgMarkerId": None
+                                                    "avgMarkerId": None,
+                                                    "QR_index": None
                                                     })
+            elif objectType=="QR":
+                print("\n\nAdding new QR code\n\n")
+                self.positions[objectType].append({ "averagePostion": newPosition.copy(),
+                                                    "averageNormal": normal.copy(),
+                                                    "detectedPositions":[newPosition.copy()],
+                                                    "detectedNormals":[normal.copy()],
+                                                    "data": None,
+                                                    "avgMarkerId": None,
+                                                    "isAssigned": False
+                                                    })
+        self.connect_QR_to_objects()
+
+        # for el in self.positions["QR"]:
+        #     print(el["data"])
 
         # Create a Pose object with the same position
         pose = Pose()
@@ -359,7 +446,21 @@ class color_localizer:
                 marker.color = ColorRGBA(0.5,0.5,0.5,0.1)
                 
                 orig_arr = newPosition
-                dest_arr = orig_arr - face_normal*self.faceNormalLength
+                dest_arr = orig_arr - normal*self.faceNormalLength
+                head = Point(orig_arr[0],orig_arr[1],orig_arr[2])
+                tail = Point(dest_arr[0],dest_arr[1],dest_arr[2])
+                
+                marker.points = [tail,head]
+            elif objectType=="QR":
+                marker.ns = 'points_arrow'
+                marker.type = Marker.ARROW
+                marker.pose.orientation.y = 0
+                marker.pose.orientation.w = 1
+                marker.scale = Vector3(0.5,0.5,0.5)
+                marker.color = ColorRGBA(0.5,0.5,0.5,0.1)
+                
+                orig_arr = newPosition
+                dest_arr = orig_arr - normal*self.qrNormalLength
                 head = Point(orig_arr[0],orig_arr[1],orig_arr[2])
                 tail = Point(dest_arr[0],dest_arr[1],dest_arr[2])
                 
@@ -367,7 +468,61 @@ class color_localizer:
             
             self.m_arr.markers.append(marker)
             self.markers_pub.publish(self.m_arr)
-    
+
+    def connect_QR_to_objects(self):
+        
+        # reset connections
+        for QR_dict in self.positions["QR"]:
+            QR_dict["isAssigned"] = False
+        for cylinder_dict in self.positions["cylinder"]:
+            cylinder_dict["QR_index"] = None
+        for face_dict in self.positions["face"]:
+            face_dict["QR_index"] = None
+        
+        for i,QR_dict in enumerate(self.positions["QR"]):
+            closestObjectKey = None
+            closestObjectIndx = None
+            closestObjectDist = np.inf
+            
+            # chack all cylinders
+            for j,cylinder_dict in enumerate(self.positions["cylinder"]):
+                dist_vector = QR_dict["averagePostion"] - cylinder_dict["averagePostion"]
+                dist = np.sqrt(dist_vector[0]**2 + dist_vector[1]**2 + dist_vector[2]**2)
+                if dist < closestObjectDist:
+                    closestObjectDist = dist
+                    closestObjectKey = "cylinder"
+                    closestObjectIndx = j
+
+            # check all faces
+            for j,face_dict in enumerate(self.positions["face"]):
+                # include only those that have correct oriantation
+                c_sim = np.dot(QR_dict["averageNormal"],face_dict["averageNormal"])/(np.linalg.norm(QR_dict["averageNormal"])*np.linalg.norm(face_dict["averageNormal"]))
+                if c_sim<=0.5:
+                    continue
+
+                dist_vector = QR_dict["averagePostion"] - face_dict["averagePostion"]
+                dist = np.sqrt(dist_vector[0]**2 + dist_vector[1]**2 + dist_vector[2]**2)
+
+                if dist < closestObjectDist:
+                    closestObjectDist = dist
+                    closestObjectKey = "face"
+                    closestObjectIndx = j
+
+
+            # check if distance is ok
+            if closestObjectDist > 0.5:
+                continue
+
+            # assign
+            QR_dict["isAssigned"] = True
+            assert self.positions[closestObjectKey][closestObjectIndx]["QR_index"] is None, "Objekt ima že določeno svojo QR kodo"
+            self.positions[closestObjectKey][closestObjectIndx]["QR_index"] = i
+
+        # print("\n\n\n")
+        # pprint(self.positions,compact=True)
+        # print("\n\n\n")
+        return
+
     def calc_rgb(self,point):
         # print("\n!!!!!!!!!!!!!!!!!!!")
         # print(point.shape)
@@ -943,16 +1098,16 @@ class color_localizer:
 
 
             # drawing the ellipses on the image
-            cv2.ellipse(grayBGR_toDrawOn, e1, (0, 0, 255), 2)
-            cv2.ellipse(grayBGR_toDrawOn, e2, (0, 0, 255), 2)
+            # cv2.ellipse(grayBGR_toDrawOn, e1, (0, 0, 255), 2)
+            # cv2.ellipse(grayBGR_toDrawOn, e2, (0, 0, 255), 2)
 
             
-            cv2.circle(grayBGR_toDrawOn,tuple( c[2]),1,(0,255,0),2)
+            # cv2.circle(grayBGR_toDrawOn,tuple( c[2]),1,(0,255,0),2)
             
-            cv2.circle(grayBGR_toDrawOn,tuple( h11),1,(0,255,0),2)
-            cv2.circle(grayBGR_toDrawOn,tuple( h21),1,(0,255,0),2)
-            cv2.circle(grayBGR_toDrawOn,tuple( w11),1,(0,255,0),2)
-            cv2.circle(grayBGR_toDrawOn,tuple( w21),1,(0,255,0),2)
+            # cv2.circle(grayBGR_toDrawOn,tuple( h11),1,(0,255,0),2)
+            # cv2.circle(grayBGR_toDrawOn,tuple( h21),1,(0,255,0),2)
+            # cv2.circle(grayBGR_toDrawOn,tuple( w11),1,(0,255,0),2)
+            # cv2.circle(grayBGR_toDrawOn,tuple( w21),1,(0,255,0),2)
 
 
             # cv2.circle(grayBGR_toDrawOn,tuple( e1_h1),1,(255,0,0),2)
@@ -979,6 +1134,18 @@ class color_localizer:
                 self.addPosition(np.array((ring_point.position.x,ring_point.position.y,ring_point.position.z)),"ring",color)
                 # print("dela 4")
                 # ring_point = self.get_pose(cntr_ring[1],cntr_ring[0],cntr_ring[2],depth_im,"ring")
+
+                # drawing the ellipses on the image
+                cv2.ellipse(grayBGR_toDrawOn, e1, (0, 0, 255), 2)
+                cv2.ellipse(grayBGR_toDrawOn, e2, (0, 0, 255), 2)
+
+                
+                cv2.circle(grayBGR_toDrawOn,tuple( c[2]),1,(0,255,0),2)
+                
+                cv2.circle(grayBGR_toDrawOn,tuple( h11),1,(0,255,0),2)
+                cv2.circle(grayBGR_toDrawOn,tuple( h21),1,(0,255,0),2)
+                cv2.circle(grayBGR_toDrawOn,tuple( w11),1,(0,255,0),2)
+                cv2.circle(grayBGR_toDrawOn,tuple( w21),1,(0,255,0),2)                              
                 
             except Exception as e:
                 print(f"Ring error: {e}")
@@ -1046,6 +1213,7 @@ class color_localizer:
             pointsClose.append(True)
         else:
             pointsClose.append(False)
+        # pprint(list(zip(points,pointsClose)))
         return (points,pointsClose)
     
     def getRange(self, depth_line, center_point,levo,desno):
@@ -1368,7 +1536,7 @@ class color_localizer:
         self.find_faces(rgb_image,depth_im_shifted,depth_image_message.header.stamp)
         markedImage = self.find_QR(rgb_image,depth_im_shifted,depth_image_message.header.stamp, markedImage)
         #! markedImage = self.find_digits(rgb_image,depth_im_shifted,depth_image_message.header.stamp, markedImage)
-        self.checkPosition()
+        #! self.checkPosition()
 
         # print(type(markedImage))
         # print(markedImage.shape)
@@ -1417,16 +1585,36 @@ class color_localizer:
         # print("\n\n\n")
         print()
         for i,dObject in enumerate(decodedObjects):
-            print(f"QR-{i} in the image!")
-            print(f"\tdata:    {dObject.data}") # data in the QR code
-            print(f"\trect:    {dObject.rect}") # rectangle where the QR is in the image
-            print(f"\tpolygon: {dObject.polygon}") # polygon (probabily 4 points) where exatly is the QR code
-            
+            # get normal
+            x1 = dObject.rect.left
+            y1 = dObject.rect.top
+            x2 = dObject.rect.left + dObject.rect.width
+            y2 = dObject.rect.top + dObject.rect.height
+            norm = self.get_normal(depth_image_shifted, (x1,y1,x2,y2),stamp,None,None)
+            # if we are too close to QR code
+            if norm is None:
+                print(f"Too close to the QR code!")
+                continue
+            pose = self.get_pose((x1+x2)//2,(y1+y2)//2,depth_image_shifted[(y1+y2)//2,(x1+x2)//2],depth_image_shifted,"QR",stamp,None)
+            self.addPosition(np.array([pose.position.x,pose.position.y, pose.position.z]),"QR",None,norm,dObject.data.decode())
+
+
+
+            # print(f"QR-{i} in the image!")
+            # print(f"\tdata:    {dObject.data.decode()}") # data in the QR code
+            # print(f"\trect:    {dObject.rect}") # rectangle where the QR is in the image
+            # print(f"\tpolygon: {dObject.polygon}") # polygon (probabily 4 points) where exatly is the QR code
+            # print(f"\tnorm:    {norm}")
+            # print(f"\tpose:    {np.array([pose.position.x,pose.position.y, pose.position.z])}")
+            # print(f"\tdist:    {depth_image_shifted[(y1+y2)//2,(x1+x2)//2]}")
+
             bgr_color = (0,255,0)
-            start_point = (dObject.rect.left,dObject.rect.top)
-            end_point = (dObject.rect.left+dObject.rect.width, dObject.rect.top+dObject.rect.height)
+            start_point = (x1,y1)
+            end_point = (x2, y2)
             thickness = 5
             grayBGR_toDrawOn = cv2.rectangle(grayBGR_toDrawOn, start_point, end_point, bgr_color, thickness)
+
+
         return grayBGR_toDrawOn
 #! ===================================================== QR end =====================================================
 # ===================================================================================================================
@@ -1601,7 +1789,7 @@ class color_localizer:
             pose = self.get_pose_face((x1,x2,y1,y2), face_distance, depth_time)
             if pose != None:
                 newPosition = np.array([pose.position.x,pose.position.y, pose.position.z])
-                self.addPosition(newPosition, "face", color_char=None, face_normal=norm)          
+                self.addPosition(newPosition, "face", color_char=None, normal=norm)          
 
     def does_it_cross(self, a_cords_x, a_cords_y, b_cords_x, b_cords_y):
         # it answers the qustion if rectangles cross in any way
@@ -1628,7 +1816,11 @@ class color_localizer:
         shift_left = face_x1
         shift_top = face_y1
 
+        
         if min(depth_image.shape) == 0:
+            return None
+        
+        if min(image.shape) == 0:
             return None
 
 
@@ -1790,7 +1982,7 @@ class color_localizer:
             #     self.marker_array.markers.append(self.get_arrow_points(Vector3(1,1,1),Point(orig_arr[0],orig_arr[1],orig_arr[2]),Point(dest_arr[0],dest_arr[1],dest_arr[2]),3))
             #     self.markers_pub.publish(self.marker_array)
             #     self.pic_pub.publish(CvBridge().cv2_to_imgmsg(face_region, encoding="passthrough"))
-            print("after:",norm)
+            # print("after:",norm)
             
             #self.points_pub.publish(Point(orig_arr[0],orig_arr[1],orig_arr[2]))
             #self.points_pub.publish(Point(dest_arr[0],dest_arr[1],dest_arr[2]))
@@ -1949,9 +2141,13 @@ def main():
         color_finder = color_localizer()
 
         rate = rospy.Rate(1.25)
+        skipCounter = 3
         while not rospy.is_shutdown():
             # print("hello!")
-            color_finder.find_objects()
+            if skipCounter <= 0:
+                color_finder.find_objects()
+            else:
+                skipCounter -= 1
             #print("hello")
             #print("\n-----------\n")
             rate.sleep()
