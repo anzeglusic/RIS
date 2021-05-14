@@ -82,6 +82,18 @@ class color_localizer:
 
         self.qrNormalLength = 0.25
 
+        self.QR_to_fullData = {
+                    "This QR code is on a cylinder.": None,
+                    "This is a different QR code on a cylinder.": None,
+                    "A third QR code on a cylinder.": None,
+                    "The last QR code on a cylinder.": None,
+
+                    "A QR code next to a face. Example 1.": None,
+                    "Another QR code next to a face. Example 2.": None,
+                    "One more QR code next to a face. Example 3.": None,
+                    "The last QR code next to a face. Example 4.": None
+        }
+
         #! face detection start
         self.faceNormalLength = 0.5
         self.marker_array = MarkerArray()
