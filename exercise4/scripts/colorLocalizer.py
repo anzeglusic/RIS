@@ -20,6 +20,7 @@ from std_msgs.msg import ColorRGBA
 import pickle
 import subprocess
 import pyzbar.pyzbar as pyzbar
+import pytesseract
 
 # /home/sebastjan/Documents/faks/3letnk/ris/ROS_task/src/exercise4/scripts
 
@@ -74,10 +75,17 @@ class color_localizer:
         self.showEveryDetection = False
 
         #! digits detection start
-        #self.dictm = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_6X6_250)
-        #self.params =  cv2.aruco.DetectorParameters_create()
-        #self.params.adaptiveThreshConstant = 25 # TODO: fine-tune for best performance
-        #self.params.adaptiveThreshWinSizeStep = 2 # TODO: fine-tune for best performance
+        self.dictm = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_6X6_250)
+        self.params =  cv2.aruco.DetectorParameters_create()
+        self.params.adaptiveThreshConstant = 25 # TODO: fine-tune for best performance
+        self.params.adaptiveThreshWinSizeStep = 2 # TODO: fine-tune for best performance
+        
+        print(f"   adaptiveThreshConstant: {self.params.adaptiveThreshConstant}") 
+        print(f" adaptiveThreshWinSizeMax: {self.params.adaptiveThreshWinSizeMax}")
+        print(f" adaptiveThreshWinSizeMin: {self.params.adaptiveThreshWinSizeMin}")
+        print(f"    minCornerDistanceRate: {self.params.minCornerDistanceRate}")
+        print(f"adaptiveThreshWinSizeStep: {self.params.adaptiveThreshWinSizeStep}")
+        print()
         #! digits detection end
 
         self.qrNormalLength = 0.25
@@ -1160,7 +1168,8 @@ class color_localizer:
                 cv2.circle(grayBGR_toDrawOn,tuple( w21),1,(0,255,0),2)
 
             except Exception as e:
-                print(f"Ring error: {e}")
+                # print(f"Ring error: {e}")
+                pass
         return grayBGR_toDrawOn, depth_im_shifted
 
     def calc_rgb_distance_mask(self, image, rgb_value, minDistance):
@@ -1622,7 +1631,7 @@ class color_localizer:
         markedImage = self.find_cylinderDEPTH(rgb_image, depth_im_shifted, markedImage,depth_image_message.header.stamp)
         self.find_faces(rgb_image,depth_im_shifted,depth_image_message.header.stamp)
         markedImage = self.find_QR(rgb_image,depth_im_shifted,depth_image_message.header.stamp, markedImage)
-        #! markedImage = self.find_digits(rgb_image,depth_im_shifted,depth_image_message.header.stamp, markedImage)
+        markedImage = self.find_digits(rgb_image,depth_im_shifted,depth_image_message.header.stamp, markedImage)
         #! self.checkPosition()
 
         # print(type(markedImage))
@@ -1656,13 +1665,267 @@ class color_localizer:
         return elps
 #! ================================================== digits start ==================================================
     def find_digits(self, rgb_image, depth_image_shifted, stamp,grayBGR_toDrawOn):
-        # TODO: everything
-        #corners, ids, rejected_corners = cv2.aruco.detectMarkers(rgb_image,self.dictm,parameters=self.params)
+        ret, thresh = cv2.threshold(self.bgr2gray(rgb_image), 40, 255, 0)
+        corners, ids, rejected_corners = cv2.aruco.detectMarkers(self.gray2bgr(thresh),self.dictm,parameters=self.params)
         # print("\n\n\n")
         # print("\n\n\n")
         print()
-        pass
-        #return grayBGR_toDrawOn
+        # pprint(corners)
+
+        # thresh = cv2.adaptiveThreshold(self.bgr2gray(rgb_image),255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C,cv2.THRESH_BINARY,11,5)
+        # return self.gray2bgr(thresh)
+
+        # grayBGR_toDrawOn = rgb_image
+        allCorners = []
+        
+        # robot body is in the bottom of an image (480*0.875 = 420)
+        top_limit = round(rgb_image.shape[0] * 0.875) # how much from top is posible for marker/corrner (edge) to be
+
+        #! accepted corners --> GREEN
+        for marker in corners:
+            # print(marker[0])
+            minimums = np.min(marker[0],axis=0)
+            maximums = np.max(marker[0],axis=0)
+            bgr_color = (0,255,0)
+            start_point = (round(minimums[0]),round(minimums[1]))
+            end_point = (round(maximums[0]),round(maximums[1]))
+            thickness = 5
+            if end_point[1] < top_limit:
+                allCorners.append({ "start_point":np.array([start_point[0],start_point[1]]),
+                                    "end_point":np.array([end_point[0],end_point[1]]),
+                                    "center": np.array([(start_point[0]+end_point[0])//2, (start_point[1]+end_point[1])//2]),
+                                    "color":"green",
+                                    "original_corner": marker})
+                # grayBGR_toDrawOn = cv2.rectangle(grayBGR_toDrawOn, start_point, end_point, bgr_color, thickness)
+        #! rejected corners --> RED
+        for marker in rejected_corners:
+            # print(marker[0])
+            minimums = np.min(marker[0],axis=0)
+            maximums = np.max(marker[0],axis=0)
+            bgr_color = (0,0,255)
+            start_point = (round(minimums[0]),round(minimums[1]))
+            end_point = (round(maximums[0]),round(maximums[1]))
+            thickness = 5
+            if end_point[1] < top_limit:
+                allCorners.append({ "start_point":np.array([start_point[0],start_point[1]]),
+                                    "end_point":np.array([end_point[0],end_point[1]]),
+                                    "center": np.array([(start_point[0]+end_point[0])//2, (start_point[1]+end_point[1])//2]),
+                                    "color":"red",
+                                    "original_corner": marker})
+                # grayBGR_toDrawOn = cv2.rectangle(grayBGR_toDrawOn, start_point, end_point, bgr_color, thickness)
+        
+        # area
+        for marker in allCorners:
+            marker_area_dims = marker["end_point"]-marker["start_point"]
+            marker["area"] = marker_area_dims[0]*marker_area_dims[1]
+            # print(f"{marker['color']}\t{marker['center']}")
+        
+        # pprint(allCorners)
+
+        # sort by (x)
+        allCorners = sorted(allCorners,key=lambda x: x["center"][0]) # min --> max (left --> right)
+
+        # pprint(allCorners)
+
+        # doubles must cross middle row of an image
+        middle_row_indx = rgb_image.shape[0]//2
+        
+        doubles = [] # 2 markers merged
+        for i in range(0,len(allCorners)-1):
+            for j in range(i+1,len(allCorners)):
+                m1 = allCorners[i]
+                m2 = allCorners[j]
+                # not verticaly aligned --> break, because they are sorted by ["center"][0]
+                if np.abs(m1["center"][0]-m2["center"][0]) > 10:
+                    break
+                # else:
+                #     print(f"diff: {np.abs(m1['center'][0]-m2['center'][0])}")
+                # area not in 75% margin
+                if (m1["area"]/m2["area"] < 0.75) or (m2["area"]/m1["area"] < 0.75):
+                    continue
+                # else:
+                #     print(f"area_diff: {min(m1['area']/m2['area'],m2['area']/m1['area'])}")
+
+                bgr_color = (255,0,0)
+                start_point = ( min(m1["start_point"][0],m2["start_point"][0]),
+                                min(m1["start_point"][1],m2["start_point"][1]))
+                end_point = (   max(m1["end_point"][0],m2["end_point"][0]),
+                                max(m1["end_point"][1],m2["end_point"][1]))
+                
+                # doubles area must cross middle row of an image
+                if start_point[1]>middle_row_indx or end_point[1]<middle_row_indx:
+                    continue
+
+                thickness = 5
+                # grayBGR_toDrawOn = cv2.rectangle(grayBGR_toDrawOn, start_point, end_point, bgr_color, thickness)
+                start_p = np.array([start_point[0],start_point[1]])
+                end_p = np.array([end_point[0],end_point[1]])
+                area_dims = end_p-start_p
+                doubles.append({"start_point":start_p,
+                                "end_point": end_p,
+                                "area": area_dims[0]*area_dims[1],
+                                "center": np.array([(start_p[0]+end_p[0])//2, (start_p[1]+end_p[1])//2]),
+                                "top_original_corner": m1["original_corner"] if m1["center"][1] < m2["center"][1] else m2["original_corner"],
+                                "bottom_original_corner": m1["original_corner"] if m1["center"][1] > m2["center"][1] else m2["original_corner"]})
+        
+        
+        doubles = sorted(doubles,key=lambda x: x["center"][0])
+        papers = []
+        c = 0
+        for i in range(1,len(doubles)):
+            d1 = doubles[i-1]
+            d2 = doubles[i]
+            
+            x1 = round(d1["start_point"][0])
+            y1 = round(min(d1["start_point"][1],d2["start_point"][1]))
+
+            x2 = round(d2["end_point"][0])
+            y2 = round(max(d1["end_point"][1],d2["end_point"][1]))
+
+            # ratio is bigger then it is commen for paper
+            if (x2-x1)/(y2-y1) > 0.75:
+                continue
+            grayBGR_toDrawOn = cv2.rectangle(grayBGR_toDrawOn, (x1,y1), (x2,y2), (0,0,255) if c%2==0 else (255,0,0), 5)
+            c += 1
+            papers.append({ "start_point": np.array([x1,y1]),
+                            "end_point": np.array([x2,y2]),
+                            "top_left_original_corner": d1["top_original_corner"],
+                            "bottom_left_original_corner": d1["bottom_original_corner"],
+                            "top_right_original_corner": d2["top_original_corner"],
+                            "bottom_right_original_corner": d2["bottom_original_corner"]
+            })
+            # print(f"paper_{i-1}: {x2-x1}/{y2-y1} = {(x2-x1)/(y2-y1)}")
+
+        # pprint(papers)
+
+        
+        # draw middle row
+        # grayBGR_toDrawOn = cv2.rectangle(grayBGR_toDrawOn, (0,middle_row_indx-5), (rgb_image.shape[1]-1,middle_row_indx+5), (0,0,0), 4)
+        
+        
+        # return grayBGR_toDrawOn
+        # return rgb_image
+        # return img_out
+
+        # Increase proportionally if you want a larger image
+        # image_size=(351,248,3)
+        # marker_side=50
+
+        # img_out = np.zeros(image_size, np.uint8)
+        # out_pts = np.array([[marker_side/2,img_out.shape[0]-marker_side/2],
+        #                 [img_out.shape[1]-marker_side/2,img_out.shape[0]-marker_side/2],
+        #                 [marker_side/2,marker_side/2],
+        #                 [img_out.shape[1]-marker_side/2,marker_side/2]])
+
+        # src_points = np.zeros((4,2))
+        # cens_mars = np.zeros((4,2))
+
+        # pprint(corners)
+        # print("---")
+        # pprint(ids)
+        image_size=(351,248,3)
+        marker_side=50
+        # img_out = np.zeros(image_size, np.uint8)
+        for i in range(0,len(papers)):
+
+
+            img_out = np.zeros(image_size, np.uint8)
+            out_pts = np.array([[marker_side/2,img_out.shape[0]-marker_side/2],
+                            [img_out.shape[1]-marker_side/2,img_out.shape[0]-marker_side/2],
+                            [marker_side/2,marker_side/2],
+                            [img_out.shape[1]-marker_side/2,marker_side/2]])
+            src_points = np.zeros((4,2))
+            cens_mars = np.zeros((4,2))
+        # for i in range(0,1):
+            # print("---")
+            # pprint(temp_corners)
+            ids = np.array([[4],[3],[2],[1]]).astype("int32")
+            corners = [papers[i]["bottom_right_original_corner"].copy(),
+                            papers[i]["bottom_left_original_corner"].copy(),
+                            papers[i]["top_right_original_corner"].copy(),
+                            papers[i]["top_left_original_corner"].copy()]
+            # print("---")
+            # pprint(temp_ids)
+
+            if not ids is None:
+                if len(ids)==4:
+                    # print('4 Markers detected')
+                
+                    for idx in ids:
+                        # Calculate the center point of all markers
+                        cors = np.squeeze(corners[idx[0]-1])
+                        cen_mar = np.mean(cors,axis=0)
+                        cens_mars[idx[0]-1]=cen_mar
+                        cen_point = np.mean(cens_mars,axis=0)
+                
+                    for coords in cens_mars:
+                        #  Map the correct source points
+                        if coords[0]<cen_point[0] and coords[1]<cen_point[1]:
+                            src_points[2]=coords
+                        elif coords[0]<cen_point[0] and coords[1]>cen_point[1]:
+                            src_points[0]=coords
+                        elif coords[0]>cen_point[0] and coords[1]<cen_point[1]:
+                            src_points[3]=coords
+                        else:
+                            src_points[1]=coords
+
+                    h, status = cv2.findHomography(src_points, out_pts)
+                    img_out = cv2.warpPerspective(rgb_image, h, (img_out.shape[1],img_out.shape[0]))
+                    
+                    ################################################
+                    #### Extraction of digits starts here
+                    ################################################
+                    
+                    # Cut out everything but the numbers
+                    img_out = img_out[125:221,50:195,:]
+                    
+                    # Convert the image to grayscale
+                    img_out = cv2.cvtColor(img_out, cv2.COLOR_BGR2GRAY)
+                    
+                    # Option 1 - use ordinairy threshold the image to get a black and white image
+                    #ret,img_out = cv2.threshold(img_out,100,255,0)
+
+                    # Option 1 - use adaptive thresholding
+                    img_out = cv2.adaptiveThreshold(img_out,255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C,cv2.THRESH_BINARY,11,5)
+                    
+                    # Use Otsu's thresholding
+                    #ret,img_out = cv2.threshold(img_out,0,255,cv2.THRESH_BINARY+cv2.THRESH_OTSU)
+                    
+                    # Pass some options to tesseract
+                    config = '--psm 13 outputbase nobatch digits'
+                    
+                    # Visualize the image we are passing to Tesseract
+                    # cv2.imshow('Warped image',img_out)
+                    # cv2.waitKey(1)
+                
+                    # Extract text from image
+                    text = pytesseract.image_to_string(img_out, config = config)
+                    
+                    # Check and extract data from text
+                    # print('Extracted>>',text)
+                    
+                    # Remove any whitespaces from the left and right
+                    text = text.strip()
+                    
+                    # If the extracted text is of the right length
+                    if len(text)==2:
+                        x=int(text[0])
+                        y=int(text[1])
+                        print(f"The extracted datapoints are x={x}, y={y}")
+                        # TODO: dodaj v akumulator !!!
+                        # TODO: izračunaj pozicijo !!!
+                        # TODO: izračunaj normalo !!!
+            #         else:
+            #             print(f"The extracted text has is of length {len(text)}. Aborting processing")
+                    
+            #     else:
+            #         print(f"The number of markers is not ok: {len(ids)}")
+            # else:
+            #     print("No markers found")
+        
+        
+        return grayBGR_toDrawOn
+        # return img_out
 #! =================================================== digits end ===================================================
 # ===================================================================================================================
 #! ==================================================== QR start ====================================================
