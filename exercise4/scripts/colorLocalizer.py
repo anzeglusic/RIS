@@ -31,24 +31,24 @@ class color_localizer:
         print()
         self.found_rings = []
         self.found_cylinders = []
-        
+
         self.basePosition = {"x":0, "y":0, "z":0}
         self.baseAngularSpeed = 0
-        
+
         self.random_forest_HSV = pickle.load(open(f"{modelsDir}/random_forest_HSV.sav", 'rb'))
         self.random_forest_RGB = pickle.load(open(f"{modelsDir}/random_forest_RGB.sav", 'rb'))
         self.knn_HSV = pickle.load(open(f"{modelsDir}/knn_HSV.sav", 'rb'))
         self.knn_RGB = pickle.load(open(f"{modelsDir}/knn_RGB.sav", 'rb'))
-        
+
         self.positions = {
             "ring": [],
             "cylinder": [],
             "face": [],
             "QR": []
         }
-        
+
         rospy.init_node('color_localizer', anonymous=True)
-        
+
         # An object we use for converting images between ROS format and OpenCV format
         self.bridge = CvBridge()
         self.m_arr = MarkerArray()
@@ -62,7 +62,7 @@ class color_localizer:
         # Object we use for transforming between coordinate frames
         self.tf_buf = tf2_ros.Buffer()
         self.tf_listener = tf2_ros.TransformListener(self.tf_buf)
-        
+
         #notri hranimo "priblizen center slike" pod katerim je mnzoica 100 ter normala stene na kateri je
         #key so stevilke znotraj imamo pa prvo povprecje vseh tock in nato se vse tocke (np.array) shranjene v seznamu
         # self.detected_pos_fin = {}
@@ -72,7 +72,7 @@ class color_localizer:
 
         #! togle za sive markerje
         self.showEveryDetection = False
-        
+
         #! digits detection start
         #self.dictm = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_6X6_250)
         #self.params =  cv2.aruco.DetectorParameters_create()
@@ -105,7 +105,7 @@ class color_localizer:
         self.face_net = cv2.dnn.readNetFromCaffe(os.path.dirname(os.path.abspath(__file__))+'/deploy.prototxt.txt', os.path.dirname(os.path.abspath(__file__))+'/res10_300x300_ssd_iter_140000.caffemodel')
         self.dims = (0, 0, 0)
         #! face detection end
-    
+
     def chose_color(self,colorDict):
         b = colorDict["b"]
         g = colorDict["g"]
@@ -130,7 +130,7 @@ class color_localizer:
             return 'c'
         bestIndx = np.argmax(value)
         return tag[bestIndx]
-    
+
     # TODO: change for the brain of task 3
     def checkPosition(self):
         '''
@@ -139,13 +139,13 @@ class color_localizer:
                 { "averagePostion": np.array([x,y,z]), "detectedPositions": [ pos0, pos1, pos2, pos3], "color": {"b":0, "g":0, "r":0, ...}, "approached": False },
                 { "averagePostion": np.array([x,y,z]), "detectedPositions": [ pos0, pos1, pos2, pos3], "color": {"b":0, "g":0, "r":0, ...}, "approached": False },
                 { "averagePostion": np.array([x,y,z]), "detectedPositions": [ pos0, pos1, pos2, pos3], "color": {"b":0, "g":0, "r":0, ...}, "approached": False }
-                
+
             ],
             "cylinder": [
                 { "averagePostion": np.array([x,y,z]), "detectedPositions": [ pos0, pos1, pos2, pos3], "color": {"b":0, "g":0, "r":0, ...}, "approached": False  },
                 { "averagePostion": np.array([x,y,z]), "detectedPositions": [ pos0, pos1, pos2, pos3], "color": {"b":0, "g":0, "r":0, ...}, "approached": False  },
                 { "averagePostion": np.array([x,y,z]), "detectedPositions": [ pos0, pos1, pos2, pos3], "color": {"b":0, "g":0, "r":0, ...}, "approached": False  }
-                
+
             ]
         }
         '''
@@ -162,7 +162,7 @@ class color_localizer:
                 # you are too far from the cylinder
                 if dist>3 and objectType=="cylinder":
                     continue
-                
+
                 print(f"Approaching to object in position: {area['averagePostion']}")
                 area["approached"] = True
                 # ring --> z=1
@@ -172,7 +172,7 @@ class color_localizer:
                     self.points_pub.publish(Point(area["averagePostion"][0],area["averagePostion"][1],1))
                 elif objectType == "cylinder":
                     # cylinder
-                    self.points_pub.publish(Point(area["averagePostion"][0],area["averagePostion"][1],0))    
+                    self.points_pub.publish(Point(area["averagePostion"][0],area["averagePostion"][1],0))
                 else:
                     print("SOMETHING WENT FUCKING WRONG !!!!!!!")
                 best_color = self.chose_color(area["color"])
@@ -195,16 +195,16 @@ class color_localizer:
                 { "averagePostion": np.array([x,y,z]), "detectedPositions": [ pos0, pos1, pos2, pos3], "color": {"b":0, "g":0, "r":0, ...}, "approached": False,"avgMarkerId": None },
                 { "averagePostion": np.array([x,y,z]), "detectedPositions": [ pos0, pos1, pos2, pos3], "color": {"b":0, "g":0, "r":0, ...}, "approached": False,"avgMarkerId": None },
                 { "averagePostion": np.array([x,y,z]), "detectedPositions": [ pos0, pos1, pos2, pos3], "color": {"b":0, "g":0, "r":0, ...}, "approached": False,"avgMarkerId": None }
-                
+
             ],
             "cylinder": [
                 { "averagePostion": np.array([x,y,z]), "detectedPositions": [ pos0, pos1, pos2, pos3], "color": {"b":0, "g":0, "r":0, ...}, "approached": False,"avgMarkerId": None, "QR_index": None  },
                 { "averagePostion": np.array([x,y,z]), "detectedPositions": [ pos0, pos1, pos2, pos3], "color": {"b":0, "g":0, "r":0, ...}, "approached": False,"avgMarkerId": None, "QR_index": None  },
                 { "averagePostion": np.array([x,y,z]), "detectedPositions": [ pos0, pos1, pos2, pos3], "color": {"b":0, "g":0, "r":0, ...}, "approached": False,"avgMarkerId": None, "QR_index": None  }
-                
+
             ],
             "face": [
-                { 
+                {
                     "averagePostion": np.array([x,y,z]),
                     "averageNormal": np.array([x,y,z]),
                     "detectedPositions": [ pos0, pos1, pos2, pos3],
@@ -216,7 +216,7 @@ class color_localizer:
                 ...
             ],
             "QR": [
-                { 
+                {
                     "averagePostion": np.array([x,y,z]),
                     "averageNormal": np.array([x,y,z]),
                     "detectedPositions": [ pos0, pos1, pos2, pos3],
@@ -229,13 +229,13 @@ class color_localizer:
             ]
         }
         '''
-        
+
         # make normal of magnitude 1
         if objectType == "face" or objectType=="QR":
             if normal is None:
                 return
             normal = normal/np.sqrt(normal[0]**2 + normal[1]**2 + normal[2]**2)
-        
+
         unique_position = True
         for area in self.positions[objectType]:
             # check if normals are OK
@@ -244,15 +244,15 @@ class color_localizer:
                 # print("similarity:",c_sim)
                 if c_sim<=0.5:
                     continue
-            
+
             area_avg = area["averagePostion"]
             dist_vector = area_avg - newPosition
             dist = np.sqrt(dist_vector[0]**2 + dist_vector[1]**2 + dist_vector[2]**2)
-                      
+
                 # print("Dist --> ",dist)
             if dist > 0.5:
                 continue
-            
+
             unique_position = False
 
             if objectType=="QR":
@@ -261,7 +261,7 @@ class color_localizer:
                     area["data"] = data
                 else:
                     assert area["data"]==data, "\n\n\tnovi QR podatki so drugačni kot so predvideni za to pozicijo"
-            
+
             # depending on the type of object
             if objectType=="cylinder" or objectType=="ring":
                 # color
@@ -273,13 +273,13 @@ class color_localizer:
                 # print(area["detectedNormals"])
                 area["averageNormal"] = np.sum(area["detectedNormals"],axis=0)/len(area["detectedNormals"])
                 area["averageNormal"] = area["averageNormal"]/np.sqrt(area["averageNormal"][0]**2 + area["averageNormal"][1]**2 + area["averageNormal"][2]**2)
-            
+
             # collection of positions
             area["detectedPositions"].append(newPosition.copy())
-            
+
             # average
             area["averagePostion"] = np.sum(area["detectedPositions"],axis=0)/len(area["detectedPositions"])
-            
+
             # average marker
             if objectType=="ring" or objectType=="cylinder":
                 # Create a Pose object with the same position
@@ -299,19 +299,19 @@ class color_localizer:
                 marker.frame_locked = False
                 marker.lifetime = rospy.Duration.from_sec(0)
                 marker.scale = Vector3(0.1, 0.1, 0.1)
-                
+
                 if area["avgMarkerId"] == None:
                     marker.id = self.nM
                     area["avgMarkerId"] = self.nM
                 else:
                     marker.id = area["avgMarkerId"]
-                
+
                 best_color = self.chose_color(area["color"])
                 marker.color = self.rgba_from_char(best_color)
-                    
+
                 self.m_arr.markers.append(marker)
                 self.markers_pub.publish(self.m_arr)
-            
+
             elif objectType=="face":
                 self.nM += 1
                 marker = Marker()
@@ -326,25 +326,25 @@ class color_localizer:
                     area["avgMarkerId"] = self.nM
                 else:
                     marker.id = area["avgMarkerId"]
-                
+
                 marker.ns = 'points_arrow'
                 marker.type = Marker.ARROW
                 marker.pose.orientation.y = 0
                 marker.pose.orientation.w = 1
                 marker.scale = Vector3(1,1,1)
                 marker.color = ColorRGBA(1,0,0,0.5)
-                
+
                 orig_arr = area["averagePostion"].copy()
                 orig_arr[2] += 0.1
                 dest_arr = orig_arr - area["averageNormal"]*self.faceNormalLength
                 head = Point(orig_arr[0],orig_arr[1],orig_arr[2])
                 tail = Point(dest_arr[0],dest_arr[1],dest_arr[2])
-                
+
                 marker.points = [tail,head]
-                
+
                 self.m_arr.markers.append(marker)
                 self.markers_pub.publish(self.m_arr)
-            
+
             elif objectType=="QR":
                 self.nM += 1
                 marker = Marker()
@@ -359,22 +359,22 @@ class color_localizer:
                     area["avgMarkerId"] = self.nM
                 else:
                     marker.id = area["avgMarkerId"]
-                
+
                 marker.ns = 'points_arrow'
                 marker.type = Marker.ARROW
                 marker.pose.orientation.y = 0
                 marker.pose.orientation.w = 1
                 marker.scale = Vector3(0.5,0.5,0.5)
                 marker.color = ColorRGBA(0,0,1,0.5)
-                
+
                 orig_arr = area["averagePostion"].copy()
                 orig_arr[2] += 0.1
                 dest_arr = orig_arr - area["averageNormal"]*self.qrNormalLength
                 head = Point(orig_arr[0],orig_arr[1],orig_arr[2])
                 tail = Point(dest_arr[0],dest_arr[1],dest_arr[2])
-                
+
                 marker.points = [tail,head]
-                
+
                 self.m_arr.markers.append(marker)
                 self.markers_pub.publish(self.m_arr)
 
@@ -382,7 +382,7 @@ class color_localizer:
 
 
 
-        
+
         if unique_position == True:
             if objectType=="ring":
                 colorDict = {"r":0,"g":0,"b":0,"y":0,"w":0,"c":0}
@@ -443,7 +443,7 @@ class color_localizer:
             marker.frame_locked = False
             marker.lifetime = rospy.Duration.from_sec(0)
             marker.id = self.nM
-            
+
             if objectType=="ring" or objectType=="cylinder":
                 marker.type = Marker.CUBE if objectType=="ring" else Marker.CYLINDER
                 marker.pose = pose
@@ -456,12 +456,12 @@ class color_localizer:
                 marker.pose.orientation.w = 1
                 marker.scale = Vector3(1,1,1)
                 marker.color = ColorRGBA(0.5,0.5,0.5,0.1)
-                
+
                 orig_arr = newPosition
                 dest_arr = orig_arr - normal*self.faceNormalLength
                 head = Point(orig_arr[0],orig_arr[1],orig_arr[2])
                 tail = Point(dest_arr[0],dest_arr[1],dest_arr[2])
-                
+
                 marker.points = [tail,head]
             elif objectType=="QR":
                 marker.ns = 'points_arrow'
@@ -470,19 +470,19 @@ class color_localizer:
                 marker.pose.orientation.w = 1
                 marker.scale = Vector3(0.5,0.5,0.5)
                 marker.color = ColorRGBA(0.5,0.5,0.5,0.1)
-                
+
                 orig_arr = newPosition
                 dest_arr = orig_arr - normal*self.qrNormalLength
                 head = Point(orig_arr[0],orig_arr[1],orig_arr[2])
                 tail = Point(dest_arr[0],dest_arr[1],dest_arr[2])
-                
+
                 marker.points = [tail,head]
-            
+
             self.m_arr.markers.append(marker)
             self.markers_pub.publish(self.m_arr)
 
     def connect_QR_to_objects(self):
-        
+
         # reset connections
         for QR_dict in self.positions["QR"]:
             QR_dict["isAssigned"] = False
@@ -490,12 +490,12 @@ class color_localizer:
             cylinder_dict["QR_index"] = None
         for face_dict in self.positions["face"]:
             face_dict["QR_index"] = None
-        
+
         for i,QR_dict in enumerate(self.positions["QR"]):
             closestObjectKey = None
             closestObjectIndx = None
             closestObjectDist = np.inf
-            
+
             # chack all cylinders
             for j,cylinder_dict in enumerate(self.positions["cylinder"]):
                 dist_vector = QR_dict["averagePostion"] - cylinder_dict["averagePostion"]
@@ -553,7 +553,7 @@ class color_localizer:
 
         hsvColor2 = cv2.cvtColor(np.array([[p2]]),cv2.COLOR_BGR2HSV)[0][0]
         hsvColor2[0] = int((float(hsvColor2[0])/180)*255)
-        
+
         arr = np.array([[p0[0],p0[1],p0[2],p1[0],p1[1],p1[2],p2[0],p2[1],p2[2]]])
 
         arr2 = np.array([[   hsvColor0[2],hsvColor0[1],hsvColor0[0],
@@ -599,25 +599,25 @@ class color_localizer:
         ar_num =[d["b"],d["g"],d["r"],d["y"],d["w"],d["c"]]
         if np.sum(np.array(ar_num)==1)==4:
             return "c"
-        
+
         temp = ar[np.argmax(np.array(ar_num))]
         print(f"!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! --> {temp}")
         return temp
-        
-    
+
+
     def chk_ring(self,de,h1,h2,w1,w2,cent):
         #depoth im je for some reason 480x640
         #sprememeba 1: dodal sem da shrani se koordinate v sliki notr MOZNO DA JIH BO TREBA OBRNT
         cmb_me = []
         if(h1[0]>=0 and h1[1]>=0 and h1[0]<640 and h1[1]<480 and de[h1[1],h1[0]]):
             cmb_me.append((de[h1[1],h1[0]],h1[1],h1[0])) #koordinate v sliki
-        
+
         if(h2[0]>=0 and h2[1]>=0 and h2[0]<640 and h2[1]<480 and de[h2[1],h2[0]]):
             cmb_me.append((de[h2[1],h2[0]],h2[1],h2[0]))
-        
+
         if(w1[0]>=0 and w1[1]>=0 and w1[0]<640 and w1[1]<480 and de[w1[1],w1[0]]):
             cmb_me.append((de[w1[1],w1[0]],w1[1],w1[0]))
-        
+
         if(w2[0]>=0 and w2[1]>=0 and w2[0]<640 and w2[1]<480 and de[w2[1],w2[0]]):
             cmb_me.append((de[w2[1],w2[0]],w2[1],w2[0]))
         if len(cmb_me)<3:
@@ -749,7 +749,7 @@ class color_localizer:
         # self.m_arr.markers.append(marker)
 
         # self.markers_pub.publish(self.m_arr)
-        
+
         return pose
 
     #dela as intended!
@@ -771,11 +771,11 @@ class color_localizer:
         w1 = el[0] + rot.dot(w1)
         w2 = el[0] + rot.dot(w2)
         return h1,h2,w1,w2
-    
+
     def calc_thresholds(self, frame):
         # Do histogram equlization
         img = cv2.equalizeHist(frame)
-            
+
         threshDict = {}
         # Binarize the image - original
         ret, thresh = cv2.threshold(img, 50, 255, 0)
@@ -790,12 +790,12 @@ class color_localizer:
         img2 = cv2.GaussianBlur(img.copy(),(5,5),2)
         ret, thresh = cv2.threshold(img2, 50, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
         # threshDict["gaussBinaryOtsu"] = thresh
-        
+
         # # adaptive mean threshold
         thresh = cv2.adaptiveThreshold(img,255,cv2.ADAPTIVE_THRESH_MEAN_C,\
                 cv2.THRESH_BINARY,3,2)
         # threshDict["adaptiveMean"] = thresh
-        
+
         # # adaptive gaussian threshold
         thresh = cv2.adaptiveThreshold(img,255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C,\
             cv2.THRESH_BINARY,3,2)
@@ -808,7 +808,7 @@ class color_localizer:
 
     def gray2bgr(self, bgr_image):
         newImage = np.zeros((bgr_image.shape[0],bgr_image.shape[1],3))
-        
+
         newImage[:,:,0] = bgr_image.copy()
         newImage[:,:,1] = bgr_image.copy()
         newImage[:,:,2] = bgr_image.copy()
@@ -821,7 +821,7 @@ class color_localizer:
         diff = (depth_stamp.to_sec()-im_stamp.to_sec())
         print(f"diff:             {diff}")
         print()
-        
+
         if (np.abs(diff) > 0.5):
             pprint("skip")
             return grayBGR_toDrawOn,depth_image
@@ -868,7 +868,7 @@ class color_localizer:
 
         for i in range(len(imagesToTest)):
             currentImage = imagesToTest[i]
-            
+
             threshDict = self.calc_thresholds(currentImage)
 
             allFramesAnalized.append(threshDict)
@@ -896,7 +896,7 @@ class color_localizer:
                     t = cv2.addWeighted(t,part1, threshDict[key],part2, 0)
                     counter += 1
             eachAvg.append(avg)
-            
+
         thresh = t
 
         # return thresh
@@ -916,11 +916,11 @@ class color_localizer:
                 part1 = i/(i+1)
                 part2 = 1/(i+1)
                 depth_t = cv2.addWeighted(depth_t,part1, depthThresh[key],part2, 0)
-        
+
 
         # return cv2.addWeighted(depth_t,0.5, t,0.5, 0)
         # return cv2.vconcat([t,depth_t])
-        
+
         depth_t = cv2.Canny(depth_t, 100,200)
 
         # toReturn = cv2.cvtColor(t,cv2.COLOR_GRAY2BGR)
@@ -967,11 +967,11 @@ class color_localizer:
         # print(f"NO:  {np.sum(toReturn<=0)}")
         # print(f"all: {np.unique(toReturn)}")
         # print(f"all: {np.unique(self.gray2bgr(toReturn))}")
-        
-        
+
+
         # return toReturn,depth_im_shifted
         # grayBGR_toDrawOn = toReturn
-        
+
         kernel = np.ones((5,5), "uint8")
 
         # Extract contours
@@ -1016,7 +1016,7 @@ class color_localizer:
                 # centers must be less then 5px appart
                 if dist > 5:
                     continue
-                
+
                 diff_w = e1[1][0] - e2[1][0]
                 diff_h = e1[1][1] - e2[1][1]
                 # width and height of e1 must be bouth smaller/bigger then from e2
@@ -1026,23 +1026,23 @@ class color_localizer:
                 # width and height must be smaller then 100
                 if np.abs(diff_w)>100 or np.abs(diff_h)>100:
                     continue
-                
-                
+
+
                 acceptNew = True
                 for i,c in enumerate(candidates):
                     (c_e1, c_e2, c_avg_cent) = c
                     # check if centers are almost the same
                     centers_dist = np.sqrt((c_avg_cent[0]-avg_cent[0])**2 + (c_avg_cent[1]-avg_cent[1])**2)
                     # print(f"\tcent_dist: {centers_dist}")
-                    
+
                     # check if they have same centers
                     if centers_dist < 5:
                         acceptNew = False
-                        
+
                         diff_w = e1[1][0] - e2[1][0]
                         diff_h = e1[1][1] - e2[1][1]
                         avgDiff = np.abs((diff_w + diff_h)/2)
-                        
+
                         c_diff_w = c_e1[1][0] - c_e2[1][0]
                         c_diff_h = c_e1[1][1] - c_e2[1][1]
                         c_avgDiff = np.abs((c_diff_w + c_diff_h)/2)
@@ -1053,7 +1053,7 @@ class color_localizer:
                             # print(F"\tnew:      {c_e1[1][0]/c_e1[1][1] - c_e2[1][0]/c_e2[1][1]}")
                             candidates[i] = (e1, e2, avg_cent)
 
-                
+
                 if acceptNew == True:
                     # print(F"appendment:")
                     # print(F"\tnew: {e1[1][0]/e1[1][1] - e2[1][0]/e2[1][1]}")
@@ -1075,7 +1075,7 @@ class color_localizer:
         ##print(len(candidates))
         #rabimo trimat tiste ki so si izredno blizu
         #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! UPPER CODE IS NOT TO BE TOUCHED !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        
+
         for c in candidates:
 
             # print(c[0][0])
@@ -1102,7 +1102,7 @@ class color_localizer:
             e2_h2 = h21.copy().astype(int)
             e2_w1 = w11.copy().astype(int)
             e2_w2 = w21.copy().astype(int)
-            
+
             h11= np.round((h11+h1)/2).astype(int)
             h21= np.round((h21+h2)/2).astype(int)
             w11= np.round((w11+w1)/2).astype(int)
@@ -1113,9 +1113,9 @@ class color_localizer:
             # cv2.ellipse(grayBGR_toDrawOn, e1, (0, 0, 255), 2)
             # cv2.ellipse(grayBGR_toDrawOn, e2, (0, 0, 255), 2)
 
-            
+
             # cv2.circle(grayBGR_toDrawOn,tuple( c[2]),1,(0,255,0),2)
-            
+
             # cv2.circle(grayBGR_toDrawOn,tuple( h11),1,(0,255,0),2)
             # cv2.circle(grayBGR_toDrawOn,tuple( h21),1,(0,255,0),2)
             # cv2.circle(grayBGR_toDrawOn,tuple( w11),1,(0,255,0),2)
@@ -1131,9 +1131,9 @@ class color_localizer:
             # cv2.circle(grayBGR_toDrawOn,tuple( e2_h2),1,(0,255,0),2)
             # cv2.circle(grayBGR_toDrawOn,tuple( e2_w1),1,(0,0,0),2)
             # cv2.circle(grayBGR_toDrawOn,tuple( e2_w2),1,(255,255,255),2)
-            
+
             cntr_ring = self.chk_ring(depth_im_shifted,h11,h21,w11,w21,c[2])
-            
+
             # cntr_ring = self.chk_ring(depth_im,h11,h21,w11,w21,c[2])
             try:
                 #EDIT ali so koordinate pravilne
@@ -1151,14 +1151,14 @@ class color_localizer:
                 cv2.ellipse(grayBGR_toDrawOn, e1, (0, 0, 255), 2)
                 cv2.ellipse(grayBGR_toDrawOn, e2, (0, 0, 255), 2)
 
-                
+
                 cv2.circle(grayBGR_toDrawOn,tuple( c[2]),1,(0,255,0),2)
-                
+
                 cv2.circle(grayBGR_toDrawOn,tuple( h11),1,(0,255,0),2)
                 cv2.circle(grayBGR_toDrawOn,tuple( h21),1,(0,255,0),2)
                 cv2.circle(grayBGR_toDrawOn,tuple( w11),1,(0,255,0),2)
-                cv2.circle(grayBGR_toDrawOn,tuple( w21),1,(0,255,0),2)                              
-                
+                cv2.circle(grayBGR_toDrawOn,tuple( w21),1,(0,255,0),2)
+
             except Exception as e:
                 print(f"Ring error: {e}")
         return grayBGR_toDrawOn, depth_im_shifted
@@ -1198,6 +1198,9 @@ class color_localizer:
             mask = cv2.dilate(mask, kernel)
         return mask
 
+    def getHeight(self, middle, depth_im):
+        pass
+
     def getLows(self, depth_line):
         points = [0]
         pointsClose = []
@@ -1205,7 +1208,7 @@ class color_localizer:
             pointsClose.append(False)
         else:
             pointsClose.append(True)
-        
+
         #False pomeni da sta obe točki okoli bližje
         for i in range(1,len(depth_line)-1):
             #preverjamo za preskok
@@ -1227,7 +1230,7 @@ class color_localizer:
             pointsClose.append(False)
         # pprint(list(zip(points,pointsClose)))
         return (points,pointsClose)
-    
+
     def getRange(self, depth_line, center_point,levo,desno):
         #preverimo da ni robni
         if levo == -1:
@@ -1236,17 +1239,17 @@ class color_localizer:
             return None
 
         counter = 0
-        
+
         while True:
             if (center_point-counter) == levo or np.abs(depth_line[center_point-counter]-depth_line[center_point-counter+1])>0.1:
                 counter -= 1
                 break
             if (center_point+counter) == desno or np.abs(depth_line[center_point+counter]-depth_line[center_point+counter-1])>0.1:
                 counter -= 1
-                break 
+                break
             counter += 1
         shift = np.floor((counter*2)/5).astype(int)
-        if shift < 1:
+        if shift < 1 or shift > 50:
             return None
         #vzamemo levo 3 in 6 in desno 3 in 6 oddaljena pixla ter računamo razmerje razmerja rabita biti priblizno enaka na obeh straneh
         LL = depth_line[center_point - shift*2]
@@ -1266,32 +1269,104 @@ class color_localizer:
             return None
         return (center_point-shift*2,center_point+shift*2)
 
+    def get_ujemanja(self,acum_intervals):
+        #to so vrstice v katerih je interval
+        len = 0
+        for i in acum_intervals:
+
+
+    def check_lineup(self,acum):
+        if len(acum)<=1:
+            return None
+        if acum[-2]:
+            for i in acum[-1]:
+                for j in acum[-2]:
+                    if i == j:
+                        return i
+        return None
+
+    def interval_in(self, acum, interval):
+        if len(acum) == 0:
+            return False
+        if interval in acum:
+            return True
+        for i in acum:
+            if (i[0]>=interval[0] and i[1]<=interval[1]) or (i[0]<= interval[0] and i[1]>= interval[1]):
+                return True
+        return False
+
     def find_cylinderDEPTH(self,image, depth_image, grayBGR_toDrawOn,depth_stamp):
         # print(depth_stamp)
         centerRowIndex = depth_image.shape[0]//2
-        presekiIndex,blizDalec = self.getLows(depth_image[centerRowIndex,:])
-        cnt = 0
-        for cnt in range(1,len(presekiIndex)-1):
-            #se pojavi kot najblizja točka katere desni in levi pixl sta  za njo
-            if blizDalec[cnt]:
+        max_row = (depth_image.shape[0]//5)*2
+        acum_me= []
+        curr_ints = []
+        actual_add = (-1,-1)
+        """rabim narediti count za vsak mozn cilinder v sliki posebi!!"""
+        #count_ujemanj drži število zaznanih vrstic s cilindri(prekine in potrdi pri 3eh)
+        count = 0
+        count_ujemanj = [0]
+        for rows in range(centerRowIndex, max_row, -1):
+            presekiIndex,blizDalec = self.getLows(depth_image[rows,:])
+            cnt = 0
+            acum_me.append([])
+            for cnt in range(1,len(presekiIndex)-1):
+                #se pojavi kot najblizja točka katere desni in levi pixl sta  za njo
+                if blizDalec[cnt]:
+                    #notri shranjen levo in desno interval rows vsebuje kera vrstica je trenutno
+                    interval = self.getRange(depth_image[rows,:],presekiIndex[cnt],presekiIndex[cnt-1],presekiIndex[cnt+1])
+                    if interval != None:
+                        #grayBGR_toDrawOn = cv2.circle(grayBGR_toDrawOn,(interval[0],centerRowIndex), radius=2,color=[255,0,0], thickness=-1)
+                        #grayBGR_toDrawOn = cv2.circle(grayBGR_toDrawOn,(interval[1],centerRowIndex), radius=2,color=[255,0,0], thickness=-1)
 
-                interval = self.getRange(depth_image[centerRowIndex,:],presekiIndex[cnt],presekiIndex[cnt-1],presekiIndex[cnt+1])
-                if interval != None:
-                    #NASLI SMO CILINDER
-                    # print(depth_image)
-                    try:
-                        points = np.array([ image[centerRowIndex,presekiIndex[cnt]],
-                                            image[centerRowIndex,presekiIndex[cnt]-1],
-                                            image[centerRowIndex,presekiIndex[cnt]+1]])
-                        # print(f"Širina:{interval[0]-interval[1]}\n\tna razdalji:{depth_image[centerRowIndex,presekiIndex[cnt]]}")
-                        if np.abs(interval[0]-interval[1]) <= 20 or depth_image[centerRowIndex,presekiIndex[cnt]]>2.5:
-                            return
-                        colorToPush = self.calc_rgb(points)
-                        pose = self.get_pose(presekiIndex[cnt],centerRowIndex,depth_image[centerRowIndex,presekiIndex[cnt]],depth_image,"cylinder",depth_stamp,colorToPush)
-                        self.addPosition(np.array([pose.position.x,pose.position.y,pose.position.z]),"cylinder",colorToPush)
-                    except Exception as e:
-                        print(f"find_cylinderDEPTH error: {e}")
-                        return
+                        #izrise crto intervala
+
+                        #grayBGR_toDrawOn[centerRowIndex,list(range(interval[0],interval[1]))] = [255,0,0]
+                        #NASLI SMO CILINDER
+                        # print(depth_image)
+
+                        try:
+                            #preverimo da je realen interval
+                            if np.abs(interval[0]-interval[1]) <= 20 or depth_image[rows,presekiIndex[cnt]]>2.5:
+                                continue
+
+
+                            # interval je kul
+                            #1. ga dodamo v akumulator
+                            acum_me[count].append(interval)
+
+
+
+                            for i in range(interval[0],interval[1]):
+                                #izrise crto intervala
+                                grayBGR_toDrawOn[rows,i] = [255,255,0]
+                        except Exception as e:
+                            print(f"find_cylinderDEPTH error: {e}")
+                            return grayBGR_toDrawOn
+                #drawing on screen
+                if blizDalec[cnt]:
+                    grayBGR_toDrawOn = cv2.circle(grayBGR_toDrawOn,(presekiIndex[cnt],rows), radius=2,color=[60,181,9], thickness=-1)
+                    #grayBGR_toDrawOn[centerRowIndex-1,presekiIndex[cnt]-1] = np.array([[60,181,9]])
+                else:
+                    grayBGR_toDrawOn = cv2.circle(grayBGR_toDrawOn,(presekiIndex[cnt],rows), radius=2,color=[0,7,255], thickness=-1)
+                    #grayBGR_toDrawOn[centerRowIndex-1,presekiIndex[cnt]-1] = np.array([[0,7,255]])
+            inter = self.check_lineup(acum_me)
+            if inter:
+
+                count_ujemanj += 1
+                if count_ujemanj == 3:
+                    points = np.array([ image[rows,(inter[0]+inter[1])//2],
+                                        image[rows,(inter[0]+inter[1])//2-1],
+                                        image[rows,(inter[0]+inter[1])//2+1]])
+
+                    print(f"Širina:{inter[1]} {inter[0]}\n\tna razdalji:{depth_image[centerRowIndex,presekiIndex[(inter[0]+inter[1])//2+1]]}")
+                    colorToPush = self.calc_rgb(points)
+                    pose = self.get_pose((inter[0]+inter[1])//2,rows,depth_image[rows,(inter[0]+inter[1])//2],depth_image,"cylinder",depth_stamp,colorToPush)
+                    self.addPosition(np.array([pose.position.x,pose.position.y,pose.position.z]),"cylinder",colorToPush)
+            else:
+                count_ujemanj = 0
+            count += 1
+        return grayBGR_toDrawOn
 
 
     def find_cylinder(self,image, depth_image, grayBGR_toDrawOn,depth_stamp):
@@ -1361,9 +1436,9 @@ class color_localizer:
         masksList = [red_mask, green_mask, blue_mask, yellow_mask, cyan_mask, black_mask, white_mask]
         colorsForBorder = [ (0,0,255),
                             (0,255,0),
-                            (255,0,0), 
-                            (0,255,255), 
-                            (255,255,0), 
+                            (255,0,0),
+                            (0,255,255),
+                            (255,255,0),
                             (0,0,0),
                             (255,255,255)
                             ]
@@ -1413,7 +1488,7 @@ class color_localizer:
 
                     if numOfCorrectColors/numOfAllColors < 0.5:
                         continue
-                    
+
                     counter = 0
                     while True:
                         if (bestColumnIndx-counter) < 0:
@@ -1421,7 +1496,7 @@ class color_localizer:
                             break
                         if (bestColumnIndx+counter) == len(mask_row):
                             counter -= 1
-                            break 
+                            break
                         if mask_row[bestColumnIndx-counter]==False or mask_row[bestColumnIndx+counter]==False or np.isinf(tempColumnRow[bestColumnIndx-counter])==True or np.isinf(tempColumnRow[bestColumnIndx+counter])==True:
                             counter -= 1
                             break
@@ -1430,7 +1505,7 @@ class color_localizer:
                     shift = np.floor((counter*2)/5).astype(int)
                     if shift < 1:
                         continue
-                    
+
                     LL = depth_row[bestColumnIndx-shift*2]
                     L = depth_row[bestColumnIndx-shift]
                     C = depth_row[bestColumnIndx]
@@ -1447,12 +1522,12 @@ class color_localizer:
 
                     if LL_C<L_C*3 or C_RR<C_R*3:
                         continue
-                    
+
                     center_row_indx = np.floor(h/2).astype(int)
                     up_shif = np.floor(h/5).astype(int)
                     if up_shif<1:
                         continue
-                    
+
                     rowIndx1 = bestRowIndx-up_shif
                     rowIndx2 = bestRowIndx
                     rowIndx3 = bestRowIndx+up_shif
@@ -1460,9 +1535,9 @@ class color_localizer:
                         a = depth_cut[bestRowIndx+up_shif*2,bestColumnIndx]
                     else:
                         a = depth_cut[bestRowIndx-up_shif,bestColumnIndx]
-                    
+
                     b = depth_cut[bestRowIndx,bestColumnIndx]
-    
+
                     if rowIndx3 >= h :
                         c = depth_cut[bestRowIndx-up_shif*2,bestColumnIndx]
                     else:
@@ -1471,7 +1546,7 @@ class color_localizer:
                     distThreshold = 0.005
                     if np.abs(a-b)>distThreshold or np.abs(a-c)>distThreshold or np.abs(b-c)>distThreshold:
                         continue
-                    
+
                     print(f"\tcylinder detected --> {colorsDict[i]}")
                     print(f"\tselected point ditance: {depth_image[y+bestRowIndx,x+bestColumnIndx]}")
                     # pprint(depth_cut[bestRowIndx,:])
@@ -1485,7 +1560,7 @@ class color_localizer:
                     grayBGR_toDrawOn = cv2.rectangle(grayBGR_toDrawOn, (x, y),(x+w,y+h), borderColor ,2)
                     grayBGR_toDrawOn = cv2.rectangle(grayBGR_toDrawOn, (x, y+bestRowIndx),(x+w,y+bestRowIndx), borderColor ,2)
                     grayBGR_toDrawOn = cv2.rectangle(grayBGR_toDrawOn, (x+bestColumnIndx-5, y+bestRowIndx-5),(x+bestColumnIndx+5,y+bestRowIndx+5), (255-borderColor[0],255-borderColor[1],255-borderColor[2]) ,2)
-        
+
         """
         contour, hierarchy = cv2.findContours(red_mask1, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
         for pic, cont in enumerate(contour):
@@ -1510,7 +1585,7 @@ class color_localizer:
         except Exception as e:
             print(e)
             return 0
-        
+
         try:
             depth_image_message = rospy.wait_for_message("/camera/depth/image_raw", Image)
         except Exception as e:
@@ -1525,7 +1600,7 @@ class color_localizer:
         except Exception as e:
             print(e)
             return 0
-        
+
 
 
         # Convert the images into a OpenCV (numpy) format
@@ -1542,9 +1617,9 @@ class color_localizer:
         grayImage = self.bgr2gray(rgb_image)
         grayImage = self.gray2bgr(grayImage)
         markedImage, depth_im_shifted = self.find_elipses_first(rgb_image, depth_image,rgb_image_message.header.stamp, depth_image_message.header.stamp, grayImage)
+        #print(markedImage)
         # TODO: make it so it marks face and returns the image to display
-        self.find_cylinderDEPTH(rgb_image, depth_im_shifted, markedImage,depth_image_message.header.stamp)
-
+        markedImage = self.find_cylinderDEPTH(rgb_image, depth_im_shifted, markedImage,depth_image_message.header.stamp)
         self.find_faces(rgb_image,depth_im_shifted,depth_image_message.header.stamp)
         markedImage = self.find_QR(rgb_image,depth_im_shifted,depth_image_message.header.stamp, markedImage)
         #! markedImage = self.find_digits(rgb_image,depth_im_shifted,depth_image_message.header.stamp, markedImage)
@@ -1552,6 +1627,7 @@ class color_localizer:
 
         # print(type(markedImage))
         # print(markedImage.shape)
+        #print(markedImage)
         self.pic_pub.publish(CvBridge().cv2_to_imgmsg(markedImage, encoding="passthrough"))
         #self.markers_pub.publish(self.m_arr)
 
@@ -1633,7 +1709,7 @@ class color_localizer:
 # ===================================================================================================================
 #! ============================================== face detection start ==============================================
     def find_faces(self,rgb_image, depth_image, depth_image_stamp):
-        
+
         # Set the dimensions of the image
         self.dims = rgb_image.shape
         h = self.dims[0]
@@ -1675,7 +1751,7 @@ class color_localizer:
         blob = cv2.dnn.blobFromImages(images=[imgL,imgM,imgR], scalefactor=1.0, size=(300, 300), mean=(104.0, 177.0, 123.0))
         self.face_net.setInput(blob)
         face_detections = self.face_net.forward()
-        
+
         right_image_shift = rgb_image.shape[1] - rgb_image.shape[0]
         before_value = 1.0
         detection_happend = False
@@ -1691,7 +1767,7 @@ class color_localizer:
                 box = face_detections[0,0,i,3:7] * np.array([w_custom,h_custom,w_custom,h_custom])
                 box = box.astype('int')
                 x1_custom, y1_custom, x2_custom, y2_custom = box[0], box[1], box[2], box[3]
-                
+
                 # y stay the same because original images' width is larger than its width
                 if imageIndx == 0: # left
                     x1 = x1_custom
@@ -1708,7 +1784,7 @@ class color_localizer:
                     y1 = y1_custom
                     x2 = right_image_shift + x2_custom
                     y2 = y2_custom
-                
+
                 # poskrbi za morebitne zaznave izven okvirja slike
                 if x1 < 0: # x1 preveč levo
                     x1 = 0
@@ -1726,7 +1802,7 @@ class color_localizer:
                     y2 = 0
                 if y2 > self.dims[0]-1: # y2 preveč spodaj
                     y2 = self.dims[0]-1
-                
+
                 this_dict = {
                     "indx" : i,
                     "imageIndx": imageIndx, # 0 == left, 1 == middle, 2 == right
@@ -1735,19 +1811,19 @@ class color_localizer:
                     "y": (y1,y2)
                     }
                 good_face_detections.append(this_dict)
-        
+
         good_face_detections_sorted = sorted(good_face_detections,key=lambda tempDictionary: tempDictionary["confidence"],reverse=True)
 
         good_face_detections_final = []
         for good_detection in good_face_detections_sorted:
             x1, x2 = good_detection["x"]
             y1, y2 = good_detection["y"]
-            
+
             is_good_detection = True
             for checked_good_detection in good_face_detections_final:
                 if self.does_it_cross(checked_good_detection["x"], checked_good_detection["y"], (x1,x2), (y1,y2)):
                     is_good_detection = False
-            
+
             if is_good_detection:
                 good_face_detections_final.append(good_detection)
 
@@ -1772,7 +1848,7 @@ class color_localizer:
             im_ms.height = face_region.shape[0]
             im_ms.width = face_region.shape[1]
             im_ms.data = face_region"""
-            
+
             #self.pic_pub.publish(im_ms)
             #self.pic_pub.publish(CvBridge().cv2_to_imgmsg(face_region, encoding="passthrough"))
 
@@ -1802,7 +1878,7 @@ class color_localizer:
             pose = self.get_pose_face((x1,x2,y1,y2), face_distance, depth_time)
             if pose != None:
                 newPosition = np.array([pose.position.x,pose.position.y, pose.position.z])
-                self.addPosition(newPosition, "face", color_char=None, normal=norm)          
+                self.addPosition(newPosition, "face", color_char=None, normal=norm)
 
     def does_it_cross(self, a_cords_x, a_cords_y, b_cords_x, b_cords_y):
         # it answers the qustion if rectangles cross in any way
@@ -1810,7 +1886,7 @@ class color_localizer:
         # returns False --> coardinates DONT cross
         a_x1, a_x2 = a_cords_x
         a_y1, a_y2 = a_cords_y
-        
+
         b_x1, b_x2 = b_cords_x
         b_y1, b_y2 = b_cords_y
 
@@ -1820,7 +1896,7 @@ class color_localizer:
         # check if A has anything inside B
         if (b_x1 <= a_x1 <= b_x2 or b_x1 <= a_x2 <= b_x2) and (b_y1 <= a_y1 <= b_y2 or b_y1 <= a_y2 <= b_y2):
             return True
-        
+
         return False
 
     def get_normal(self, depth_image, face_cord, stamp,dist, face_region):
@@ -1829,15 +1905,15 @@ class color_localizer:
         shift_left = face_x1
         shift_top = face_y1
 
-        
+
         if min(depth_image.shape) == 0:
             return None
-        
+
         if min(image.shape) == 0:
             return None
 
 
-        biggerDim = np.argmax(image.shape) 
+        biggerDim = np.argmax(image.shape)
         # print(f"bigger dimention: {biggerDim}")
         bigLen = image.shape[biggerDim]
         smallLen = image.shape[~biggerDim]
@@ -1846,7 +1922,7 @@ class color_localizer:
         x1 = y1 = None # top-left
         x2 = y2 = None # bottom-right
         x3 = y3 = None # top-right
-            
+
         for big_i in range(bigLen//2):
             whatPart = big_i/bigLen
             small_i = round(whatPart*smallLen)
@@ -1893,11 +1969,11 @@ class color_localizer:
 
         x2 += shift_left
         y2 += shift_top
-        
+
         x3 += shift_left
         y3 += shift_top
-        
-        
+
+
 
         #print("\n< 1 > image [{:>3}] [{:>3}] = {:}".format(y1,x1,depth_image[y1][x1]))
         #print("< 2 > image [{:>3}] [{:>3}] = {:}".format(y2,x2,depth_image[y2][x2]))
@@ -1906,9 +1982,9 @@ class color_localizer:
 
 
         v1_cor = self.get_pose_face((x1,x1,y1,y1),depth_image[y1,x1],stamp)
-        
+
         v2_cor = self.get_pose_face((x2,x2,y2,y2),depth_image[y2,x2],stamp)
-        
+
         v3_cor = self.get_pose_face((x3,x3,y3,y3),depth_image[y3,x3],stamp)
 
         # try:
@@ -1918,9 +1994,9 @@ class color_localizer:
         #     # print(f"\n{v3_cor.position}")
         # except:
         #     pass
-        
-        
-        try: 
+
+
+        try:
             #print(v1_cor,v2_cor,v3_cor)
             v3_cor.position.z += 0.1
 
@@ -1935,7 +2011,7 @@ class color_localizer:
 
             v12 =v2-v1
             v13 =v3-v1
-            
+
             v23 = v3-v2
 
             d12 = np.linalg.norm(v12)
@@ -1952,7 +2028,7 @@ class color_localizer:
             if d12>0.2 or d13>0.2 or d23>0.2:
                 print("Exiting like a pro!!!!!!!!!!!!")
                 return None
-            
+
 
 
             norm = np.cross(v12,v13)
@@ -1996,7 +2072,7 @@ class color_localizer:
             #     self.markers_pub.publish(self.marker_array)
             #     self.pic_pub.publish(CvBridge().cv2_to_imgmsg(face_region, encoding="passthrough"))
             # print("after:",norm)
-            
+
             #self.points_pub.publish(Point(orig_arr[0],orig_arr[1],orig_arr[2]))
             #self.points_pub.publish(Point(dest_arr[0],dest_arr[1],dest_arr[2]))
             #ustvarimo Image msg
@@ -2007,7 +2083,7 @@ class color_localizer:
             im_ms.height = image.shape[0]
             im_ms.width = image.shape[1]
             im_ms.data = image
-            
+
             self.pic_pub.publish(im_ms)"""
 
         except Exception as e:
@@ -2124,10 +2200,10 @@ class color_localizer:
             #! self.twist_pub.publish(Vector3(act_norm[1],act_norm[1],act_norm[2]),Vector3(self.detected_pos_fin[self.entries][0][0],self.detected_pos_fin[self.entries][0][1],self.detected_pos_fin[self.entries][0][2]))
             self.entries += 1
             return True
-        
+
         #posljemo None nazaj da vemo da nismo dokoncno dolocili nobene tocke
         return False
-    
+
     def get_arrow_points(self, scale, head, tail, idn):
         self.marker_num += 1
         m = Marker()
