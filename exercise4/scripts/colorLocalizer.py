@@ -1848,12 +1848,11 @@ class color_localizer:
             d1 = doubles[i-1]
             d2 = doubles[i]
 
-            x1 = round(d1["start_point"][0])
-            y1 = round(min(d1["start_point"][1],d2["start_point"][1]))
+            x1 = round(d1["start_point"][0]).astype("int")
+            y1 = round(min(d1["start_point"][1],d2["start_point"][1])).astype("int")
 
-            x2 = round(d2["end_point"][0])
-            y2 = round(max(d1["end_point"][1],d2["end_point"][1]))
-            print("tip:")
+            x2 = round(d2["end_point"][0]).astype("int")
+            y2 = round(max(d1["end_point"][1],d2["end_point"][1])).astype("int")
             print(type(x1))
             # ratio is bigger then it is commen for paper
             if (x2-x1)/(y2-y1) > 0.75:
