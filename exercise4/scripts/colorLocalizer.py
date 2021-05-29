@@ -79,8 +79,8 @@ class color_localizer:
         self.params =  cv2.aruco.DetectorParameters_create()
         self.params.adaptiveThreshConstant = 25 # TODO: fine-tune for best performance
         self.params.adaptiveThreshWinSizeStep = 2 # TODO: fine-tune for best performance
-        
-        print(f"   adaptiveThreshConstant: {self.params.adaptiveThreshConstant}") 
+
+        print(f"   adaptiveThreshConstant: {self.params.adaptiveThreshConstant}")
         print(f" adaptiveThreshWinSizeMax: {self.params.adaptiveThreshWinSizeMax}")
         print(f" adaptiveThreshWinSizeMin: {self.params.adaptiveThreshWinSizeMin}")
         print(f"    minCornerDistanceRate: {self.params.minCornerDistanceRate}")
@@ -113,6 +113,10 @@ class color_localizer:
         self.face_net = cv2.dnn.readNetFromCaffe(os.path.dirname(os.path.abspath(__file__))+'/deploy.prototxt.txt', os.path.dirname(os.path.abspath(__file__))+'/res10_300x300_ssd_iter_140000.caffemodel')
         self.dims = (0, 0, 0)
         #! face detection end
+
+        #! cylinder
+        #element: (interval,vrstic_od_sredine)
+        self.tru_intervals = []
 
     def chose_color(self,colorDict):
         b = colorDict["b"]
@@ -1278,12 +1282,59 @@ class color_localizer:
             return None
         return (center_point-shift*2,center_point+shift*2)
 
-    def get_ujemanja(self,acum_intervals):
-        #to so vrstice v katerih je interval
-        len = 0
+    #nastima tru_intervals na tiste ki so bli zaznani
+    def get_ujemanja(self,acum_intervals,vrstica):
+        #to so vrstice v katerih je interval to se rab prstet overall
+        dolz = vrstica
+        #potential vsebuje {interval: counter_ujemanj}
+        potential = {}
+        #samo seznam intervalov
+        self.tru_intervals = []
+        #gremo cez vse intervale
         for i in acum_intervals:
+            #prazna vrstica
+            if i == []:
+                dolz -= 1
+                #spraznimo potential
+                potential = {}
+                continue
+            else:
+                #ce je potetntial prazn ne rabmo primerjat
+                if not potential:
+                    for inter in i:
+                        #dodamo potential za naslednjo iteracijo
+                        potential.append((interval,0))
+                #gremo čez vse intervale
+                else:
+                    for inter in i:
+                        #probs obstaja bolsi nacin
+                        hold_meh = this.check_potets(inter,potential, dolz)
+                        if hold_meh:
+                            potential = hold_meh
+                dolz -=1
 
-
+    def check_potets(self, interval, potets,dolz):
+        #poglej ce je potets slucajn prazn
+        if len(potets) == 0:
+            return None
+        if interval in potets.keys():
+            potets[interval] += 1
+            #tweak for max prileganje
+            if potets[interval] == 5:
+                self.tru_intervals.append((interval,dolz))
+            return potets
+        #gremo iskat vsebovanost
+        for i in potets.keys():
+            #ce je interval znotraj ali pa ce je drugi okol
+            if (i[0]>=interval[0] and i[1]<=interval[1]) or (i[0]<= interval[0] and i[1]>= interval[1]):
+                potets[i] += 1
+                #tweak for max prileganje
+                if potets[interval] == 5:
+                    self.tru_intervals.append((interval,dolz))
+                return potets
+        return None
+    
+    #not in use
     def check_lineup(self,acum):
         if len(acum)<=1:
             return None
@@ -1293,7 +1344,8 @@ class color_localizer:
                     if i == j:
                         return i
         return None
-
+    
+    #not in use
     def interval_in(self, acum, interval):
         if len(acum) == 0:
             return False
@@ -1313,8 +1365,10 @@ class color_localizer:
         actual_add = (-1,-1)
         """rabim narediti count za vsak mozn cilinder v sliki posebi!!"""
         #count_ujemanj drži število zaznanih vrstic s cilindri(prekine in potrdi pri 3eh)
+        #GRABO NOT BEING USED
         count = 0
         count_ujemanj = [0]
+        #END OF GARBO
         for rows in range(centerRowIndex, max_row, -1):
             presekiIndex,blizDalec = self.getLows(depth_image[rows,:])
             cnt = 0
@@ -1359,11 +1413,12 @@ class color_localizer:
                 else:
                     grayBGR_toDrawOn = cv2.circle(grayBGR_toDrawOn,(presekiIndex[cnt],rows), radius=2,color=[0,7,255], thickness=-1)
                     #grayBGR_toDrawOn[centerRowIndex-1,presekiIndex[cnt]-1] = np.array([[0,7,255]])
-            inter = self.check_lineup(acum_me)
-            if inter:
-
+                        #if not empty
+            """
+            if interval:
                 count_ujemanj += 1
                 if count_ujemanj == 3:
+                
                     points = np.array([ image[rows,(inter[0]+inter[1])//2],
                                         image[rows,(inter[0]+inter[1])//2-1],
                                         image[rows,(inter[0]+inter[1])//2+1]])
@@ -1374,7 +1429,23 @@ class color_localizer:
                     self.addPosition(np.array([pose.position.x,pose.position.y,pose.position.z]),"cylinder",colorToPush)
             else:
                 count_ujemanj = 0
+                """
             count += 1
+        #inter = self.check_lineup(acum_me)
+        print("Acum check:")
+        print(acum_me)
+        this.get_ujemanja(acum_me,centralRowIndex)
+        #ce ni prazn
+        for inter in this.tru_intervals:
+            points = np.array([ image[inter[0],(inter[1][0]+inter[1][1])//2],
+                                image[inter[0],(inter[1][0]+inter[1][1])//2+1],
+                                image[inter[0],(inter[1][0]+inter[1][1])//2-1])
+
+            print(f"Širina:{inter[1][0]} {inter[1][1]}\n\tna razdalji:{depth_image[inter[0],(inter[1][0]+inter[1][1])//2]}")
+            colorToPush = self.calc_rgb(points)
+            pose = self.get_pose((inter[1][0]+inter[1][1])//2,inter[0],depth_image[inter[0],(inter[1][0]+inter[1][1])//2],depth_image,"cylinder",depth_stamp,colorToPush)
+            self.addPosition(np.array([pose.position.x,pose.position.y,pose.position.z]),"cylinder",colorToPush)
+
         return grayBGR_toDrawOn
 
 
@@ -1677,7 +1748,7 @@ class color_localizer:
 
         # grayBGR_toDrawOn = rgb_image
         allCorners = []
-        
+
         # robot body is in the bottom of an image (480*0.875 = 420)
         top_limit = round(rgb_image.shape[0] * 0.875) # how much from top is posible for marker/corrner (edge) to be
 
@@ -1713,13 +1784,13 @@ class color_localizer:
                                     "color":"red",
                                     "original_corner": marker})
                 # grayBGR_toDrawOn = cv2.rectangle(grayBGR_toDrawOn, start_point, end_point, bgr_color, thickness)
-        
+
         # area
         for marker in allCorners:
             marker_area_dims = marker["end_point"]-marker["start_point"]
             marker["area"] = marker_area_dims[0]*marker_area_dims[1]
             # print(f"{marker['color']}\t{marker['center']}")
-        
+
         # pprint(allCorners)
 
         # sort by (x)
@@ -1729,7 +1800,7 @@ class color_localizer:
 
         # doubles must cross middle row of an image
         middle_row_indx = rgb_image.shape[0]//2
-        
+
         doubles = [] # 2 markers merged
         for i in range(0,len(allCorners)-1):
             for j in range(i+1,len(allCorners)):
@@ -1751,7 +1822,7 @@ class color_localizer:
                                 min(m1["start_point"][1],m2["start_point"][1]))
                 end_point = (   max(m1["end_point"][0],m2["end_point"][0]),
                                 max(m1["end_point"][1],m2["end_point"][1]))
-                
+
                 # doubles area must cross middle row of an image
                 if start_point[1]>middle_row_indx or end_point[1]<middle_row_indx:
                     continue
@@ -1767,15 +1838,15 @@ class color_localizer:
                                 "center": np.array([(start_p[0]+end_p[0])//2, (start_p[1]+end_p[1])//2]),
                                 "top_original_corner": m1["original_corner"] if m1["center"][1] < m2["center"][1] else m2["original_corner"],
                                 "bottom_original_corner": m1["original_corner"] if m1["center"][1] > m2["center"][1] else m2["original_corner"]})
-        
-        
+
+
         doubles = sorted(doubles,key=lambda x: x["center"][0])
         papers = []
         c = 0
         for i in range(1,len(doubles)):
             d1 = doubles[i-1]
             d2 = doubles[i]
-            
+
             x1 = round(d1["start_point"][0])
             y1 = round(min(d1["start_point"][1],d2["start_point"][1]))
 
@@ -1798,11 +1869,11 @@ class color_localizer:
 
         # pprint(papers)
 
-        
+
         # draw middle row
         # grayBGR_toDrawOn = cv2.rectangle(grayBGR_toDrawOn, (0,middle_row_indx-5), (rgb_image.shape[1]-1,middle_row_indx+5), (0,0,0), 4)
-        
-        
+
+
         # return grayBGR_toDrawOn
         # return rgb_image
         # return img_out
@@ -1850,14 +1921,14 @@ class color_localizer:
             if not ids is None:
                 if len(ids)==4:
                     # print('4 Markers detected')
-                
+
                     for idx in ids:
                         # Calculate the center point of all markers
                         cors = np.squeeze(corners[idx[0]-1])
                         cen_mar = np.mean(cors,axis=0)
                         cens_mars[idx[0]-1]=cen_mar
                         cen_point = np.mean(cens_mars,axis=0)
-                
+
                     for coords in cens_mars:
                         #  Map the correct source points
                         if coords[0]<cen_point[0] and coords[1]<cen_point[1]:
@@ -1871,42 +1942,42 @@ class color_localizer:
 
                     h, status = cv2.findHomography(src_points, out_pts)
                     img_out = cv2.warpPerspective(rgb_image, h, (img_out.shape[1],img_out.shape[0]))
-                    
+
                     ################################################
                     #### Extraction of digits starts here
                     ################################################
-                    
+
                     # Cut out everything but the numbers
                     img_out = img_out[125:221,50:195,:]
-                    
+
                     # Convert the image to grayscale
                     img_out = cv2.cvtColor(img_out, cv2.COLOR_BGR2GRAY)
-                    
+
                     # Option 1 - use ordinairy threshold the image to get a black and white image
                     #ret,img_out = cv2.threshold(img_out,100,255,0)
 
                     # Option 1 - use adaptive thresholding
                     img_out = cv2.adaptiveThreshold(img_out,255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C,cv2.THRESH_BINARY,11,5)
-                    
+
                     # Use Otsu's thresholding
                     #ret,img_out = cv2.threshold(img_out,0,255,cv2.THRESH_BINARY+cv2.THRESH_OTSU)
-                    
+
                     # Pass some options to tesseract
                     config = '--psm 13 outputbase nobatch digits'
-                    
+
                     # Visualize the image we are passing to Tesseract
                     # cv2.imshow('Warped image',img_out)
                     # cv2.waitKey(1)
-                
+
                     # Extract text from image
                     text = pytesseract.image_to_string(img_out, config = config)
-                    
+
                     # Check and extract data from text
                     # print('Extracted>>',text)
-                    
+
                     # Remove any whitespaces from the left and right
                     text = text.strip()
-                    
+
                     # If the extracted text is of the right length
                     if len(text)==2:
                         x=int(text[0])
@@ -1917,13 +1988,13 @@ class color_localizer:
                         # TODO: izračunaj normalo !!!
             #         else:
             #             print(f"The extracted text has is of length {len(text)}. Aborting processing")
-                    
+
             #     else:
             #         print(f"The number of markers is not ok: {len(ids)}")
             # else:
             #     print("No markers found")
-        
-        
+
+
         return grayBGR_toDrawOn
         # return img_out
 #! =================================================== digits end ===================================================
