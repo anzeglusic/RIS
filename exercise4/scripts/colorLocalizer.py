@@ -1853,7 +1853,8 @@ class color_localizer:
 
             x2 = round(d2["end_point"][0])
             y2 = round(max(d1["end_point"][1],d2["end_point"][1]))
-
+            print("tip:")
+            print(type(x1))
             # ratio is bigger then it is commen for paper
             if (x2-x1)/(y2-y1) > 0.75:
                 continue
