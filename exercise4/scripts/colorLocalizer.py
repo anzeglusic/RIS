@@ -1312,8 +1312,6 @@ class color_localizer:
                         if hold_meh:
                             potential = hold_meh
                 dolz -=1
-        print("yep:")
-        print(potential)
 
     def check_potets(self, interval, potets,dolz):
         #poglej ce je potets slucajn prazn
@@ -1434,12 +1432,9 @@ class color_localizer:
                 """
             count += 1
         #inter = self.check_lineup(acum_me)
-        print("Acum check:")
-        print(acum_me)
         self.get_ujemanja(acum_me,centerRowIndex)
         #ce ni prazn
         for inter in self.tru_intervals:
-            print(inter)
             points = np.array([ image[inter[1],(inter[0][0]+inter[0][1])//2],
                                 image[inter[1],(inter[0][0]+inter[0][1])//2+1],
                                 image[inter[1],(inter[0][0]+inter[0][1])//2-1]])
