@@ -1303,7 +1303,7 @@ class color_localizer:
                 if not potential:
                     for inter in i:
                         #dodamo potential za naslednjo iteracijo
-                        potential[intervals] = 0
+                        potential[inter] = 0
                 #gremo čez vse intervale
                 else:
                     for inter in i:
