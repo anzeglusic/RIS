@@ -1434,7 +1434,7 @@ class color_localizer:
         #inter = self.check_lineup(acum_me)
         print("Acum check:")
         print(acum_me)
-        self.get_ujemanja(acum_me,centralRowIndex)
+        self.get_ujemanja(acum_me,centerRowIndex)
         #ce ni prazn
         for inter in this.tru_intervals:
             points = np.array([ image[inter[0],(inter[1][0]+inter[1][1])//2],
