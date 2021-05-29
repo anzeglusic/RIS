@@ -1444,7 +1444,7 @@ class color_localizer:
                                 image[inter[1],(inter[0][0]+inter[0][1])//2+1],
                                 image[inter[1],(inter[0][0]+inter[0][1])//2-1]])
 
-            print(f"Širina:{inter[1][0]} {inter[1][1]}\n\tna razdalji:{depth_image[inter[0],(inter[1][0]+inter[1][1])//2]}")
+            print(f"Širina:{inter[0][0]} {inter[0][1]}\n\tna razdalji:{depth_image[inter[1],(inter[0][0]+inter[0][1])//2]}")
             colorToPush = self.calc_rgb(points)
             pose = self.get_pose((inter[0][0]+inter[0][1])//2,inter[1],depth_image[inter[1],(inter[0][0]+inter[0][1])//2],depth_image,"cylinder",depth_stamp,colorToPush)
             self.addPosition(np.array([pose.position.x,pose.position.y,pose.position.z]),"cylinder",colorToPush)
