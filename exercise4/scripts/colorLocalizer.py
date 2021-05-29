@@ -1439,7 +1439,7 @@ class color_localizer:
         for inter in this.tru_intervals:
             points = np.array([ image[inter[0],(inter[1][0]+inter[1][1])//2],
                                 image[inter[0],(inter[1][0]+inter[1][1])//2+1],
-                                image[inter[0],(inter[1][0]+inter[1][1])//2-1])
+                                image[inter[0],(inter[1][0]+inter[1][1])//2-1]])
 
             print(f"Širina:{inter[1][0]} {inter[1][1]}\n\tna razdalji:{depth_image[inter[0],(inter[1][0]+inter[1][1])//2]}")
             colorToPush = self.calc_rgb(points)
