@@ -1331,7 +1331,7 @@ class color_localizer:
             if (i[0]>=interval[0] and i[1]<=interval[1]) or (i[0]<= interval[0] and i[1]>= interval[1]):
                 potets[i] += 1
                 #tweak for max prileganje
-                if potets[interval] == 5:
+                if potets[i] == 5:
                     self.tru_intervals.append((interval,dolz))
                 return potets
         return None
