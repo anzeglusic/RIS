@@ -1312,6 +1312,8 @@ class color_localizer:
                         if hold_meh:
                             potential = hold_meh
                 dolz -=1
+        print("yep:")
+        print(potential)
 
     def check_potets(self, interval, potets,dolz):
         #poglej ce je potets slucajn prazn
