@@ -1308,7 +1308,7 @@ class color_localizer:
                 else:
                     for inter in i:
                         #probs obstaja bolsi nacin
-                        hold_meh = this.check_potets(inter,potential, dolz)
+                        hold_meh = self.check_potets(inter,potential, dolz)
                         if hold_meh:
                             potential = hold_meh
                 dolz -=1
@@ -1436,7 +1436,7 @@ class color_localizer:
         print(acum_me)
         self.get_ujemanja(acum_me,centerRowIndex)
         #ce ni prazn
-        for inter in this.tru_intervals:
+        for inter in self.tru_intervals:
             points = np.array([ image[inter[0],(inter[1][0]+inter[1][1])//2],
                                 image[inter[0],(inter[1][0]+inter[1][1])//2+1],
                                 image[inter[0],(inter[1][0]+inter[1][1])//2-1]])
