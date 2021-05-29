@@ -1436,6 +1436,8 @@ class color_localizer:
         print(self.tru_intervals)
         #ce ni prazn
         for inter in self.tru_intervals:
+            for i in range(inter[0][0],inter[0][1]):
+                grayBGR_toDrawOn[inter[1],i] = [0,0,255]
             points = np.array([ image[inter[1],(inter[0][0]+inter[0][1])//2],
                                 image[inter[1],(inter[0][0]+inter[0][1])//2+1],
                                 image[inter[1],(inter[0][0]+inter[0][1])//2-1]])
