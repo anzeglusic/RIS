@@ -22,6 +22,12 @@ import subprocess
 import pyzbar.pyzbar as pyzbar
 import pytesseract
 
+"""
+Topici za akumulator:
+face_topic
+cilinder_topic
+ring_topic"""
+
 # /home/sebastjan/Documents/faks/3letnk/ris/ROS_task/src/exercise4/scripts
 
 #modelsDir = "/home/code8master/Desktop/wsROS/src/RIS/exercise4/scripts"
@@ -293,12 +299,18 @@ class color_localizer:
             area["averagePostion"] = np.sum(area["detectedPositions"],axis=0)/len(area["detectedPositions"])
 
             # average marker
-            if objectType=="ring" or objectType=="cylinder":
+            if objectType=="ring":
+                pose = Pose()
+                pose.position.x = area["averagePostion"][0]
+                pose.position.y = area["averagePostion"][1]
+                pose.position.z = 2
+            
+            if objectType=="cylinder":
                 # Create a Pose object with the same position
                 pose = Pose()
                 pose.position.x = area["averagePostion"][0]
                 pose.position.y = area["averagePostion"][1]
-                pose.position.z = area["averagePostion"][2]+0.1
+                pose.position.z = 1
 
                 # Create a marker used for visualization
                 self.nM += 1
