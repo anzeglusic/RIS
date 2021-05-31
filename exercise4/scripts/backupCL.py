@@ -1435,7 +1435,7 @@ class color_localizer:
         self.get_ujemanja(acum_me,centerRowIndex)
         print(self.tru_intervals)
         #ce ni prazn
-
+<<<<<<< HEAD
         for inter in self.tru_intervals:
             for i in range(inter[0][0],inter[0][1]):
                 grayBGR_toDrawOn[inter[1],i] = [0,0,255]
