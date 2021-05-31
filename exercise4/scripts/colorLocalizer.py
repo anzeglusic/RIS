@@ -22,7 +22,7 @@ import pickle
 import subprocess
 import pyzbar.pyzbar as pyzbar
 import pytesseract
-import module_helper as module
+import module
 
 
 # /home/sebastjan/Documents/faks/3letnk/ris/ROS_task/src/exercise4/scripts
@@ -813,10 +813,10 @@ class color_localizer:
                                 image[inter[1],(inter[0][0]+inter[0][1])//2-1]])
 
             print(f"Širina:{inter[0][0]} {inter[0][1]}\n\tna razdalji:{depth_image[inter[1],(inter[0][0]+inter[0][1])//2]}")
-            colorToPush = self.calc_rgb(points)
+            colorToPush = module.calc_rgb(points,self.knn_RGB,self.random_forest_RGB,self.knn_HSV,self.random_forest_HSV)
             pose = module.get_pose((inter[0][0]+inter[0][1])//2,inter[1],depth_image[inter[1],(inter[0][0]+inter[0][1])//2],depth_image,"cylinder",depth_stamp,colorToPush,self.tf_buf)
             #pose = self.get_pose((inter[0][0]+inter[0][1])//2,inter[1],depth_image[inter[1],(inter[0][0]+inter[0][1])//2],depth_image,"cylinder",depth_stamp,colorToPush)
-            (self.nM, slef.m_arr) = module.addPosition(np.array([pose.position.x,pose.position.y,pose.position.z]),"cylinder",colorToPush,self.positions["cylinder"],self.nM, self.m_arr, self.markers_pub)
+            (self.nM, self.m_arr) = module.addPosition(np.array([pose.position.x,pose.position.y,pose.position.z]),"cylinder",colorToPush,self.positions["cylinder"],self.nM, self.m_arr, self.markers_pub)
             #self.addPosition(np.array([pose.position.x,pose.position.y,pose.position.z]),"cylinder",colorToPush)
 
         return grayBGR_toDrawOn
@@ -1020,12 +1020,12 @@ class color_localizer:
             d1 = doubles[i-1]
             d2 = doubles[i]
 
-            x1 = round(d1["start_point"][0]).astype("int")
-            y1 = round(min(d1["start_point"][1],d2["start_point"][1])).astype("int")
+            x1 = int(round(d1["start_point"][0]))
+            y1 = int(round(min(d1["start_point"][1],d2["start_point"][1])))
 
-            x2 = round(d2["end_point"][0]).astype("int")
-            y2 = round(max(d1["end_point"][1],d2["end_point"][1])).astype("int")
-            print(type(x1))
+            x2 = int(round(d2["end_point"][0]))
+            y2 = int(round(max(d1["end_point"][1],d2["end_point"][1])))
+            # print(type(x1))
             # ratio is bigger then it is commen for paper
             if (x2-x1)/(y2-y1) > 0.75:
                 continue
@@ -1186,15 +1186,14 @@ class color_localizer:
             y1 = dObject.rect.top
             x2 = dObject.rect.left + dObject.rect.width
             y2 = dObject.rect.top + dObject.rect.height
-            norm = module.get_normal(depth_image_shifted, (x1,y1,x2,y2),stamp,None,None, tf_buff)
+            norm = module.get_normal(depth_image_shifted, (x1,y1,x2,y2),stamp,None,None, self.tf_buf)
             # if we are too close to QR code
             if norm is None:
                 print(f"Too close to the QR code!")
                 continue
             pose = module.get_pose((x1+x2)//2,(y1+y2)//2,depth_image_shifted[(y1+y2)//2,(x1+x2)//2],depth_image_shifted,"QR",stamp,None,self.tf_buf)
             #pose = self.get_pose((x1+x2)//2,(y1+y2)//2,depth_image_shifted[(y1+y2)//2,(x1+x2)//2],depth_image_shifted,"QR",stamp,None)
-
-            (self.nM, slef.m_arr) = module.addPosition(np.array([pose.position.x,pose.position.y,pose.position.z]),"QR", None,self.positions["QR"],self.nM, self.m_arr, self.markers_pub,norm, dObject.data.decode())
+            (self.nM, self.m_arr) = module.addPosition(np.array([pose.position.x,pose.position.y,pose.position.z]),"QR", None,self.positions["QR"],self.nM, self.m_arr, self.markers_pub,normal=norm, data=dObject.data.decode())
             #self.addPosition(np.array([pose.position.x,pose.position.y, pose.position.z]),"QR",None,norm,dObject.data.decode())
 
 
@@ -1373,7 +1372,7 @@ class color_localizer:
             #assert x1 != x2, "X sta ista !!!!!!!!!!!"
             face_distance = float(np.nanmean(depth_image[y1:y2,x1:x2]))
             im = depth_image[y1:y2,x1:x2]
-            norm = module.get_normal(depth_image, (x1,y1,x2,y2) ,depth_image_stamp,face_distance, face_region, tf_buff)
+            norm = module.get_normal(depth_image, (x1,y1,x2,y2) ,depth_image_stamp,face_distance, face_region, self.tf_buf)
             normals_found.append(norm)
 
             print('Norm of face', norm)
@@ -1385,7 +1384,7 @@ class color_localizer:
             depth_time = depth_image_stamp
 
             # Find the location of the detected face
-            pose = module.get_pose_face((x1,x2,y1,y2), face_distance, depth_time,self.tf_buf)
+            pose = module.get_pose_face((x1,x2,y1,y2), face_distance, depth_time,self.dims, self.tf_buf)
             #pose = self.get_pose_face((x1,x2,y1,y2), face_distance, depth_time)
             if pose != None:
                 newPosition = np.array([pose.position.x,pose.position.y, pose.position.z])

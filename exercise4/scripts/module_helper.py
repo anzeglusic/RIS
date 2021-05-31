@@ -114,7 +114,7 @@ def rgba_from_char(color_char):
         if color_char == "y":
             return ColorRGBA(1, 1, 0, 1)
 
-def addPosition(newPosition, objectType, color_char, positions, nM, m_arr, markers_pub, showEveryDetection=True, normal=None, data=None):
+def addPosition(newPosition, objectType, color_char, positions, nM, mark_arr, markers_pub, showEveryDetection=True, normal=None, data=None):
         '''
         positions = {
             "ring": [
@@ -166,7 +166,7 @@ def addPosition(newPosition, objectType, color_char, positions, nM, m_arr, marke
         unique_position = True
         for area in positions:
             if objectType=="face" or objectType=="QR":
-                c_sim = np.dot(normal,area["averageNormal"])/(np.linalg.norm(normal)*np.linalg.norm(area["averageNormal"]))
+                _sim = np.dot(normal,area["averageNormal"])/(np.linalg.norm(normal)*np.linalg.norm(area["averageNormal"]))
                 # print("similarity:",c_sim)
                 if c_sim<=0.5:
                     continue
@@ -614,7 +614,7 @@ def does_it_cross(a_cords_x, a_cords_y, b_cords_x, b_cords_y):
 
         return False
 
-def get_normal(depth_image, face_cord, stamp,dist, face_region, tf_buff):
+def get_normal(depth_image, face_cord, stamp,dist, face_region):
         face_x1, face_y1, face_x2, face_y2 = face_cord
         image = depth_image[face_y1:face_y2, face_x1:face_x2]
         shift_left = face_x1
@@ -694,13 +694,13 @@ def get_normal(depth_image, face_cord, stamp,dist, face_region, tf_buff):
         #print("< 2 > image [{:>3}] [{:>3}] = {:}".format(y2,x2,depth_image[y2][x2]))
         #print("< 3 > image [{:>3}] [{:>3}] = {:}".format(y3,x3,depth_image[y3][x3]))
 
+        print(f"--------------> {depth_image.shape}")
 
+        v1_cor = get_pose_face((x1,x1,y1,y1),depth_image[y1,x1],stamp,list(depth_image.shape))
 
-        v1_cor = get_pose_face((x1,x1,y1,y1),depth_image[y1,x1],stamp, depth_image.shape, tf_buff)
+        v2_cor = get_pose_face((x2,x2,y2,y2),depth_image[y2,x2],stamp,list(depth_image.shape))
 
-        v2_cor = get_pose_face((x2,x2,y2,y2),depth_image[y2,x2],stamp, depth_image.shape, tf_buff)
-
-        v3_cor = get_pose_face((x3,x3,y3,y3),depth_image[y3,x3],stamp, depth_image.shape, tf_buff)
+        v3_cor = get_pose_face((x3,x3,y3,y3),depth_image[y3,x3],stamp,list(depth_image.shape))
 
         # try:
         #     # print("\n coords of points:")
