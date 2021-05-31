@@ -51,6 +51,7 @@ int ringe = 0;
 int arr[] = {2, 0, 3, 0};
 double ary[] = {0.1, 0, 0.25, 0};
 double arx[] = {-0.25, 0.25, 0, 0.25};
+//proba2
 void mapCallback(const nav_msgs::OccupancyGridConstPtr &msg_map)
 {
     int size_x = msg_map->info.width;
