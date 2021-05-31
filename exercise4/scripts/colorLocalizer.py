@@ -555,12 +555,12 @@ class color_localizer:
                 #EDIT ali so koordinate pravilne
                 pnts = np.array( (image[cntr_ring[3][0][1],cntr_ring[3][0][2]], image[cntr_ring[3][1][1],cntr_ring[3][1][2]],image[cntr_ring[3][2][1],cntr_ring[3][2][2]]))
                 # print("dela 1")
-                color = module.calc_rgb(pnts)
+                color = module.calc_rgb(pnts,self.knn_RGB,self.random_forest_RGB,self.knn_HSV,self.random_forest_HSV)
                 # print("dela 2")
                 ring_point = module.get_pose(cntr_ring[1],cntr_ring[0],cntr_ring[2],depth_im_shifted,"ring",depth_stamp,color,self.tf_buf)
                 #ring_point = self.get_pose(cntr_ring[1],cntr_ring[0],cntr_ring[2],depth_im_shifted,"ring",depth_stamp,color)
                 # print("dela 3")
-                (self.nM, slef.m_arr) = module.addPosition(np.array((ring_point.position.x,ring_point.position.y,ring_point.position.z)),"ring",color,self.positions["ring"],self.nM, self.m_arr, self.markers_pub)
+                (self.nM, self.m_arr) = module.addPosition(np.array((ring_point.position.x,ring_point.position.y,ring_point.position.z)),"ring",color,self.positions["ring"],self.nM, self.m_arr, self.markers_pub)
                 # print("dela 4")
                 # ring_point = self.get_pose(cntr_ring[1],cntr_ring[0],cntr_ring[2],depth_im,"ring")
 
@@ -577,7 +577,7 @@ class color_localizer:
                 cv2.circle(grayBGR_toDrawOn,tuple( w21),1,(0,255,0),2)
 
             except Exception as e:
-                # print(f"Ring error: {e}")
+                print(f"Ring error: {e}")
                 pass
         return grayBGR_toDrawOn, depth_im_shifted
 
@@ -640,6 +640,10 @@ class color_localizer:
         RR = depth_line[center_point + shift*2]
         R = depth_line[center_point + shift]
         C = depth_line[center_point]
+
+        if np.isnan(LL) or np.isnan(L) or np.isnan(C) or np.isnan(R) or np.isnan(RR):
+            return None
+
         LL_C = LL-C
         L_C = L-C
         C_R = R-C
@@ -748,7 +752,7 @@ class color_localizer:
                 if blizDalec[cnt]:
                     #notri shranjen levo in desno interval rows vsebuje kera vrstica je trenutno
                     interval = self.getRange(depth_image[rows,:],presekiIndex[cnt],presekiIndex[cnt-1],presekiIndex[cnt+1])
-                    if interval != None:
+                    if not interval is None:
                         #grayBGR_toDrawOn = cv2.circle(grayBGR_toDrawOn,(interval[0],centerRowIndex), radius=2,color=[255,0,0], thickness=-1)
                         #grayBGR_toDrawOn = cv2.circle(grayBGR_toDrawOn,(interval[1],centerRowIndex), radius=2,color=[255,0,0], thickness=-1)
 
@@ -760,7 +764,7 @@ class color_localizer:
 
                         try:
                             #preverimo da je realen interval
-                            if np.abs(interval[0]-interval[1]) <= 20 or depth_image[rows,presekiIndex[cnt]]>2.5:
+                            if np.abs(interval[0]-interval[1]) <= 40 or depth_image[rows,presekiIndex[cnt]]>2.5:
                                 continue
 
 
@@ -1371,6 +1375,8 @@ class color_localizer:
             #assert y1 != y2, "Y sta ista !!!!!!!!!!!"
             #assert x1 != x2, "X sta ista !!!!!!!!!!!"
             face_distance = float(np.nanmean(depth_image[y1:y2,x1:x2]))
+            if face_distance > 1.7:
+                continue
             im = depth_image[y1:y2,x1:x2]
             norm = module.get_normal(depth_image, (x1,y1,x2,y2) ,depth_image_stamp,face_distance, face_region, self.tf_buf)
             normals_found.append(norm)
@@ -1378,6 +1384,7 @@ class color_localizer:
             print('Norm of face', norm)
 
             print('Distance to face', face_distance)
+
             #trans = tf2_ros.Buffer().lookup_transform('mapa', 'base_link', rospy.Time(0))
             #print('my position ',trans)
             # Get the time that the depth image was recieved
@@ -1386,7 +1393,7 @@ class color_localizer:
             # Find the location of the detected face
             pose = module.get_pose_face((x1,x2,y1,y2), face_distance, depth_time,self.dims, self.tf_buf)
             #pose = self.get_pose_face((x1,x2,y1,y2), face_distance, depth_time)
-            if pose != None:
+            if not (pose is None) and not (norm is None):
                 newPosition = np.array([pose.position.x,pose.position.y, pose.position.z])
                 (self.nM, self.m_arr) = module.addPosition(newPosition,"face", None, self.positions["face"],self.nM, self.m_arr, self.markers_pub, normal=norm)
                 #self.addPosition(newPosition, "face", color_char=None, normal=norm)
