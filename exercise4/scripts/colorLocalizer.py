@@ -1185,7 +1185,7 @@ class color_localizer:
             y1 = dObject.rect.top
             x2 = dObject.rect.left + dObject.rect.width
             y2 = dObject.rect.top + dObject.rect.height
-            norm = module.get_normal(depth_image_shifted, (x1,y1,x2,y2),stamp,None,None)
+            norm = module.get_normal(depth_image_shifted, (x1,y1,x2,y2),stamp,None,None, tf_buff)
             # if we are too close to QR code
             if norm is None:
                 print(f"Too close to the QR code!")
@@ -1372,7 +1372,7 @@ class color_localizer:
             #assert x1 != x2, "X sta ista !!!!!!!!!!!"
             face_distance = float(np.nanmean(depth_image[y1:y2,x1:x2]))
             im = depth_image[y1:y2,x1:x2]
-            norm = module.get_normal(depth_image, (x1,y1,x2,y2) ,depth_image_stamp,face_distance, face_region)
+            norm = module.get_normal(depth_image, (x1,y1,x2,y2) ,depth_image_stamp,face_distance, face_region, tf_buff)
             normals_found.append(norm)
 
             print('Norm of face', norm)

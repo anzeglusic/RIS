@@ -614,7 +614,7 @@ def does_it_cross(a_cords_x, a_cords_y, b_cords_x, b_cords_y):
 
         return False
 
-def get_normal(depth_image, face_cord, stamp,dist, face_region):
+def get_normal(depth_image, face_cord, stamp,dist, face_region, tf_buff):
         face_x1, face_y1, face_x2, face_y2 = face_cord
         image = depth_image[face_y1:face_y2, face_x1:face_x2]
         shift_left = face_x1
@@ -696,11 +696,11 @@ def get_normal(depth_image, face_cord, stamp,dist, face_region):
 
 
 
-        v1_cor = get_pose_face((x1,x1,y1,y1),depth_image[y1,x1],stamp)
+        v1_cor = get_pose_face((x1,x1,y1,y1),depth_image[y1,x1],stamp, tf_buff)
 
-        v2_cor = get_pose_face((x2,x2,y2,y2),depth_image[y2,x2],stamp)
+        v2_cor = get_pose_face((x2,x2,y2,y2),depth_image[y2,x2],stamp, tf_buff)
 
-        v3_cor = get_pose_face((x3,x3,y3,y3),depth_image[y3,x3],stamp)
+        v3_cor = get_pose_face((x3,x3,y3,y3),depth_image[y3,x3],stamp, tf_buff)
 
         # try:
         #     # print("\n coords of points:")
@@ -759,7 +759,7 @@ def get_normal(depth_image, face_cord, stamp,dist, face_region):
             norm = None
         return norm
 
-def get_pose_face(coords, dist, stamp, dims):
+def get_pose_face(coords, dist, stamp, dims, tf_buf):
         # Calculate the position of the detected face
 
         k_f = 554 # kinect focal length in pixels
@@ -786,7 +786,7 @@ def get_pose_face(coords, dist, stamp, dims):
 
         # Get the point in the "map" coordinate system
         try:
-            point_world = self.tf_buf.transform(point_s, "map")
+            point_world = tf_buf.transform(point_s, "map")
 
             # Create a Pose object with the same position
             pose = Pose()
@@ -799,7 +799,7 @@ def get_pose_face(coords, dist, stamp, dims):
 
         return pose
 
-def get_arrow_points(self, scale, head, tail, idn, marker_num):
+def get_arrow_points(scale, head, tail, idn, marker_num):
         marker_num += 1
         m = Marker()
         m.action = Marker.ADD
