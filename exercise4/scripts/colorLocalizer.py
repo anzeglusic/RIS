@@ -1,10 +1,11 @@
 #!/usr/bin/python3
 
+import os
 import itertools
 import sys
+sys.path.append('/'.join(os.path.realpath(__file__).split('/')[0:-1])+'/')
 import rospy
 import dlib
-import os
 import cv2
 import numpy as np
 import tf2_geometry_msgs
@@ -21,7 +22,7 @@ import pickle
 import subprocess
 import pyzbar.pyzbar as pyzbar
 import pytesseract
-import module
+import module_helper as module
 
 
 # /home/sebastjan/Documents/faks/3letnk/ris/ROS_task/src/exercise4/scripts
@@ -1388,7 +1389,7 @@ class color_localizer:
             #pose = self.get_pose_face((x1,x2,y1,y2), face_distance, depth_time)
             if pose != None:
                 newPosition = np.array([pose.position.x,pose.position.y, pose.position.z])
-                (self.nM, slef.m_arr) = module.addPosition(newPosition,"face", color_char=None, self.positions["face"],self.nM, self.m_arr, self.markers_pub, normal=norm)
+                (self.nM, self.m_arr) = module.addPosition(newPosition,"face", None, self.positions["face"],self.nM, self.m_arr, self.markers_pub, normal=norm)
                 #self.addPosition(newPosition, "face", color_char=None, normal=norm)
 
 
