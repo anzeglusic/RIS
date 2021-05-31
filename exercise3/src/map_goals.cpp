@@ -701,7 +701,7 @@ int main(int argc, char **argv)
 
 /*
 source /home/iletavcioski/ROS/devel/setup.bash
-roslaunch exercise3 rins_world.launch
+roslaunch exercise7 rins_world.launch
 roslaunch exercise3 amcl_simulation.launch 2>/dev/null
 roslaunch turtlebot_rviz_launchers view_navigation.launch 2>/dev/null
 rosrun exercise3 map_goals
