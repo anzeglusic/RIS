@@ -1303,12 +1303,12 @@ class color_localizer:
                 if not potential:
                     for inter in i:
                         #dodamo potential za naslednjo iteracijo
-                        potential[inter] = 0
+                        potential.append((interval,0))
                 #gremo čez vse intervale
                 else:
                     for inter in i:
                         #probs obstaja bolsi nacin
-                        hold_meh = self.check_potets(inter,potential, dolz)
+                        hold_meh = this.check_potets(inter,potential, dolz)
                         if hold_meh:
                             potential = hold_meh
                 dolz -=1
@@ -1329,7 +1329,7 @@ class color_localizer:
             if (i[0]>=interval[0] and i[1]<=interval[1]) or (i[0]<= interval[0] and i[1]>= interval[1]):
                 potets[i] += 1
                 #tweak for max prileganje
-                if potets[i] == 5:
+                if potets[interval] == 5:
                     self.tru_intervals.append((interval,dolz))
                 return potets
         return None
@@ -1432,28 +1432,18 @@ class color_localizer:
                 """
             count += 1
         #inter = self.check_lineup(acum_me)
-        self.get_ujemanja(acum_me,centerRowIndex)
-        print(self.tru_intervals)
+        print("Acum check:")
+        print(acum_me)
+        this.get_ujemanja(acum_me,centralRowIndex)
         #ce ni prazn
-<<<<<<< HEAD
-        for inter in self.tru_intervals:
-            for i in range(inter[0][0],inter[0][1]):
-                grayBGR_toDrawOn[inter[1],i] = [0,0,255]
-            points = np.array([ image[inter[1],(inter[0][0]+inter[0][1])//2],
-                                image[inter[1],(inter[0][0]+inter[0][1])//2+1],
-                                image[inter[1],(inter[0][0]+inter[0][1])//2-1]])
-
-            print(f"Širina:{inter[0][0]} {inter[0][1]}\n\tna razdalji:{depth_image[inter[1],(inter[0][0]+inter[0][1])//2]}")
-=======
         for inter in this.tru_intervals:
             points = np.array([ image[inter[0],(inter[1][0]+inter[1][1])//2],
                                 image[inter[0],(inter[1][0]+inter[1][1])//2+1],
                                 image[inter[0],(inter[1][0]+inter[1][1])//2-1]])
 
             print(f"Širina:{inter[1][0]} {inter[1][1]}\n\tna razdalji:{depth_image[inter[0],(inter[1][0]+inter[1][1])//2]}")
->>>>>>> master
             colorToPush = self.calc_rgb(points)
-            pose = self.get_pose((inter[0][0]+inter[0][1])//2,inter[1],depth_image[inter[1],(inter[0][0]+inter[0][1])//2],depth_image,"cylinder",depth_stamp,colorToPush)
+            pose = self.get_pose((inter[1][0]+inter[1][1])//2,inter[0],depth_image[inter[0],(inter[1][0]+inter[1][1])//2],depth_image,"cylinder",depth_stamp,colorToPush)
             self.addPosition(np.array([pose.position.x,pose.position.y,pose.position.z]),"cylinder",colorToPush)
 
         return grayBGR_toDrawOn
@@ -1857,12 +1847,12 @@ class color_localizer:
             d1 = doubles[i-1]
             d2 = doubles[i]
 
-            x1 = round(d1["start_point"][0]).astype("int")
-            y1 = round(min(d1["start_point"][1],d2["start_point"][1])).astype("int")
+            x1 = round(d1["start_point"][0])
+            y1 = round(min(d1["start_point"][1],d2["start_point"][1]))
 
-            x2 = round(d2["end_point"][0]).astype("int")
-            y2 = round(max(d1["end_point"][1],d2["end_point"][1])).astype("int")
-            print(type(x1))
+            x2 = round(d2["end_point"][0])
+            y2 = round(max(d1["end_point"][1],d2["end_point"][1]))
+
             # ratio is bigger then it is commen for paper
             if (x2-x1)/(y2-y1) > 0.75:
                 continue
