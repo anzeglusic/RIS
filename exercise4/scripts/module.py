@@ -479,6 +479,10 @@ def get_pose(xin,yin,dist, depth_im,objectType,depth_stamp,color_char, tf_buf):
 
         angle_to_target = np.arctan2(xin,k_f)
 
+        if objectType == "cylinder":
+            dist += 0.125
+            print("adding depth !!!!!!!!!!!!!!")
+
         # Get the angles in the base_link relative coordinate system
         x,y = dist*np.cos(angle_to_target), dist*np.sin(angle_to_target)
 

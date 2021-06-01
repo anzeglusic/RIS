@@ -643,17 +643,29 @@ class color_localizer:
 
         if np.isnan(LL) or np.isnan(L) or np.isnan(C) or np.isnan(R) or np.isnan(RR):
             return None
-
+        # LL --> "left left"
+        # C --> "center"
+        # RR --> "right right"
         LL_C = LL-C
         L_C = L-C
         C_R = R-C
         C_RR = RR-C
+
+        LL_L = LL - L
+        R_RR = RR - R
+
 
         if LL_C<=0 or L_C<=0 or C_R<=0 or C_RR<=0:
             return None
 
         if LL_C<L_C*3 or C_RR<C_R*3:
             return None
+            
+        # print(center_point)
+        # print(f"left:  {np.abs(np.abs(LL_L)-np.abs(L_C))}")
+        # print(f"right: {np.abs(np.abs(R_RR)-np.abs(C_R))}")
+        # print(f"")
+
         return (center_point-shift*2,center_point+shift*2)
 
     #nastima tru_intervals na tiste ki so bli zaznani
@@ -761,6 +773,9 @@ class color_localizer:
                         #grayBGR_toDrawOn[centerRowIndex,list(range(interval[0],interval[1]))] = [255,0,0]
                         #NASLI SMO CILINDER
                         # print(depth_image)
+                        # for i in range(interval[0]+1,interval[1]):
+                        #     #izrise crto intervala
+                        #     grayBGR_toDrawOn[rows,i] = [255,255,0]
 
                         try:
                             #preverimo da je realen interval
@@ -774,7 +789,7 @@ class color_localizer:
 
 
 
-                            for i in range(interval[0],interval[1]):
+                            for i in range(interval[0]+1,interval[1]):
                                 #izrise crto intervala
                                 grayBGR_toDrawOn[rows,i] = [255,255,0]
                         except Exception as e:
