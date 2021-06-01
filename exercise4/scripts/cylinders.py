@@ -48,7 +48,7 @@ class cylinders:
         self.nM = 0
         # Publiser for the visualization markers
         self.markers_pub = rospy.Publisher('ring_markers', MarkerArray, queue_size=1000)
-        self.pic_pub = rospy.Publisher('face_im', Image, queue_size=1000)
+        self.pic_pub = rospy.Publisher('cylinder_im', Image, queue_size=1000)
 
         #!!!!!!!!!!!!!!!spremeni da so vsi poslani z dvema tockama per iljas request
         self.points_pub = rospy.Publisher('/our_pub1/chat1', Point, queue_size=1000)
