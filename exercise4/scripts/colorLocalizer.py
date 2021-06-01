@@ -595,13 +595,15 @@ class color_localizer:
         #False pomeni da sta obe točki okoli bližje
         for i in range(1,len(depth_line)-1):
             #preverjamo za preskok
-            if (np.abs(depth_line[i-1]-depth_line[i])>0.1):
+            mejni_preskok = 0.03
+            if (np.abs(depth_line[i-1]-depth_line[i])>mejni_preskok or np.abs(depth_line[i]-depth_line[i+1])>mejni_preskok):
                 points.append(i)
                 pointsClose.append(False)
+                continue
             #ali je trneutni nan ali pa levi nan in je desni nan pol nadaljujemo
             if (np.isnan(depth_line[i]) or ( np.isnan(depth_line[i-1]) and np.isnan(depth_line[i+1])) ):
                 continue
-            if (np.isnan(depth_line[i-1]) or depth_line[i-1]>depth_line[i]) and (np.isnan(depth_line[i+1]) or depth_line[i+1]>depth_line[i]):
+            if (np.isnan(depth_line[i-1]) or depth_line[i-1]>=depth_line[i]) and (np.isnan(depth_line[i+1]) or depth_line[i+1]>=depth_line[i]):
                 points.append(i)
                 pointsClose.append(True)
                 continue
@@ -621,8 +623,10 @@ class color_localizer:
     def getRange(self, depth_line, center_point,levo,desno):
         #preverimo da ni robni
         if levo == -1:
+            # print(f"Levo quit")
             return None
         if desno == -1:
+            # print(f"Desno quit")
             return None
 
         counter = 0
@@ -636,41 +640,56 @@ class color_localizer:
                 break
             counter += 1
         shift = np.floor((counter*2)/5).astype(int)
+        #! shift = np.floor((counter*2)/7).astype(int)
         if shift < 1 or shift > 50:
+        # if shift < 1:
             return None
+
         #vzamemo levo 3 in 6 in desno 3 in 6 oddaljena pixla ter računamo razmerje razmerja rabita biti priblizno enaka na obeh straneh
+        #! LLL = depth_line[center_point - shift*3]
         LL = depth_line[center_point - shift*2]
         L = depth_line[center_point - shift]
+        #! RRR = depth_line[center_point + shift*3]
         RR = depth_line[center_point + shift*2]
         R = depth_line[center_point + shift]
         C = depth_line[center_point]
 
         if np.isnan(LL) or np.isnan(L) or np.isnan(C) or np.isnan(R) or np.isnan(RR):
+        #! if np.isnan(LL) or np.isnan(L) or np.isnan(C) or np.isnan(R) or np.isnan(RR) or np.isnan(RRR) or np.isnan(LLL):
+            # print(f"NaN quit")
             return None
         # LL --> "left left"
         # C --> "center"
         # RR --> "right right"
+        #! LLL_C = LLL-C
         LL_C = LL-C
         L_C = L-C
         C_R = R-C
         C_RR = RR-C
-
+        #! C_RRR = RRR-C
+        
+        # LLL_LL = LLL - LL
         LL_L = LL - L
         R_RR = RR - R
+        #! RR_RRR = RRR - RR
 
 
         if LL_C<=0 or L_C<=0 or C_R<=0 or C_RR<=0:
+        #! if LL_C<=0 or L_C<=0 or C_R<=0 or C_RR<=0 or LLL_C<=0 or C_RRR<=0:
+            # print(f"razlike niso uredu")
             return None
-
-        if LL_C<L_C*3 or C_RR<C_R*3:
+        
+        detection_error = 0.1
+        if (0.13-detection_error < L_C/LL_C < 0.25+detection_error) and (0.13-detection_error < C_R/C_RR < 0.25+detection_error) and (0.16-detection_error < L_C/LL_L < 0.33+detection_error) and (0.16-detection_error < C_R/R_RR < 0.33+detection_error):
+            return (center_point-shift*2,center_point+shift*2)
+        else:
+            # print()
+            # print(f"tested guess quit")
+            # print(f"L_C/LL_C : {L_C/LL_C }")
+            # print(f"C_R/C_RR: {C_R/C_RR}")
+            # print(f"L_C/LL_L: {L_C/LL_L}")
+            # print(f"C_R/R_RR: {C_R/R_RR}")
             return None
-
-        # print(center_point)
-        # print(f"left:  {np.abs(np.abs(LL_L)-np.abs(L_C))}")
-        # print(f"right: {np.abs(np.abs(R_RR)-np.abs(C_R))}")
-        # print(f"")
-
-        return (center_point-shift*2,center_point+shift*2)
 
     #nastima tru_intervals na tiste ki so bli zaznani
     def get_ujemanja(self,acum_intervals,vrstica):
@@ -684,7 +703,7 @@ class color_localizer:
         for i in acum_intervals:
             #prazna vrstica
             if i == []:
-                dolz -= 1
+                dolz -= 3
                 #spraznimo potential
                 potential = {}
                 continue
@@ -701,7 +720,7 @@ class color_localizer:
                         hold_meh = self.check_potets(inter,potential, dolz)
                         if hold_meh:
                             potential = hold_meh
-                dolz -=1
+                dolz -= 3
 
     def check_potets(self, interval, potets,dolz):
         #poglej ce je potets slucajn prazn
@@ -746,10 +765,34 @@ class color_localizer:
                 return True
         return False
 
+    def check_if_ball(self, center_depth_up, center_depth, center_depth_down):
+        # there is no value for up/denter/down
+        if np.isnan(center_depth_up) or np.isnan(center_depth) or np.isnan(center_depth_down):
+            print(f"BALL !!!!!!!!!!!!")
+            return True
+        
+        detection_error = 0.01
+        cd = center_depth
+        cdd = center_depth_down
+        cdu = center_depth_up
+        if (np.abs(cd-cdd)>detection_error) or (np.abs(cd-cdu)>detection_error) or (np.abs(cdu-cdd)>detection_error):
+            print(f"BALL !!!!!!!!!!!!")
+            return True
+        
+
+
+
+        # print(f"center_depth_up:   {center_depth_up}")
+        # print(f"center_depth:      {center_depth}")
+        # print(f"center_depth_down: {center_depth_down}")
+        # print()
+        print(f"CYLINDER !!!!!!!!!!!!")
+        return False
+
     def find_cylinderDEPTH(self,image, depth_image, grayBGR_toDrawOn,depth_stamp):
         # print(depth_stamp)
         centerRowIndex = depth_image.shape[0]//2
-        max_row = (depth_image.shape[0]//5)*2
+        max_row = (depth_image.shape[0]//7)*2
         acum_me= []
         curr_ints = []
         actual_add = (-1,-1)
@@ -759,15 +802,20 @@ class color_localizer:
         count = 0
         count_ujemanj = [0]
         #END OF GARBO
-        for rows in range(centerRowIndex, max_row, -1):
+        for rows in range(centerRowIndex, max_row, -3):
+        # for rows in range(centerRowIndex-20, centerRowIndex-21, -1):
             presekiIndex,blizDalec = self.getLows(depth_image[rows,:])
             cnt = 0
             acum_me.append([])
+            # print(presekiIndex)
+            # print("----")
+            # print(blizDalec)
             for cnt in range(1,len(presekiIndex)-1):
                 #se pojavi kot najblizja točka katere desni in levi pixl sta  za njo
                 if blizDalec[cnt]:
                     #notri shranjen levo in desno interval rows vsebuje kera vrstica je trenutno
                     interval = self.getRange(depth_image[rows,:],presekiIndex[cnt],presekiIndex[cnt-1],presekiIndex[cnt+1])
+                    # print(f"{presekiIndex[cnt]}: {interval}")
                     if not interval is None:
                         #grayBGR_toDrawOn = cv2.circle(grayBGR_toDrawOn,(interval[0],centerRowIndex), radius=2,color=[255,0,0], thickness=-1)
                         #grayBGR_toDrawOn = cv2.circle(grayBGR_toDrawOn,(interval[1],centerRowIndex), radius=2,color=[255,0,0], thickness=-1)
@@ -783,7 +831,7 @@ class color_localizer:
 
                         try:
                             #preverimo da je realen interval
-                            if np.abs(interval[0]-interval[1]) <= 40 or depth_image[rows,presekiIndex[cnt]]>2.5:
+                            if np.abs(interval[0]-interval[1]) <= 20 or depth_image[rows,presekiIndex[cnt]]>2.5:
                                 continue
 
 
@@ -829,6 +877,15 @@ class color_localizer:
         print(self.tru_intervals)
         #ce ni prazn
         for inter in self.tru_intervals:
+
+            # pogledamo da ni krogla
+            vertical_shift = 10
+            center_depth_up = depth_image[inter[1]-vertical_shift,(inter[0][0]+inter[0][1])//2]
+            center_depth_down = depth_image[inter[1]+vertical_shift,(inter[0][0]+inter[0][1])//2]
+            center_depth = depth_image[inter[1],(inter[0][0]+inter[0][1])//2]
+            if self.check_if_ball(center_depth_up,center_depth,center_depth_down):
+                continue
+
             for i in range(inter[0][0],inter[0][1]):
                 grayBGR_toDrawOn[inter[1],i] = [0,0,255]
             points = np.array([ image[inter[1],(inter[0][0]+inter[0][1])//2],
