@@ -473,7 +473,7 @@ class cylinders:
 
         grayImage = module.bgr2gray(rgb_image)
         grayImage = module.gray2bgr(grayImage)
-        depth_im_shifted = self.shift_me(rgb_image, depth_image,rgb_image_message.header.stamp, depth_image_message.header.stamp, grayImage)
+        depth_im_shifted = self.shift_me(rgb_image, depth_image,rgb_image_message.header.stamp, depth_image_message.header.stamp)
         #print(markedImage)
         # TODO: make it so it marks face and returns the image to display
         markedImage = self.find_cylinderDEPTH(rgb_image, depth_im_shifted, grayImage,depth_image_message.header.stamp)
