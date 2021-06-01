@@ -704,7 +704,9 @@ source /home/iletavcioski/ROS/devel/setup.bash
 roslaunch exercise7 rins_world.launch
 roslaunch exercise3 amcl_simulation.launch 2>/dev/null
 roslaunch turtlebot_rviz_launchers view_navigation.launch 2>/dev/null
+rosrun exercise4 colorLocalizer.py
 rosrun exercise3 map_goals
 rosrun exercise3 move_arm.py
+
 Sepravi vektor je od lokacije kjer aprochas in cilindra in potem naredis arcustanges kota do x osi atan2. Js posiljam kr obicajen gole tako da orientation.z =sin(kot/2), orientation.w = cos(kot/2)
 */
