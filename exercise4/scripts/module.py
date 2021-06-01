@@ -207,18 +207,12 @@ def addPosition(newPosition, objectType, color_char, positions, nM, m_arr, marke
             area["averagePostion"] = np.sum(area["detectedPositions"],axis=0)/len(area["detectedPositions"])
 
             # average marker
-            if objectType=="ring":
-                pose = Pose()
-                pose.position.x = area["averagePostion"][0]
-                pose.position.y = area["averagePostion"][1]
-                pose.position.z = 1
-
-            if objectType=="cylinder":
+            if objectType=="cylinder" or objectType=="ring":
                 # Create a Pose object with the same position
                 pose = Pose()
                 pose.position.x = area["averagePostion"][0]
                 pose.position.y = area["averagePostion"][1]
-                pose.position.z = 0
+                pose.position.z = area["averagePostion"][2]+0.1
 
                 # Create a marker used for visualization
                 nM += 1
