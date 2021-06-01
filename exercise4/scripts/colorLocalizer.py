@@ -595,6 +595,10 @@ class color_localizer:
         #False pomeni da sta obe točki okoli bližje
         for i in range(1,len(depth_line)-1):
             #preverjamo za preskok
+            if (np.abs(depth_line-depth_line[i])>0.1):
+                points.append(i)
+                pointsClose.append(False)
+            #ali je trneutni nan ali pa levi nan in je desni nan pol nadaljujemo
             if (np.isnan(depth_line[i]) or ( np.isnan(depth_line[i-1]) and np.isnan(depth_line[i+1])) ):
                 continue
             if (np.isnan(depth_line[i-1]) or depth_line[i-1]>depth_line[i]) and (np.isnan(depth_line[i+1]) or depth_line[i+1]>depth_line[i]):
