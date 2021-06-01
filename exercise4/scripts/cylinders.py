@@ -24,7 +24,7 @@ import pyzbar.pyzbar as pyzbar
 import pytesseract
 import module
 
-
+modelsDir = '/'.join(os.path.realpath(__file__).split('/')[0:-1])+'/'
 class cylinders:
     def __init__(self):
         print()
@@ -48,7 +48,7 @@ class cylinders:
         self.nM = 0
         # Publiser for the visualization markers
         self.markers_pub = rospy.Publisher('ring_markers', MarkerArray, queue_size=1000)
-        self.pic_pub = rospy.Publisher('face_im', Image, queue_size=1000)
+        self.pic_pub = rospy.Publisher('cylinder_im', Image, queue_size=1000)
 
         #!!!!!!!!!!!!!!!spremeni da so vsi poslani z dvema tockama per iljas request
         self.points_pub = rospy.Publisher('/our_pub1/chat1', Point, queue_size=1000)
@@ -65,6 +65,7 @@ class cylinders:
         #! cylinder
         #element: (interval,vrstic_od_sredine)
         self.tru_intervals = []
+        self.positions = []
 
     def getLows(self, depth_line):
         points = [0]
@@ -96,8 +97,8 @@ class cylinders:
         # pprint(list(zip(points,pointsClose)))
         return (points,pointsClose)
 
-        def getRange(self, depth_line, center_point,levo,desno):
-        #preverimo da ni robni
+    def getRange(self, depth_line, center_point,levo,desno):
+    #preverimo da ni robni
         if levo == -1:
             return None
         if desno == -1:
@@ -275,10 +276,161 @@ class cylinders:
             colorToPush = module.calc_rgb(points,self.knn_RGB,self.random_forest_RGB,self.knn_HSV,self.random_forest_HSV)
             pose = module.get_pose((inter[0][0]+inter[0][1])//2,inter[1],depth_image[inter[1],(inter[0][0]+inter[0][1])//2],depth_image,"cylinder",depth_stamp,colorToPush,self.tf_buf)
             #pose = self.get_pose((inter[0][0]+inter[0][1])//2,inter[1],depth_image[inter[1],(inter[0][0]+inter[0][1])//2],depth_image,"cylinder",depth_stamp,colorToPush)
-            (self.nM, self.m_arr) = module.addPosition(np.array([pose.position.x,pose.position.y,pose.position.z]),"cylinder",colorToPush,self.positions["cylinder"],self.nM, self.m_arr, self.markers_pub)
+            (self.nM, self.m_arr) = module.addPosition(np.array([pose.position.x,pose.position.y,pose.position.z]),"cylinder",colorToPush,self.positions,self.nM, self.m_arr, self.markers_pub)
             #self.addPosition(np.array([pose.position.x,pose.position.y,pose.position.z]),"cylinder",colorToPush)
 
         return grayBGR_toDrawOn
+
+    def shift_me(self,image,depth_image,im_stamp,depth_stamp):
+        print(f"rgb_stamp_sec:    {im_stamp.to_sec()}")
+        print(f"depth_stamp_sec:  {depth_stamp.to_sec()}")
+        diff = (depth_stamp.to_sec()-im_stamp.to_sec())
+        print(f"diff:             {diff}")
+        print()
+
+        if (np.abs(diff) > 0.5):
+            pprint("skip")
+            return depth_image
+
+        # change depth image
+        minValue = np.nanmin(depth_image)
+        maxValue = np.nanmax(depth_image)
+        depth_im = depth_image.copy()
+        temp_mask = ~np.isfinite(depth_image)
+        nanToValue = maxValue*1.25
+        depth_image[temp_mask] = nanToValue
+        depth_image = depth_image - minValue
+        depth_image = depth_image * 255/(nanToValue - minValue)
+        depth_image = np.round(depth_image)
+        depth_image = depth_image.astype(np.uint8)
+
+
+
+
+        frame = image.copy()
+
+        imagesToTest =  [
+                         frame[:,:,0]
+                        , frame[:,:,1]
+                        , frame[:,:,2]
+                        , module.bgr2gray(frame)
+                        , cv2.cvtColor(frame,cv2.COLOR_BGR2HSV)[:,:,0]
+                        , cv2.cvtColor(frame,cv2.COLOR_BGR2HSV)[:,:,1]
+                        , cv2.cvtColor(frame,cv2.COLOR_BGR2HSV)[:,:,2]
+                        # , depth_image
+                        ]
+
+        for i in imagesToTest:
+            temp = cv2.equalizeHist(i)
+            # print(f"\tmax: {np.max(i)} --> {np.max(temp)}")
+            # print(f"\tmin: {np.min(i)} --> {np.min(temp)}")
+            # print(f"\t()()()()()()()()()()()()()()()()()()")
+
+        # Set the dimensions of the image
+        dims = frame.shape
+
+
+        allFramesAnalized = []
+
+        for i in range(len(imagesToTest)):
+            currentImage = imagesToTest[i]
+
+            threshDict = module.calc_thresholds(currentImage)
+
+            allFramesAnalized.append(threshDict)
+
+        # t = threshDict["normal"]
+        # pprint(t)
+        t = None
+        counter = 0
+        eachAvg = []
+        for threshDict in allFramesAnalized:
+            avg = None
+            for j,key in enumerate(threshDict):
+                # current frame
+                if j==0:
+                    avg = threshDict[key]/len(allFramesAnalized)
+                else:
+                    avg += threshDict[key]/len(allFramesAnalized)
+                #all frames
+                if counter==0:
+                    t = threshDict[key]
+                    counter += 1
+                else:
+                    part1 = counter/(counter+1)
+                    part2 = 1/(counter+1)
+                    t = cv2.addWeighted(t,part1, threshDict[key],part2, 0)
+                    counter += 1
+            eachAvg.append(avg)
+
+        thresh = t
+
+        # return thresh
+
+        thresh = cv2.Canny(thresh,100,200)
+        # return thresh
+
+        # toReturn = cv2.cvtColor(thresh,cv2.COLOR_GRAY2BGR)
+
+
+        depthThresh = module.calc_thresholds(depth_image)
+        depth_t = None
+        for i, key in enumerate(depthThresh):
+            if i==0:
+                depth_t = depthThresh[key]
+            else:
+                part1 = i/(i+1)
+                part2 = 1/(i+1)
+                depth_t = cv2.addWeighted(depth_t,part1, depthThresh[key],part2, 0)
+
+
+        # return cv2.addWeighted(depth_t,0.5, t,0.5, 0)
+        # return cv2.vconcat([t,depth_t])
+
+        depth_t = cv2.Canny(depth_t, 100,200)
+
+        # toReturn = cv2.cvtColor(t,cv2.COLOR_GRAY2BGR)
+        # toReturn = cv2.cvtColor(cv2.addWeighted(depth_t,0.5, t, 0.5,0),cv2.COLOR_GRAY2BGR)
+        # return toReturn
+        toReturn = image.copy()
+        toReturn[:,:,0] = thresh
+        toReturn[:,:,1] = 0
+        toReturn[:,:,2] = depth_t
+        bestShift = 0
+        bestScore = 0
+
+        # print(round(np.abs(self.baseAngularSpeed),2))
+        for shiftX in ([0] if round(np.abs(self.baseAngularSpeed),2)==0 else range(-100,100)):
+            M = np.float32([[1,0,shiftX],[0,1,0]])
+            toReturn[:,:,2] = cv2.warpAffine(depth_t,M,(toReturn.shape[1],toReturn.shape[0]),borderValue=np.nan).astype(np.uint8)
+
+            b = np.sum((toReturn[:,:,0]*toReturn[:,:,2])>0)
+            c = np.sum(toReturn[:,:,0]==255)
+            d = np.sum(toReturn[:,:,2]==255)
+            # print(f"\t\t\tb: {b}")
+            # print(f"\t\t\tc: {c}")
+            # print(f"\t\t\td: {d}\n")
+            # print(b/c)
+            b = b/(c+d-b)
+            # b = np.sum(((toReturn[:,:,0]==255)toReturn[:,:,2])>0)/(toReturn.shape[0]*toReturn.shape[1])
+            if b > bestScore:
+                bestShift = shiftX
+                bestScore = b
+            # print(b)
+        print(f"\t\t\tbestShift: {bestShift}")
+        print(f"\t\t\tbestScore: {bestScore}\n")
+        shiftX = bestShift
+        M = np.float32([[1,0,shiftX],[0,1,0]])
+        toReturn[:,:,2] = cv2.warpAffine(depth_t,M,(toReturn.shape[1],toReturn.shape[0]),borderValue=np.nan).astype(np.uint8)
+        depth_im_shifted = cv2.warpAffine(depth_im,M,(depth_im.shape[1],depth_im.shape[0]),borderValue=np.nan)
+
+        # print(f"all: {np.unique(toReturn)}")
+        # return toReturn[:,:,2],depth_im_shifted
+        toReturn = ((module.bgr2gray(toReturn)>0)*255).astype(np.uint8)
+
+
+        return  depth_im_shifted
+
 
     def find_objects(self):
         #print('I got a new image!')
@@ -321,10 +473,10 @@ class cylinders:
 
         grayImage = module.bgr2gray(rgb_image)
         grayImage = module.gray2bgr(grayImage)
-        #markedImage, depth_im_shifted = self.find_elipses_first(rgb_image, depth_image,rgb_image_message.header.stamp, depth_image_message.header.stamp, grayImage)
+        depth_im_shifted = self.shift_me(rgb_image, depth_image,rgb_image_message.header.stamp, depth_image_message.header.stamp)
         #print(markedImage)
         # TODO: make it so it marks face and returns the image to display
-        markedImage = self.find_cylinderDEPTH(rgb_image, depth_im_shifted, markedImage,depth_image_message.header.stamp)
+        markedImage = self.find_cylinderDEPTH(rgb_image, depth_im_shifted, grayImage,depth_image_message.header.stamp)
         #self.find_faces(rgb_image,depth_im_shifted,depth_image_message.header.stamp)
         #markedImage = self.find_QR(rgb_image,depth_im_shifted,depth_image_message.header.stamp, markedImage)
         #markedImage = self.find_digits(rgb_image,depth_im_shifted,depth_image_message.header.stamp, markedImage)
