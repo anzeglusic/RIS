@@ -595,7 +595,7 @@ class color_localizer:
         #False pomeni da sta obe točki okoli bližje
         for i in range(1,len(depth_line)-1):
             #preverjamo za preskok
-            if (np.abs(depth_line-depth_line[i])>0.1):
+            if (np.abs(depth_line[i-1]-depth_line[i])>0.1):
                 points.append(i)
                 pointsClose.append(False)
             #ali je trneutni nan ali pa levi nan in je desni nan pol nadaljujemo
@@ -664,7 +664,7 @@ class color_localizer:
 
         if LL_C<L_C*3 or C_RR<C_R*3:
             return None
-            
+
         # print(center_point)
         # print(f"left:  {np.abs(np.abs(LL_L)-np.abs(L_C))}")
         # print(f"right: {np.abs(np.abs(R_RR)-np.abs(C_R))}")
