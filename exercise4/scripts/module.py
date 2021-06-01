@@ -160,6 +160,7 @@ def addPosition(newPosition, objectType, color_char, positions, nM, m_arr, marke
         # make normal of magnitude 1
         if objectType == "face" or objectType=="QR":
             if normal is None:
+                #none vrne
                 return
             normal = normal/np.sqrt(normal[0]**2 + normal[1]**2 + normal[2]**2)
 
