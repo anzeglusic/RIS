@@ -24,7 +24,7 @@ import pyzbar.pyzbar as pyzbar
 import pytesseract
 import module
 
-
+modelsDir = '/'.join(os.path.realpath(__file__).split('/')[0:-1])+'/'
 class cylinders:
     def __init__(self):
         print()
