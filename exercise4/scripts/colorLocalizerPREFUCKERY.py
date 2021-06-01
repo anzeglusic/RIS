@@ -1,11 +1,10 @@
 #!/usr/bin/python3
 
-import os
 import itertools
 import sys
-sys.path.append('/'.join(os.path.realpath(__file__).split('/')[0:-1])+'/')
 import rospy
 import dlib
+import os
 import cv2
 import numpy as np
 import tf2_geometry_msgs
@@ -22,7 +21,6 @@ import pickle
 import subprocess
 import pyzbar.pyzbar as pyzbar
 import pytesseract
-import module
 
 
 # /home/sebastjan/Documents/faks/3letnk/ris/ROS_task/src/exercise4/scripts
@@ -121,8 +119,386 @@ class color_localizer:
         #element: (interval,vrstic_od_sredine)
         self.tru_intervals = []
 
+    def chose_color(self,colorDict):
+        b = colorDict["b"]
+        g = colorDict["g"]
+        r = colorDict["r"]
+        c = colorDict["c"]
+        w = colorDict["w"]
+        y = colorDict["y"]
+
+        numOfDetections = np.sum([ b , g , r , y , w , c ])
+
+        # black is selected if no other is selected
+        c = 0
+        # white is considered to be blue
+        b += w
+        w = 0
+
+        tag =   ["b","g","r","y","w","c"]
+        value = [ b , g , r , y , w , c ]
+
+        if np.sum(value)==0 and numOfDetections>10:
+            print("NOT ENOUGHF COLORS DETECTED")
+            return 'c'
+        bestIndx = np.argmax(value)
+        return tag[bestIndx]
 
     # TODO: change for the brain of task 3
+    def checkPosition(self):
+        '''
+        positions = {
+            "ring": [
+                { "averagePostion": np.array([x,y,z]), "detectedPositions": [ pos0, pos1, pos2, pos3], "color": {"b":0, "g":0, "r":0, ...}, "approached": False },
+                { "averagePostion": np.array([x,y,z]), "detectedPositions": [ pos0, pos1, pos2, pos3], "color": {"b":0, "g":0, "r":0, ...}, "approached": False },
+                { "averagePostion": np.array([x,y,z]), "detectedPositions": [ pos0, pos1, pos2, pos3], "color": {"b":0, "g":0, "r":0, ...}, "approached": False }
+
+            ],
+            "cylinder": [
+                { "averagePostion": np.array([x,y,z]), "detectedPositions": [ pos0, pos1, pos2, pos3], "color": {"b":0, "g":0, "r":0, ...}, "approached": False  },
+                { "averagePostion": np.array([x,y,z]), "detectedPositions": [ pos0, pos1, pos2, pos3], "color": {"b":0, "g":0, "r":0, ...}, "approached": False  },
+                { "averagePostion": np.array([x,y,z]), "detectedPositions": [ pos0, pos1, pos2, pos3], "color": {"b":0, "g":0, "r":0, ...}, "approached": False  }
+
+            ]
+        }
+        '''
+        for objectType in ["ring","cylinder"]:
+            for area in self.positions[objectType]:
+                if area["approached"] == True:
+                    continue
+                distArr = area["averagePostion"]-np.array([self.basePosition["x"],self.basePosition["y"],self.basePosition["z"]])
+                dist = np.sqrt(distArr[0]**2 + distArr[1]**2 + distArr[2]**2)
+
+                # you are too far from the ring
+                if dist>2 and objectType=="ring":
+                    continue
+                # you are too far from the cylinder
+                if dist>3 and objectType=="cylinder":
+                    continue
+
+                print(f"Approaching to object in position: {area['averagePostion']}")
+                area["approached"] = True
+                # ring --> z=1
+                # cylinder --> z=0
+                if objectType == "ring":
+                    # ring
+                    self.points_pub.publish(Point(area["averagePostion"][0],area["averagePostion"][1],1))
+                elif objectType == "cylinder":
+                    # cylinder
+                    self.points_pub.publish(Point(area["averagePostion"][0],area["averagePostion"][1],0))
+                else:
+                    print("SOMETHING WENT FUCKING WRONG !!!!!!!")
+                best_color = self.chose_color(area["color"])
+                d = { "w":"white"
+                    , "c" : "black"
+                    , "y" : "yellow"
+                    , "r" : "red"
+                    , "g" : "green"
+                    , "b" : "blue"
+                }
+                color_word = d[best_color]
+                pprint(area["color"])
+                #! to play a sound !!!!!!!!!!!!!!!!!!!!
+                #! subprocess.run(["rosrun" , "sound_play", "say.py", f"{color_word} {objectType}"])
+
+    def addPosition(self, newPosition, objectType, color_char, normal=None, data=None):
+        '''
+        positions = {
+            "ring": [
+                { "averagePostion": np.array([x,y,z]), "detectedPositions": [ pos0, pos1, pos2, pos3], "color": {"b":0, "g":0, "r":0, ...}, "approached": False,"avgMarkerId": None },
+                { "averagePostion": np.array([x,y,z]), "detectedPositions": [ pos0, pos1, pos2, pos3], "color": {"b":0, "g":0, "r":0, ...}, "approached": False,"avgMarkerId": None },
+                { "averagePostion": np.array([x,y,z]), "detectedPositions": [ pos0, pos1, pos2, pos3], "color": {"b":0, "g":0, "r":0, ...}, "approached": False,"avgMarkerId": None }
+
+            ],
+            "cylinder": [
+                { "averagePostion": np.array([x,y,z]), "detectedPositions": [ pos0, pos1, pos2, pos3], "color": {"b":0, "g":0, "r":0, ...}, "approached": False,"avgMarkerId": None, "QR_index": None  },
+                { "averagePostion": np.array([x,y,z]), "detectedPositions": [ pos0, pos1, pos2, pos3], "color": {"b":0, "g":0, "r":0, ...}, "approached": False,"avgMarkerId": None, "QR_index": None  },
+                { "averagePostion": np.array([x,y,z]), "detectedPositions": [ pos0, pos1, pos2, pos3], "color": {"b":0, "g":0, "r":0, ...}, "approached": False,"avgMarkerId": None, "QR_index": None  }
+
+            ],
+            "face": [
+                {
+                    "averagePostion": np.array([x,y,z]),
+                    "averageNormal": np.array([x,y,z]),
+                    "detectedPositions": [ pos0, pos1, pos2, pos3],
+                    "detectedNormals": [ pos0, pos1, pos2, pos3],
+                    "approached": False,
+                    "avgMarkerId": None,
+                    "QR_index": None
+                },
+                ...
+            ],
+            "QR": [
+                {
+                    "averagePostion": np.array([x,y,z]),
+                    "averageNormal": np.array([x,y,z]),
+                    "detectedPositions": [ pos0, pos1, pos2, pos3],
+                    "detectedNormals": [ pos0, pos1, pos2, pos3],
+                    "data": None,
+                    "avgMarkerId": None,
+                    "isAssigned": False
+                },
+                ...
+            ]
+        }
+        '''
+
+        # make normal of magnitude 1
+        if objectType == "face" or objectType=="QR":
+            if normal is None:
+                return
+            normal = normal/np.sqrt(normal[0]**2 + normal[1]**2 + normal[2]**2)
+
+        unique_position = True
+        for area in self.positions[objectType]:
+            # check if normals are OK
+            if objectType=="face" or objectType=="QR":
+                c_sim = np.dot(normal,area["averageNormal"])/(np.linalg.norm(normal)*np.linalg.norm(area["averageNormal"]))
+                # print("similarity:",c_sim)
+                if c_sim<=0.5:
+                    continue
+
+            area_avg = area["averagePostion"]
+            dist_vector = area_avg - newPosition
+            dist = np.sqrt(dist_vector[0]**2 + dist_vector[1]**2 + dist_vector[2]**2)
+
+                # print("Dist --> ",dist)
+            if dist > 0.5:
+                continue
+
+            unique_position = False
+
+            if objectType=="QR":
+                # print(data)
+                if area["data"] is None:
+                    area["data"] = data
+                else:
+                    assert area["data"]==data, "\n\n\tnovi QR podatki so drugačni kot so predvideni za to pozicijo"
+
+            # depending on the type of object
+            if objectType=="cylinder" or objectType=="ring":
+                # color
+                area["color"][color_char] += 1
+            elif objectType=="face" or objectType=="QR":
+                # collection of normals
+                area["detectedNormals"].append(normal)
+                # average normal
+                # print(area["detectedNormals"])
+                area["averageNormal"] = np.sum(area["detectedNormals"],axis=0)/len(area["detectedNormals"])
+                area["averageNormal"] = area["averageNormal"]/np.sqrt(area["averageNormal"][0]**2 + area["averageNormal"][1]**2 + area["averageNormal"][2]**2)
+
+            # collection of positions
+            area["detectedPositions"].append(newPosition.copy())
+
+            # average
+            area["averagePostion"] = np.sum(area["detectedPositions"],axis=0)/len(area["detectedPositions"])
+
+            # average marker
+            if objectType=="ring":
+                pose = Pose()
+                pose.position.x = area["averagePostion"][0]
+                pose.position.y = area["averagePostion"][1]
+                pose.position.z = 1
+
+            if objectType=="cylinder":
+                # Create a Pose object with the same position
+                pose = Pose()
+                pose.position.x = area["averagePostion"][0]
+                pose.position.y = area["averagePostion"][1]
+                pose.position.z = 0
+
+                # Create a marker used for visualization
+                self.nM += 1
+                marker = Marker()
+                marker.header.stamp = rospy.Time(0)
+                marker.header.frame_id = "map"
+                marker.pose = pose
+                marker.type = Marker.CUBE if objectType=="ring" else Marker.CYLINDER
+                marker.action = Marker.ADD
+                marker.frame_locked = False
+                marker.lifetime = rospy.Duration.from_sec(0)
+                marker.scale = Vector3(0.1, 0.1, 0.1)
+
+                if area["avgMarkerId"] == None:
+                    marker.id = self.nM
+                    area["avgMarkerId"] = self.nM
+                else:
+                    marker.id = area["avgMarkerId"]
+
+                best_color = self.chose_color(area["color"])
+                marker.color = self.rgba_from_char(best_color)
+
+                self.m_arr.markers.append(marker)
+                self.markers_pub.publish(self.m_arr)
+
+            elif objectType=="face":
+                self.nM += 1
+                marker = Marker()
+                marker.header.stamp = rospy.Time(0)
+                marker.header.frame_id = "map"
+                marker.action = Marker.ADD
+                marker.frame_locked = False
+                marker.lifetime = rospy.Duration.from_sec(0)
+
+                if area["avgMarkerId"] == None:
+                    marker.id = self.nM
+                    area["avgMarkerId"] = self.nM
+                else:
+                    marker.id = area["avgMarkerId"]
+
+                marker.ns = 'points_arrow'
+                marker.type = Marker.ARROW
+                marker.pose.orientation.y = 0
+                marker.pose.orientation.w = 1
+                marker.scale = Vector3(1,1,1)
+                marker.color = ColorRGBA(1,0,0,0.5)
+
+                orig_arr = area["averagePostion"].copy()
+                orig_arr[2] += 0.1
+                dest_arr = orig_arr - area["averageNormal"]*self.faceNormalLength
+                head = Point(orig_arr[0],orig_arr[1],orig_arr[2])
+                tail = Point(dest_arr[0],dest_arr[1],dest_arr[2])
+
+                marker.points = [tail,head]
+
+                self.m_arr.markers.append(marker)
+                self.markers_pub.publish(self.m_arr)
+
+            elif objectType=="QR":
+                self.nM += 1
+                marker = Marker()
+                marker.header.stamp = rospy.Time(0)
+                marker.header.frame_id = "map"
+                marker.action = Marker.ADD
+                marker.frame_locked = False
+                marker.lifetime = rospy.Duration.from_sec(0)
+
+                if area["avgMarkerId"] == None:
+                    marker.id = self.nM
+                    area["avgMarkerId"] = self.nM
+                else:
+                    marker.id = area["avgMarkerId"]
+
+                marker.ns = 'points_arrow'
+                marker.type = Marker.ARROW
+                marker.pose.orientation.y = 0
+                marker.pose.orientation.w = 1
+                marker.scale = Vector3(0.5,0.5,0.5)
+                marker.color = ColorRGBA(0,0,1,0.5)
+
+                orig_arr = area["averagePostion"].copy()
+                orig_arr[2] += 0.1
+                dest_arr = orig_arr - area["averageNormal"]*self.qrNormalLength
+                head = Point(orig_arr[0],orig_arr[1],orig_arr[2])
+                tail = Point(dest_arr[0],dest_arr[1],dest_arr[2])
+
+                marker.points = [tail,head]
+
+                self.m_arr.markers.append(marker)
+                self.markers_pub.publish(self.m_arr)
+
+
+
+
+
+
+        if unique_position == True:
+            if objectType=="ring":
+                colorDict = {"r":0,"g":0,"b":0,"y":0,"w":0,"c":0}
+                colorDict[color_char] += 1
+                self.positions[objectType].append({ "averagePostion": newPosition.copy(),
+                                                    "detectedPositions":[newPosition.copy()],
+                                                    "color": colorDict,
+                                                    "approached": False,
+                                                    "avgMarkerId": None
+                                                    })
+            elif objectType=="cylinder":
+                colorDict = {"r":0,"g":0,"b":0,"y":0,"w":0,"c":0}
+                colorDict[color_char] += 1
+                self.positions[objectType].append({ "averagePostion": newPosition.copy(),
+                                                    "detectedPositions":[newPosition.copy()],
+                                                    "color": colorDict,
+                                                    "approached": False,
+                                                    "avgMarkerId": None,
+                                                    "QR_index": None
+                                                    })
+            elif objectType=="face":
+                print("\n\nAdding new face\n\n")
+                self.positions[objectType].append({ "averagePostion": newPosition.copy(),
+                                                    "averageNormal": normal.copy(),
+                                                    "detectedPositions":[newPosition.copy()],
+                                                    "detectedNormals":[normal.copy()],
+                                                    "approached": False,
+                                                    "avgMarkerId": None,
+                                                    "QR_index": None
+                                                    })
+            elif objectType=="QR":
+                print("\n\nAdding new QR code\n\n")
+                self.positions[objectType].append({ "averagePostion": newPosition.copy(),
+                                                    "averageNormal": normal.copy(),
+                                                    "detectedPositions":[newPosition.copy()],
+                                                    "detectedNormals":[normal.copy()],
+                                                    "data": None,
+                                                    "avgMarkerId": None,
+                                                    "isAssigned": False
+                                                    })
+        self.connect_QR_to_objects()
+
+        # for el in self.positions["QR"]:
+        #     print(el["data"])
+
+        # Create a Pose object with the same position
+        pose = Pose()
+        pose.position.x = newPosition[0]
+        pose.position.y = newPosition[1]
+        pose.position.z = newPosition[2]
+        if self.showEveryDetection==True:
+            # Create a marker used for visualization
+            self.nM += 1
+            marker = Marker()
+            marker.header.stamp = rospy.Time(0)
+            marker.header.frame_id = "map"
+            marker.action = Marker.ADD
+            marker.frame_locked = False
+            marker.lifetime = rospy.Duration.from_sec(0)
+            marker.id = self.nM
+
+            if objectType=="ring" or objectType=="cylinder":
+                marker.type = Marker.CUBE if objectType=="ring" else Marker.CYLINDER
+                marker.pose = pose
+                marker.scale = Vector3(0.1, 0.1, 0.1)
+                marker.color = ColorRGBA(0.5,0.5,0.5,0.25)
+            elif objectType=="face":
+                marker.ns = 'points_arrow'
+                marker.type = Marker.ARROW
+                marker.pose.orientation.y = 0
+                marker.pose.orientation.w = 1
+                marker.scale = Vector3(1,1,1)
+                marker.color = ColorRGBA(0.5,0.5,0.5,0.1)
+
+                orig_arr = newPosition
+                dest_arr = orig_arr - normal*self.faceNormalLength
+                head = Point(orig_arr[0],orig_arr[1],orig_arr[2])
+                tail = Point(dest_arr[0],dest_arr[1],dest_arr[2])
+
+                marker.points = [tail,head]
+            elif objectType=="QR":
+                marker.ns = 'points_arrow'
+                marker.type = Marker.ARROW
+                marker.pose.orientation.y = 0
+                marker.pose.orientation.w = 1
+                marker.scale = Vector3(0.5,0.5,0.5)
+                marker.color = ColorRGBA(0.5,0.5,0.5,0.1)
+
+                orig_arr = newPosition
+                dest_arr = orig_arr - normal*self.qrNormalLength
+                head = Point(orig_arr[0],orig_arr[1],orig_arr[2])
+                tail = Point(dest_arr[0],dest_arr[1],dest_arr[2])
+
+                marker.points = [tail,head]
+
+            self.m_arr.markers.append(marker)
+            self.markers_pub.publish(self.m_arr)
 
     def connect_QR_to_objects(self):
 
@@ -178,6 +554,74 @@ class color_localizer:
         # print("\n\n\n")
         return
 
+    def calc_rgb(self,point):
+        # print("\n!!!!!!!!!!!!!!!!!!!")
+        # print(point.shape)
+        # pprint(point)
+        # print("\n!!!!!!!!!!!!!!!!!!!")
+
+        p0 = point[0,:]
+        p1 = point[1,:]
+        p2 = point[2,:]
+
+        hsvColor0 = cv2.cvtColor(np.array([[p0]]),cv2.COLOR_BGR2HSV)[0][0]
+        hsvColor0[0] = int((float(hsvColor0[0])/180)*255)
+
+        hsvColor1 = cv2.cvtColor(np.array([[p1]]),cv2.COLOR_BGR2HSV)[0][0]
+        hsvColor1[0] = int((float(hsvColor1[0])/180)*255)
+
+        hsvColor2 = cv2.cvtColor(np.array([[p2]]),cv2.COLOR_BGR2HSV)[0][0]
+        hsvColor2[0] = int((float(hsvColor2[0])/180)*255)
+
+        arr = np.array([[p0[0],p0[1],p0[2],p1[0],p1[1],p1[2],p2[0],p2[1],p2[2]]])
+
+        arr2 = np.array([[   hsvColor0[2],hsvColor0[1],hsvColor0[0],
+                            hsvColor1[2],hsvColor1[1],hsvColor1[0],
+                            hsvColor2[2],hsvColor2[1],hsvColor2[0]
+                        ]])
+
+        print(f"BGR: {arr}")
+        print(f"VSH: {arr2}\n")
+
+        y = self.knn_RGB.predict(arr)
+        c1 = y[0]
+        print(f"knn_BGR:")
+        print(f"\tprediction: {y[0]}")
+        y = self.random_forest_RGB.predict(arr)
+        c2 = y[0]
+        print(f"random_forest_RGB:")
+        print(f"\tprediction: {y[0]}")
+
+        y = self.knn_HSV.predict(arr2)
+        c3 = y[0]
+        print(f"knn_HSV:")
+        print(f"\tprediction: {y[0]}")
+        y = self.random_forest_HSV.predict(arr2)
+        c4 = y[0]
+        print(f"random_forest_HSV:")
+        print(f"\tprediction: {y[0]}")
+
+        d = {
+            "w": 0,
+            "b": 0,
+            "c": 0,
+            "r": 0,
+            "g": 0,
+            "y": 0
+        }
+        d[c1] += 1
+        d[c2] += 1
+        d[c3] += 1
+        d[c4] += 1
+
+        ar =    ["b","g","r","y","w","c"]
+        ar_num =[d["b"],d["g"],d["r"],d["y"],d["w"],d["c"]]
+        if np.sum(np.array(ar_num)==1)==4:
+            return "c"
+
+        temp = ar[np.argmax(np.array(ar_num))]
+        print(f"!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! --> {temp}")
+        return temp
 
 
     def chk_ring(self,de,h1,h2,w1,w2,cent):
@@ -229,7 +673,166 @@ class color_localizer:
                     return (cent[1],cent[0],avgdist,i)
         return None
 
+    def rgba_from_char(self, color_char):
+        if color_char == "c":
+            return ColorRGBA(0, 0, 0, 1)
+        if color_char == "w":
+            return ColorRGBA(1, 1, 1, 1)
+        if color_char == "r":
+            return ColorRGBA(1, 0, 0, 1)
+        if color_char == "g":
+            return ColorRGBA(0, 1, 0, 1)
+        if color_char == "b":
+            return ColorRGBA(0, 0, 1, 1)
+        if color_char == "y":
+            return ColorRGBA(1, 1, 0, 1)
 
+    def get_pose(self,xin,yin,dist, depth_im,objectType,depth_stamp,color_char):
+        # Calculate the position of the detected ellipse
+        print(f"dist: {dist}")
+        k_f = 525 # kinect focal length in pixels
+
+        xin = -(xin - depth_im.shape[1]/2)
+
+        angle_to_target = np.arctan2(xin,k_f)
+
+        # Get the angles in the base_link relative coordinate system
+        x,y = dist*np.cos(angle_to_target), dist*np.sin(angle_to_target)
+
+
+        # Define a stamped message for transformation - in the "camera rgb frame"
+        point_s = PointStamped()
+        point_s.point.x = -y
+        point_s.point.y = 0
+        point_s.point.z = x
+        point_s.header.frame_id = "camera_rgb_optical_frame"
+        # point_s.header.stamp = rospy.Time(0)
+        point_s.header.stamp = depth_stamp
+        # if objectType == "cylinder":
+            # point_s.header.stamp = rospy.Time(0)
+
+        # Get the point in the "map" coordinate system
+        point_world = self.tf_buf.transform(point_s, "map")
+
+
+        #! USELESS CODE
+        allDist = []
+        if objectType == "ring":
+            for elipse in self.found_rings:
+                pointsDist = np.sqrt((elipse["x"]-point_world.point.x)**2+(elipse["y"]-point_world.point.y)**2)
+                # if pointsDist < 0.5 or dist>2:
+                #     return
+                # if pointsDist < 0.5:
+                #     return
+                allDist.append(pointsDist)
+            # allDist = np.array(allDist)
+            self.found_rings.append({"x":point_world.point.x, "y":point_world.point.y})
+        elif objectType == "cylinder":
+            for cylinder in self.found_cylinders:
+                pointsDist = np.sqrt((cylinder["x"]-point_world.point.x)**2+(cylinder["y"]-point_world.point.y)**2)
+                # if pointsDist < 0.5 or dist>2:
+                #     return
+                #! if dist>2:
+                    #! return
+                allDist.append(pointsDist)
+            # allDist = np.array(allDist)
+            self.found_cylinders.append({"x":point_world.point.x, "y":point_world.point.y})
+
+
+        # pprint(sorted(allDist))
+
+
+        # Create a Pose object with the same position
+        pose = Pose()
+        pose.position.x = point_world.point.x
+        pose.position.y = point_world.point.y
+        pose.position.z = point_world.point.z
+
+        # # Create a marker used for visualization
+        # self.nM += 1
+        # marker = Marker()
+        # marker.header.stamp = point_world.header.stamp
+        # marker.header.frame_id = point_world.header.frame_id
+        # marker.pose = pose
+        # marker.type = Marker.CUBE
+        # marker.action = Marker.ADD
+        # marker.frame_locked = False
+        # marker.lifetime = rospy.Duration.from_sec(0)
+        # marker.id = self.nM
+        # marker.scale = Vector3(0.1, 0.1, 0.1)
+        # # if objectType == "ring":
+        # #     marker.color = ColorRGBA(1, 0, 0, 1)
+        # # else:
+        # #     marker.color = ColorRGBA(0, 1, 0, 1)
+        # marker.color = self.rgba_from_char(color_char)
+        # self.m_arr.markers.append(marker)
+
+        # self.markers_pub.publish(self.m_arr)
+
+        return pose
+
+    #dela as intended!
+    def calc_pnts(self, el):
+        #width
+        h1 = np.array([0,el[1][1]/2])
+        h2 = np.array([0,-el[1][1]/2])
+        w1 = np.array([el[1][0]/2,0])
+        w2 = np.array([-el[1][0]/2,0])
+
+
+        c = np.cos(np.radians(el[2]))
+        s = np.sin(np.radians(el[2]))
+        rot = np.array([[c,-s],[s,c]])
+
+
+        h1 = el[0] + rot.dot(h1)
+        h2 = el[0] + rot.dot(h2)
+        w1 = el[0] + rot.dot(w1)
+        w2 = el[0] + rot.dot(w2)
+        return h1,h2,w1,w2
+
+    def calc_thresholds(self, frame):
+        # Do histogram equlization
+        img = cv2.equalizeHist(frame)
+
+        threshDict = {}
+        # Binarize the image - original
+        ret, thresh = cv2.threshold(img, 50, 255, 0)
+        ret, thresh = cv2.threshold(img, 50, 255, cv2.THRESH_BINARY)
+        threshDict["normal"] = thresh
+
+        # binary + otsu
+        ret, thresh = cv2.threshold(img, 50, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        threshDict["binaryOtsu"] = thresh
+
+        # # gauss + binary + otsu
+        img2 = cv2.GaussianBlur(img.copy(),(5,5),2)
+        ret, thresh = cv2.threshold(img2, 50, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        # threshDict["gaussBinaryOtsu"] = thresh
+
+        # # adaptive mean threshold
+        thresh = cv2.adaptiveThreshold(img,255,cv2.ADAPTIVE_THRESH_MEAN_C,\
+                cv2.THRESH_BINARY,3,2)
+        # threshDict["adaptiveMean"] = thresh
+
+        # # adaptive gaussian threshold
+        thresh = cv2.adaptiveThreshold(img,255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C,\
+            cv2.THRESH_BINARY,3,2)
+        # threshDict["adaptiveGauss"] = thresh
+
+        return threshDict
+
+    def bgr2gray(self, bgr_image):
+        return (np.sum(bgr_image.copy().astype(np.float),axis=2)/3).astype(np.uint8)
+
+    def gray2bgr(self, bgr_image):
+        newImage = np.zeros((bgr_image.shape[0],bgr_image.shape[1],3))
+
+        newImage[:,:,0] = bgr_image.copy()
+        newImage[:,:,1] = bgr_image.copy()
+        newImage[:,:,2] = bgr_image.copy()
+
+        return newImage.astype(np.uint8)
 
     def find_elipses_first(self,image,depth_image,im_stamp,depth_stamp,grayBGR_toDrawOn):
         print(f"rgb_stamp_sec:    {im_stamp.to_sec()}")
@@ -263,7 +866,7 @@ class color_localizer:
                          frame[:,:,0]
                         , frame[:,:,1]
                         , frame[:,:,2]
-                        , module.bgr2gray(frame)
+                        , self.bgr2gray(frame)
                         , cv2.cvtColor(frame,cv2.COLOR_BGR2HSV)[:,:,0]
                         , cv2.cvtColor(frame,cv2.COLOR_BGR2HSV)[:,:,1]
                         , cv2.cvtColor(frame,cv2.COLOR_BGR2HSV)[:,:,2]
@@ -285,7 +888,7 @@ class color_localizer:
         for i in range(len(imagesToTest)):
             currentImage = imagesToTest[i]
 
-            threshDict = module.calc_thresholds(currentImage)
+            threshDict = self.calc_thresholds(currentImage)
 
             allFramesAnalized.append(threshDict)
 
@@ -323,7 +926,7 @@ class color_localizer:
         # toReturn = cv2.cvtColor(thresh,cv2.COLOR_GRAY2BGR)
 
 
-        depthThresh = module.calc_thresholds(depth_image)
+        depthThresh = self.calc_thresholds(depth_image)
         depth_t = None
         for i, key in enumerate(depthThresh):
             if i==0:
@@ -376,13 +979,13 @@ class color_localizer:
 
         # print(f"all: {np.unique(toReturn)}")
         # return toReturn[:,:,2],depth_im_shifted
-        toReturn = ((module.bgr2gray(toReturn)>0)*255).astype(np.uint8)
+        toReturn = ((self.bgr2gray(toReturn)>0)*255).astype(np.uint8)
         # return toReturn.astype(np.uint8),depth_im_shifted
         # print(toReturn.shape)
         # print(f"YES: {np.sum(toReturn>0)}")
         # print(f"NO:  {np.sum(toReturn<=0)}")
         # print(f"all: {np.unique(toReturn)}")
-        # print(f"all: {np.unique(module.gray2bgr(toReturn))}")
+        # print(f"all: {np.unique(self.gray2bgr(toReturn))}")
 
 
         # return toReturn,depth_im_shifted
@@ -505,8 +1108,8 @@ class color_localizer:
             e1 = c[0]
             e2 = c[1]
 
-            h1,h2,w1,w2 = module.calc_pnts(e1)
-            h11,h21,w11,w21 = module.calc_pnts(e2)
+            h1,h2,w1,w2 = self.calc_pnts(e1)
+            h11,h21,w11,w21 = self.calc_pnts(e2)
 
             e1_h1 = h1.copy().astype(int)
             e1_h2 = h2.copy().astype(int)
@@ -555,12 +1158,11 @@ class color_localizer:
                 #EDIT ali so koordinate pravilne
                 pnts = np.array( (image[cntr_ring[3][0][1],cntr_ring[3][0][2]], image[cntr_ring[3][1][1],cntr_ring[3][1][2]],image[cntr_ring[3][2][1],cntr_ring[3][2][2]]))
                 # print("dela 1")
-                color = module.calc_rgb(pnts,self.knn_RGB,self.random_forest_RGB,self.knn_HSV,self.random_forest_HSV)
+                color = self.calc_rgb(pnts)
                 # print("dela 2")
-                ring_point = module.get_pose(cntr_ring[1],cntr_ring[0],cntr_ring[2],depth_im_shifted,"ring",depth_stamp,color,self.tf_buf)
-                #ring_point = self.get_pose(cntr_ring[1],cntr_ring[0],cntr_ring[2],depth_im_shifted,"ring",depth_stamp,color)
+                ring_point = self.get_pose(cntr_ring[1],cntr_ring[0],cntr_ring[2],depth_im_shifted,"ring",depth_stamp,color)
                 # print("dela 3")
-                (self.nM, self.m_arr) = module.addPosition(np.array((ring_point.position.x,ring_point.position.y,ring_point.position.z)),"ring",color,self.positions["ring"],self.nM, self.m_arr, self.markers_pub)
+                self.addPosition(np.array((ring_point.position.x,ring_point.position.y,ring_point.position.z)),"ring",color)
                 # print("dela 4")
                 # ring_point = self.get_pose(cntr_ring[1],cntr_ring[0],cntr_ring[2],depth_im,"ring")
 
@@ -577,11 +1179,44 @@ class color_localizer:
                 cv2.circle(grayBGR_toDrawOn,tuple( w21),1,(0,255,0),2)
 
             except Exception as e:
-                print(f"Ring error: {e}")
+                # print(f"Ring error: {e}")
                 pass
         return grayBGR_toDrawOn, depth_im_shifted
 
+    def calc_rgb_distance_mask(self, image, rgb_value, minDistance):
+        rangeImage = image - np.array(rgb_value)
+        temp = np.reshape(rangeImage, (image.shape[0]*image.shape[1],3))
+        temp = np.linalg.norm(temp,axis=1)
+        temp = np.reshape(temp, (image.shape[0],image.shape[1]))
 
+        temp = (temp / np.sqrt(255**2 + 255**2 + 255**2))*255
+        temp = temp.astype(np.uint8)
+
+        distance = temp.copy()
+
+        toMask = temp < minDistance
+        temp = (toMask * 255).astype(np.uint8)
+
+        return temp, distance
+
+    def calc_mask(self, mask, kernel, kernel1, operations):
+        oper1 = operations[0]
+        oper2 = operations[1]
+        oper3 = operations[2]
+        oper4 = operations[3]
+        oper5 = operations[4]
+
+        if oper1:
+            mask = cv2.dilate(mask, kernel)
+        if oper2:
+            mask = cv2.erode(mask, kernel)
+        if oper3:
+            mask = cv2.erode(mask, kernel1)
+        if oper4:
+            mask = cv2.dilate(mask, kernel1)
+        if oper5:
+            mask = cv2.dilate(mask, kernel)
+        return mask
 
     #OHRANI
     def getLows(self, depth_line):
@@ -640,10 +1275,6 @@ class color_localizer:
         RR = depth_line[center_point + shift*2]
         R = depth_line[center_point + shift]
         C = depth_line[center_point]
-
-        if np.isnan(LL) or np.isnan(L) or np.isnan(C) or np.isnan(R) or np.isnan(RR):
-            return None
-
         LL_C = LL-C
         L_C = L-C
         C_R = R-C
@@ -752,7 +1383,7 @@ class color_localizer:
                 if blizDalec[cnt]:
                     #notri shranjen levo in desno interval rows vsebuje kera vrstica je trenutno
                     interval = self.getRange(depth_image[rows,:],presekiIndex[cnt],presekiIndex[cnt-1],presekiIndex[cnt+1])
-                    if not interval is None:
+                    if interval != None:
                         #grayBGR_toDrawOn = cv2.circle(grayBGR_toDrawOn,(interval[0],centerRowIndex), radius=2,color=[255,0,0], thickness=-1)
                         #grayBGR_toDrawOn = cv2.circle(grayBGR_toDrawOn,(interval[1],centerRowIndex), radius=2,color=[255,0,0], thickness=-1)
 
@@ -764,7 +1395,7 @@ class color_localizer:
 
                         try:
                             #preverimo da je realen interval
-                            if np.abs(interval[0]-interval[1]) <= 40 or depth_image[rows,presekiIndex[cnt]]>2.5:
+                            if np.abs(interval[0]-interval[1]) <= 20 or depth_image[rows,presekiIndex[cnt]]>2.5:
                                 continue
 
 
@@ -817,17 +1448,219 @@ class color_localizer:
                                 image[inter[1],(inter[0][0]+inter[0][1])//2-1]])
 
             print(f"Širina:{inter[0][0]} {inter[0][1]}\n\tna razdalji:{depth_image[inter[1],(inter[0][0]+inter[0][1])//2]}")
-            colorToPush = module.calc_rgb(points,self.knn_RGB,self.random_forest_RGB,self.knn_HSV,self.random_forest_HSV)
-            pose = module.get_pose((inter[0][0]+inter[0][1])//2,inter[1],depth_image[inter[1],(inter[0][0]+inter[0][1])//2],depth_image,"cylinder",depth_stamp,colorToPush,self.tf_buf)
-            #pose = self.get_pose((inter[0][0]+inter[0][1])//2,inter[1],depth_image[inter[1],(inter[0][0]+inter[0][1])//2],depth_image,"cylinder",depth_stamp,colorToPush)
-            (self.nM, self.m_arr) = module.addPosition(np.array([pose.position.x,pose.position.y,pose.position.z]),"cylinder",colorToPush,self.positions["cylinder"],self.nM, self.m_arr, self.markers_pub)
-            #self.addPosition(np.array([pose.position.x,pose.position.y,pose.position.z]),"cylinder",colorToPush)
+            colorToPush = self.calc_rgb(points)
+            pose = self.get_pose((inter[0][0]+inter[0][1])//2,inter[1],depth_image[inter[1],(inter[0][0]+inter[0][1])//2],depth_image,"cylinder",depth_stamp,colorToPush)
+            self.addPosition(np.array([pose.position.x,pose.position.y,pose.position.z]),"cylinder",colorToPush)
 
         return grayBGR_toDrawOn
 
     #NE OHRANI NAPREJ
 
+    def find_cylinder(self,image, depth_image, grayBGR_toDrawOn,depth_stamp):
+        # red
+        red_mask, red_distance = self.calc_rgb_distance_mask(image, [0,0,255], 100)
 
+        # green
+        green_mask, green_distance = self.calc_rgb_distance_mask(image, [0,255,0], 100)
+
+        # blue
+        blue_mask, blue_distance = self.calc_rgb_distance_mask(image, [255,0,0], 100)
+
+        # yellow
+        yellow_mask, yellow_distance = self.calc_rgb_distance_mask(image, [0,255,255], 100)
+
+        # cyan
+        cyan_mask, cyan_distance = self.calc_rgb_distance_mask(image, [255,255,0], 100)
+
+        # black
+        black_mask, black_distance = self.calc_rgb_distance_mask(image, [0,0,0], 60)
+
+        # white
+        white_mask, white_distance = self.calc_rgb_distance_mask(image, [255,255,255], 5)
+
+        kernel = np.ones((30,30), "uint8")
+        kernel1 = np.ones((7,7), "uint8")
+
+        oper1 = True
+        oper2 = True
+        oper3 = False
+        oper4 = False
+        oper5 = False
+
+        operations = [oper1, oper2, oper3, oper4, oper5]
+
+        # red
+        red_mask = self.calc_mask(mask=red_mask,kernel=kernel,kernel1=kernel1,operations=operations)
+        res_red = cv2.bitwise_and(image, image, mask = red_mask)
+
+        # green
+        green_mask = self.calc_mask(mask=green_mask,kernel=kernel,kernel1=kernel1,operations=operations)
+        res_green = cv2.bitwise_and(image, image, mask = green_mask)
+
+        # blue
+        blue_mask = self.calc_mask(mask=blue_mask,kernel=kernel,kernel1=kernel1,operations=operations)
+        res_blue = cv2.bitwise_and(image, image, mask = blue_mask)
+
+        # yellow
+        yellow_mask = self.calc_mask(mask=yellow_mask,kernel=kernel,kernel1=kernel1,operations=operations)
+        res_yellow = cv2.bitwise_and(image, image, mask = yellow_mask)
+
+        # cyan
+        cyan_mask = self.calc_mask(mask=cyan_mask,kernel=kernel,kernel1=kernel1,operations=operations)
+        res_cyan = cv2.bitwise_and(image, image, mask = cyan_mask)
+
+        # black
+        black_mask = self.calc_mask(mask=black_mask,kernel=kernel,kernel1=kernel1,operations=operations)
+        res_black = cv2.bitwise_and(image, image, mask = black_mask)
+
+        # white
+        white_mask = self.calc_mask(mask=white_mask,kernel=kernel,kernel1=kernel1,operations=operations)
+        res_white = cv2.bitwise_and(image, image, mask = white_mask)
+
+        gray = self.bgr2gray(image)
+        imageGray = self.gray2bgr(gray)
+
+        masksList = [red_mask, green_mask, blue_mask, yellow_mask, cyan_mask, black_mask, white_mask]
+        colorsForBorder = [ (0,0,255),
+                            (0,255,0),
+                            (255,0,0),
+                            (0,255,255),
+                            (255,255,0),
+                            (0,0,0),
+                            (255,255,255)
+                            ]
+        colorDistanceList = [red_distance, green_distance, blue_distance, yellow_distance, cyan_distance, black_distance, white_distance]
+        i = -1
+        colorsDict = {  0:"red",
+                        1:"green",
+                        2:"blue",
+                        3:"yellow",
+                        4:"cyan",
+                        5:"black",
+                        6:"white"}
+        centerRowIndex = depth_image.shape[0]//2
+        # print(depth_image[centerRowIndex])
+        for mask, borderColor, colorDistance in zip(masksList,colorsForBorder,colorDistanceList):
+            i += 1
+            contour, hierarchy = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+
+            for pic, cont in enumerate(contour):
+                area = cv2.contourArea(cont)
+                if(area > 300):
+                    x, y, w, h = cv2.boundingRect(cont)
+                    # check if rectangle doesnt cross center line
+                    if y>centerRowIndex or (y+h)<=centerRowIndex:
+                        continue
+                    depth_cut = depth_image[y:(y+h),x:(x+w)]
+                    image_cut = image[y:(y+h),x:(x+w)]
+                    dist_cut = colorDistance[y:(y+h),x:(x+w)]
+                    mask_cut = mask[y:(y+h),x:(x+w)]
+                    # print(colorsDict[i])
+                    # print(mask_cut.shape)
+                    mask_row_sum = np.sum(mask_cut>0,1)
+                    # print("\t",mask_row_sum.shape)
+                    # bestRowIndx = np.argmax(mask_row_sum)
+                    bestRowIndx = centerRowIndex-y
+                    mask_row = mask_cut[bestRowIndx,:]>0
+                    depth_row = depth_cut[bestRowIndx,:]
+
+                    tempColumnRow = depth_row*mask_row
+                    tempColumnRow[(tempColumnRow==0)] = np.Inf
+                    tempColumnRow[np.isnan(tempColumnRow)] = np.Inf
+                    bestColumnIndx = np.argmin(tempColumnRow)
+
+                    numOfCorrectColors = np.sum(mask_cut==255)
+                    numOfAllColors = h*w
+                    # print(f"{colorsDict[i]}\n\t{numOfCorrectColors}/{numOfAllColors} [{numOfCorrectColors/numOfAllColors}]")
+
+                    if numOfCorrectColors/numOfAllColors < 0.5:
+                        continue
+
+                    counter = 0
+                    while True:
+                        if (bestColumnIndx-counter) < 0:
+                            counter -= 1
+                            break
+                        if (bestColumnIndx+counter) == len(mask_row):
+                            counter -= 1
+                            break
+                        if mask_row[bestColumnIndx-counter]==False or mask_row[bestColumnIndx+counter]==False or np.isinf(tempColumnRow[bestColumnIndx-counter])==True or np.isinf(tempColumnRow[bestColumnIndx+counter])==True:
+                            counter -= 1
+                            break
+                        counter += 1
+
+                    shift = np.floor((counter*2)/5).astype(int)
+                    if shift < 1:
+                        continue
+
+                    LL = depth_row[bestColumnIndx-shift*2]
+                    L = depth_row[bestColumnIndx-shift]
+                    C = depth_row[bestColumnIndx]
+                    R = depth_row[bestColumnIndx+shift]
+                    RR = depth_row[bestColumnIndx+shift*2]
+
+                    LL_C = LL-C
+                    L_C = L-C
+                    C_R = R-C
+                    C_RR = RR-C
+
+                    if LL_C<=0 or L_C<=0 or C_R<=0 or C_RR<=0:
+                        continue
+
+                    if LL_C<L_C*3 or C_RR<C_R*3:
+                        continue
+
+                    center_row_indx = np.floor(h/2).astype(int)
+                    up_shif = np.floor(h/5).astype(int)
+                    if up_shif<1:
+                        continue
+
+                    rowIndx1 = bestRowIndx-up_shif
+                    rowIndx2 = bestRowIndx
+                    rowIndx3 = bestRowIndx+up_shif
+                    if rowIndx1 < 0:
+                        a = depth_cut[bestRowIndx+up_shif*2,bestColumnIndx]
+                    else:
+                        a = depth_cut[bestRowIndx-up_shif,bestColumnIndx]
+
+                    b = depth_cut[bestRowIndx,bestColumnIndx]
+
+                    if rowIndx3 >= h :
+                        c = depth_cut[bestRowIndx-up_shif*2,bestColumnIndx]
+                    else:
+                        c = depth_cut[bestRowIndx+up_shif,bestColumnIndx]
+
+                    distThreshold = 0.005
+                    if np.abs(a-b)>distThreshold or np.abs(a-c)>distThreshold or np.abs(b-c)>distThreshold:
+                        continue
+
+                    print(f"\tcylinder detected --> {colorsDict[i]}")
+                    print(f"\tselected point ditance: {depth_image[y+bestRowIndx,x+bestColumnIndx]}")
+                    # pprint(depth_cut[bestRowIndx,:])
+                    points = np.array([image_cut[bestRowIndx,bestColumnIndx],image_cut[bestRowIndx,bestColumnIndx],image_cut[bestRowIndx,bestColumnIndx],])
+                    try:
+                        # self.get_pose((x+w/2),(y+h/2),C,depth_image,"cylinder",depth_stamp)
+                        pose = self.get_pose((x+bestColumnIndx),(y+bestRowIndx),C,depth_image,"cylinder",depth_stamp,self.calc_rgb(points))
+                        self.addPosition(np.array([pose.position.x,pose.position.y,pose.position.z]),"cylinder",self.calc_rgb(points))
+                    except Exception as e:
+                        print(f"Cylinder error: {e}")
+                    grayBGR_toDrawOn = cv2.rectangle(grayBGR_toDrawOn, (x, y),(x+w,y+h), borderColor ,2)
+                    grayBGR_toDrawOn = cv2.rectangle(grayBGR_toDrawOn, (x, y+bestRowIndx),(x+w,y+bestRowIndx), borderColor ,2)
+                    grayBGR_toDrawOn = cv2.rectangle(grayBGR_toDrawOn, (x+bestColumnIndx-5, y+bestRowIndx-5),(x+bestColumnIndx+5,y+bestRowIndx+5), (255-borderColor[0],255-borderColor[1],255-borderColor[2]) ,2)
+
+        """
+        contour, hierarchy = cv2.findContours(red_mask1, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        for pic, cont in enumerate(contour):
+            area = cv2.contourArea(cont)
+            if(area > 300):
+                x, y, w, h = cv2.boundingRect(cont)
+                image = cv2.rectangle(image, (x, y),(x+w,y+h), (0,255,0),2)
+        """
+        # grayBGR_toDrawOn = cv2.rectangle(grayBGR_toDrawOn,(0,235),(640,245),(0,255,0),2)
+        # print(grayBGR_toDrawOn.shape)
+        # grayBGR_toDrawOn = cv2.rectangle(grayBGR_toDrawOn, (0, centerRowIndex-10),(640,centerRowIndex+10), (0,0,0) ,2)
+        return grayBGR_toDrawOn
+        # return cv2.cvtColor(final_mask,cv2.COLOR_GRAY2BGR)
 
     def find_objects(self):
         #print('I got a new image!')
@@ -868,8 +1701,8 @@ class color_localizer:
         except CvBridgeError as e:
             print(e)
 
-        grayImage = module.bgr2gray(rgb_image)
-        grayImage = module.gray2bgr(grayImage)
+        grayImage = self.bgr2gray(rgb_image)
+        grayImage = self.gray2bgr(grayImage)
         markedImage, depth_im_shifted = self.find_elipses_first(rgb_image, depth_image,rgb_image_message.header.stamp, depth_image_message.header.stamp, grayImage)
         #print(markedImage)
         # TODO: make it so it marks face and returns the image to display
@@ -877,11 +1710,8 @@ class color_localizer:
         self.find_faces(rgb_image,depth_im_shifted,depth_image_message.header.stamp)
         markedImage = self.find_QR(rgb_image,depth_im_shifted,depth_image_message.header.stamp, markedImage)
         markedImage = self.find_digits(rgb_image,depth_im_shifted,depth_image_message.header.stamp, markedImage)
-        #!
-        """
-        for objectType in ["ring","cylinder"]:
-            module.checkPosition(self.positions[objectType],self.basePosition, objectType, self.points_pub)
-        """
+        #! self.checkPosition()
+
         # print(type(markedImage))
         # print(markedImage.shape)
         #print(markedImage)
@@ -913,15 +1743,15 @@ class color_localizer:
         return elps
 #! ================================================== digits start ==================================================
     def find_digits(self, rgb_image, depth_image_shifted, stamp,grayBGR_toDrawOn):
-        ret, thresh = cv2.threshold(module.bgr2gray(rgb_image), 40, 255, 0)
-        corners, ids, rejected_corners = cv2.aruco.detectMarkers(module.gray2bgr(thresh),self.dictm,parameters=self.params)
+        ret, thresh = cv2.threshold(self.bgr2gray(rgb_image), 40, 255, 0)
+        corners, ids, rejected_corners = cv2.aruco.detectMarkers(self.gray2bgr(thresh),self.dictm,parameters=self.params)
         # print("\n\n\n")
         # print("\n\n\n")
         print()
         # pprint(corners)
 
-        # thresh = cv2.adaptiveThreshold(module.bgr2gray(rgb_image),255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C,cv2.THRESH_BINARY,11,5)
-        # return module.gray2bgr(thresh)
+        # thresh = cv2.adaptiveThreshold(self.bgr2gray(rgb_image),255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C,cv2.THRESH_BINARY,11,5)
+        # return self.gray2bgr(thresh)
 
         # grayBGR_toDrawOn = rgb_image
         allCorners = []
@@ -1024,12 +1854,12 @@ class color_localizer:
             d1 = doubles[i-1]
             d2 = doubles[i]
 
-            x1 = int(round(d1["start_point"][0]))
-            y1 = int(round(min(d1["start_point"][1],d2["start_point"][1])))
+            x1 = round(d1["start_point"][0]).astype("int")
+            y1 = round(min(d1["start_point"][1],d2["start_point"][1])).astype("int")
 
-            x2 = int(round(d2["end_point"][0]))
-            y2 = int(round(max(d1["end_point"][1],d2["end_point"][1])))
-            # print(type(x1))
+            x2 = round(d2["end_point"][0]).astype("int")
+            y2 = round(max(d1["end_point"][1],d2["end_point"][1])).astype("int")
+            print(type(x1))
             # ratio is bigger then it is commen for paper
             if (x2-x1)/(y2-y1) > 0.75:
                 continue
@@ -1190,15 +2020,13 @@ class color_localizer:
             y1 = dObject.rect.top
             x2 = dObject.rect.left + dObject.rect.width
             y2 = dObject.rect.top + dObject.rect.height
-            norm = module.get_normal(depth_image_shifted, (x1,y1,x2,y2),stamp,None,None, self.tf_buf)
+            norm = self.get_normal(depth_image_shifted, (x1,y1,x2,y2),stamp,None,None)
             # if we are too close to QR code
             if norm is None:
                 print(f"Too close to the QR code!")
                 continue
-            pose = module.get_pose((x1+x2)//2,(y1+y2)//2,depth_image_shifted[(y1+y2)//2,(x1+x2)//2],depth_image_shifted,"QR",stamp,None,self.tf_buf)
-            #pose = self.get_pose((x1+x2)//2,(y1+y2)//2,depth_image_shifted[(y1+y2)//2,(x1+x2)//2],depth_image_shifted,"QR",stamp,None)
-            (self.nM, self.m_arr) = module.addPosition(np.array([pose.position.x,pose.position.y,pose.position.z]),"QR", None,self.positions["QR"],self.nM, self.m_arr, self.markers_pub,normal=norm, data=dObject.data.decode())
-            #self.addPosition(np.array([pose.position.x,pose.position.y, pose.position.z]),"QR",None,norm,dObject.data.decode())
+            pose = self.get_pose((x1+x2)//2,(y1+y2)//2,depth_image_shifted[(y1+y2)//2,(x1+x2)//2],depth_image_shifted,"QR",stamp,None)
+            self.addPosition(np.array([pose.position.x,pose.position.y, pose.position.z]),"QR",None,norm,dObject.data.decode())
 
 
 
@@ -1334,7 +2162,7 @@ class color_localizer:
 
             is_good_detection = True
             for checked_good_detection in good_face_detections_final:
-                if module.does_it_cross(checked_good_detection["x"], checked_good_detection["y"], (x1,x2), (y1,y2)):
+                if self.does_it_cross(checked_good_detection["x"], checked_good_detection["y"], (x1,x2), (y1,y2)):
                     is_good_detection = False
 
             if is_good_detection:
@@ -1375,29 +2203,281 @@ class color_localizer:
             #assert y1 != y2, "Y sta ista !!!!!!!!!!!"
             #assert x1 != x2, "X sta ista !!!!!!!!!!!"
             face_distance = float(np.nanmean(depth_image[y1:y2,x1:x2]))
-            if face_distance > 1.7:
-                continue
             im = depth_image[y1:y2,x1:x2]
-            norm = module.get_normal(depth_image, (x1,y1,x2,y2) ,depth_image_stamp,face_distance, face_region, self.tf_buf)
+            norm = self.get_normal(depth_image, (x1,y1,x2,y2) ,depth_image_stamp,face_distance, face_region)
             normals_found.append(norm)
 
             print('Norm of face', norm)
 
             print('Distance to face', face_distance)
-
             #trans = tf2_ros.Buffer().lookup_transform('mapa', 'base_link', rospy.Time(0))
             #print('my position ',trans)
             # Get the time that the depth image was recieved
             depth_time = depth_image_stamp
 
             # Find the location of the detected face
-            pose = module.get_pose_face((x1,x2,y1,y2), face_distance, depth_time,self.dims, self.tf_buf)
-            #pose = self.get_pose_face((x1,x2,y1,y2), face_distance, depth_time)
-            if not (pose is None) and not (norm is None):
+            pose = self.get_pose_face((x1,x2,y1,y2), face_distance, depth_time)
+            if pose != None:
                 newPosition = np.array([pose.position.x,pose.position.y, pose.position.z])
-                (self.nM, self.m_arr) = module.addPosition(newPosition,"face", None, self.positions["face"],self.nM, self.m_arr, self.markers_pub, normal=norm)
-                #self.addPosition(newPosition, "face", color_char=None, normal=norm)
+                self.addPosition(newPosition, "face", color_char=None, normal=norm)
 
+    def does_it_cross(self, a_cords_x, a_cords_y, b_cords_x, b_cords_y):
+        # it answers the qustion if rectangles cross in any way
+        # returns True --> coardinates cross
+        # returns False --> coardinates DONT cross
+        a_x1, a_x2 = a_cords_x
+        a_y1, a_y2 = a_cords_y
+
+        b_x1, b_x2 = b_cords_x
+        b_y1, b_y2 = b_cords_y
+
+        # check if B has anything inside A
+        if (a_x1 <= b_x1 <= a_x2 or a_x1 <= b_x2 <= a_x2) and (a_y1 <= b_y1 <= a_y2 or a_y1 <= b_y2 <= a_y2):
+            return True
+        # check if A has anything inside B
+        if (b_x1 <= a_x1 <= b_x2 or b_x1 <= a_x2 <= b_x2) and (b_y1 <= a_y1 <= b_y2 or b_y1 <= a_y2 <= b_y2):
+            return True
+
+        return False
+
+    def get_normal(self, depth_image, face_cord, stamp,dist, face_region):
+        face_x1, face_y1, face_x2, face_y2 = face_cord
+        image = depth_image[face_y1:face_y2, face_x1:face_x2]
+        shift_left = face_x1
+        shift_top = face_y1
+
+
+        if min(depth_image.shape) == 0:
+            return None
+
+        if min(image.shape) == 0:
+            return None
+
+
+        biggerDim = np.argmax(image.shape)
+        # print(f"bigger dimention: {biggerDim}")
+        bigLen = image.shape[biggerDim]
+        smallLen = image.shape[~biggerDim]
+        # print(f"bigLen = {bigLen}")
+        # print(f"smallLen = {smallLen}")
+        x1 = y1 = None # top-left
+        x2 = y2 = None # bottom-right
+        x3 = y3 = None # top-right
+
+        for big_i in range(bigLen//2):
+            whatPart = big_i/bigLen
+            small_i = round(whatPart*smallLen)
+            if biggerDim == 0:
+                # bottom-left point
+                if (x2==None and np.isnan(image[(bigLen-1)-big_i][small_i])==False):
+                    x2 = small_i
+                    y2 = (bigLen-1)-big_i
+                # bottom-right point
+                if (x1==None and np.isnan(image[(bigLen-1)-big_i][(smallLen-1)-small_i])==False):
+                    x1 = (smallLen-1)-small_i
+                    y1 = (bigLen-1)-big_i
+                # top-right point
+                if (x3==None and np.isnan(image[big_i][(smallLen-1)-small_i])==False):
+                    x3 = (smallLen-1)-small_i
+                    y3 = big_i
+            else:
+                # bottom-left point
+                if (x2==None and np.isnan(image[(smallLen-1)-small_i][big_i])==False):
+                    x2 = big_i
+                    y2 = (smallLen-1)-small_i
+                # bottom-right point
+                if (x1==None and np.isnan(image[(smallLen-1)-small_i][(bigLen-1)-big_i])==False):
+                    x1 = (bigLen-1)-big_i
+                    y1 = (smallLen-1)-small_i
+                # top-right point
+                if (x3==None and np.isnan(image[small_i][(bigLen-1)-big_i])==False):
+                    x3 = small_i
+                    y3 = (bigLen-1)-big_i
+
+
+        if x1 == None or x2 == None or x3 == None:
+            return None
+        # else:
+        #     x1 = (face_x1+face_x2)//2+2
+        #     x2 = (face_x1+face_x2)//2-2
+        #     x3 = (face_x1+face_x2)//2
+        #     y1 = (face_y1+face_y2)//2+2
+        #     y2 = (face_y1+face_y2)//2-2
+        #     y3 = (face_y1+face_y2)//2
+
+        x1 += shift_left
+        y1 += shift_top
+
+        x2 += shift_left
+        y2 += shift_top
+
+        x3 += shift_left
+        y3 += shift_top
+
+
+
+        #print("\n< 1 > image [{:>3}] [{:>3}] = {:}".format(y1,x1,depth_image[y1][x1]))
+        #print("< 2 > image [{:>3}] [{:>3}] = {:}".format(y2,x2,depth_image[y2][x2]))
+        #print("< 3 > image [{:>3}] [{:>3}] = {:}".format(y3,x3,depth_image[y3][x3]))
+
+
+
+        v1_cor = self.get_pose_face((x1,x1,y1,y1),depth_image[y1,x1],stamp)
+
+        v2_cor = self.get_pose_face((x2,x2,y2,y2),depth_image[y2,x2],stamp)
+
+        v3_cor = self.get_pose_face((x3,x3,y3,y3),depth_image[y3,x3],stamp)
+
+        # try:
+        #     # print("\n coords of points:")
+        #     # print(f"\n{v1_cor.position}")
+        #     # print(f"\n{v2_cor.position}")
+        #     # print(f"\n{v3_cor.position}")
+        # except:
+        #     pass
+
+
+        try:
+            #print(v1_cor,v2_cor,v3_cor)
+            v3_cor.position.z += 0.1
+
+            #rospy.sleep(2)
+            v1 = np.array([v1_cor.position.x,v1_cor.position.y, v1_cor.position.z] )
+            v2 = np.array([v2_cor.position.x,v2_cor.position.y, v2_cor.position.z] )
+            v3 = np.array([v3_cor.position.x,v3_cor.position.y, v3_cor.position.z] )
+
+            # print(f"v1:  {v1}")
+            # print(f"v2:  {v2}")
+            # print(f"v3:  {v3}")
+
+            v12 =v2-v1
+            v13 =v3-v1
+
+            v23 = v3-v2
+
+            d12 = np.linalg.norm(v12)
+            d13 = np.linalg.norm(v13)
+            d23 = np.linalg.norm(v23)
+            # print(f"\n\tv12:  {v12}")
+            # print(f"\tv13:  {v13}")
+            # print(f"\tv13:  {v23}")
+            # print("\t----")
+            # print(f"\td12:  {d12}")
+            # print(f"\td13:  {d13}")
+            # print(f"\td23:  {d23}\n")
+
+            if d12>0.2 or d13>0.2 or d23>0.2:
+                print("Exiting like a pro!!!!!!!!!!!!")
+                return None
+
+
+
+            norm = np.cross(v12,v13)
+            norm = norm/np.linalg.norm(norm)*0.5
+            # print(f"norm: {norm}")
+
+            orig_arr = v1
+            dest_arr = v1-norm
+            # print("before:",norm)
+
+            #for pose in [v1_cor,v2_cor,v3_cor]:
+            """
+                if pose is not None:
+                    # Create a marker used for visualization
+                    self.marker_num += 1
+                    marker = Marker()
+                    marker.header.stamp = rospy.Time(0)
+                    marker.header.frame_id = 'map'
+                    marker.pose = pose
+                    marker.type = Marker.CUBE
+                    marker.action = Marker.ADD
+                    marker.frame_locked = False
+                    marker.lifetime = rospy.Duration.from_sec(10)
+                    marker.id = self.marker_num
+                    marker.scale = Vector3(0.1, 0.1, 0.1)
+                    if pose == v1_cor:
+                        marker.color = ColorRGBA(1,0,0,1)
+                    elif pose == v2_cor:
+                        marker.color = ColorRGBA(0,0,1,1)
+                    else:
+                        marker.color = ColorRGBA(0, 1, 0, 1)
+                    #self.marker_array.markers.append(marker)
+
+            #self.marker_array.markers.append(self.get_arrow_points(Vector3(1,1,1),Point(orig_arr[0],orig_arr[1],orig_arr[2]),Point(dest_arr[0],dest_arr[1],dest_arr[2]),3))
+            self.markers_pub.publish(self.marker_array)
+            """
+            # doit = self.norm_accumulator(norm,v1,dist) #! ACCUMULATOR IS CALLED
+            # # TODO: spremeni, da bo z akumulatorjem pozicij iz te skripte
+            # if doit:
+            #     self.marker_array.markers.append(self.get_arrow_points(Vector3(1,1,1),Point(orig_arr[0],orig_arr[1],orig_arr[2]),Point(dest_arr[0],dest_arr[1],dest_arr[2]),3))
+            #     self.markers_pub.publish(self.marker_array)
+            #     self.pic_pub.publish(CvBridge().cv2_to_imgmsg(face_region, encoding="passthrough"))
+            # print("after:",norm)
+
+            #self.points_pub.publish(Point(orig_arr[0],orig_arr[1],orig_arr[2]))
+            #self.points_pub.publish(Point(dest_arr[0],dest_arr[1],dest_arr[2]))
+            #ustvarimo Image msg
+            # Refrence :image = depth_image[face_y1:face_y2, face_x1:face_x2]
+            """im_ms = Image()
+            im_ms.header.stamp = rospy.Time(0)
+            im_ms.header.frame_id = 'map'
+            im_ms.height = image.shape[0]
+            im_ms.width = image.shape[1]
+            im_ms.data = image
+
+            self.pic_pub.publish(im_ms)"""
+
+        except Exception as e:
+            print(e)
+            norm = None
+        return norm
+
+    def get_pose_face(self,coords,dist,stamp):
+        # Calculate the position of the detected face
+
+        k_f = 554 # kinect focal length in pixels
+
+        x1, x2, y1, y2 = coords
+
+        face_x = self.dims[1] / 2 - (x1+x2)/2.
+        face_y = self.dims[0] / 2 - (y1+y2)/2.
+
+        angle_to_target = np.arctan2(face_x,k_f)
+
+        # Get the angles in the base_link relative coordinate system
+        x = dist*np.cos(angle_to_target)
+        y = dist*np.sin(angle_to_target)
+
+        ### Define a stamped message for transformation - directly in "base_link"
+        #point_s = PointStamped()
+        #point_s.point.x = x
+        #point_s.point.y = y
+        #point_s.point.z = 0.3
+        #point_s.header.frame_id = "base_link"
+        #point_s.header.stamp = rospy.Time(0)
+
+        # Define a stamped message for transformation - in the "camera rgb frame"
+        point_s = PointStamped()
+        point_s.point.x = -y
+        point_s.point.y = 0
+        point_s.point.z = x
+        point_s.header.frame_id = "camera_rgb_optical_frame"
+        point_s.header.stamp = stamp
+
+        # Get the point in the "map" coordinate system
+        try:
+            point_world = self.tf_buf.transform(point_s, "map")
+
+            # Create a Pose object with the same position
+            pose = Pose()
+            pose.position.x = point_world.point.x
+            pose.position.y = point_world.point.y
+            pose.position.z = point_world.point.z
+        except Exception as e:
+            print(e)
+            pose = None
+
+        return pose
 
     def norm_accumulator(self, norm, center_point,dist1):
         found = -1
@@ -1465,6 +2545,25 @@ class color_localizer:
         #posljemo None nazaj da vemo da nismo dokoncno dolocili nobene tocke
         return False
 
+    def get_arrow_points(self, scale, head, tail, idn):
+        self.marker_num += 1
+        m = Marker()
+        m.action = Marker.ADD
+        m.header.frame_id= 'map'
+        m.header.stamp = rospy.Time.now()
+        m.ns = 'points_arrow'
+        m.id = self.marker_num
+        m.type = Marker.ARROW
+        m.pose.orientation.y = 0
+        m.pose.orientation.w = 1
+        m.scale = scale
+        m.color.r = 0.2
+        m.color.g = 0.5
+        m.color.b = 1.0
+        m.color.a = 0.3
+
+        m.points = [tail,head]
+        return m
 #! =============================================== face detection end ===============================================
 
 def main():
