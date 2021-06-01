@@ -429,7 +429,7 @@ class cylinders:
         toReturn = ((module.bgr2gray(toReturn)>0)*255).astype(np.uint8)
 
 
-        return grayBGR_toDrawOn, depth_im_shifted
+        return  depth_im_shifted
 
 
     def find_objects(self):
