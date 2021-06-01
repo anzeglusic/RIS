@@ -149,7 +149,7 @@ void vozi(int y3, int x3, double y, double x, int dir)
     if (stevec == 0)
         sleep(5);
     if (look)
-        sleep(5);
+        sleep(10);
 
     if (y == 0.5 && x == -0.5 && dir == 3)
         konec = true;
