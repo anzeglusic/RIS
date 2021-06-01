@@ -281,7 +281,7 @@ class cylinders:
 
         return grayBGR_toDrawOn
 
-    def find_elipses_first(self,image,depth_image,im_stamp,depth_stamp,grayBGR_toDrawOn):
+    def shift_me(self,image,depth_image,im_stamp,depth_stamp):
         print(f"rgb_stamp_sec:    {im_stamp.to_sec()}")
         print(f"depth_stamp_sec:  {depth_stamp.to_sec()}")
         diff = (depth_stamp.to_sec()-im_stamp.to_sec())
@@ -290,7 +290,7 @@ class cylinders:
 
         if (np.abs(diff) > 0.5):
             pprint("skip")
-            return grayBGR_toDrawOn,depth_image
+            return depth_image
 
         # change depth image
         minValue = np.nanmin(depth_image)
@@ -473,10 +473,10 @@ class cylinders:
 
         grayImage = module.bgr2gray(rgb_image)
         grayImage = module.gray2bgr(grayImage)
-        markedImage, depth_im_shifted = self.find_elipses_first(rgb_image, depth_image,rgb_image_message.header.stamp, depth_image_message.header.stamp, grayImage)
+        depth_im_shifted = self.shift_me(rgb_image, depth_image,rgb_image_message.header.stamp, depth_image_message.header.stamp, grayImage)
         #print(markedImage)
         # TODO: make it so it marks face and returns the image to display
-        markedImage = self.find_cylinderDEPTH(rgb_image, depth_im_shifted, markedImage,depth_image_message.header.stamp)
+        markedImage = self.find_cylinderDEPTH(rgb_image, depth_im_shifted, grayImage,depth_image_message.header.stamp)
         #self.find_faces(rgb_image,depth_im_shifted,depth_image_message.header.stamp)
         #markedImage = self.find_QR(rgb_image,depth_im_shifted,depth_image_message.header.stamp, markedImage)
         #markedImage = self.find_digits(rgb_image,depth_im_shifted,depth_image_message.header.stamp, markedImage)
