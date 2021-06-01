@@ -96,43 +96,43 @@ class cylinders:
         # pprint(list(zip(points,pointsClose)))
         return (points,pointsClose)
 
-        def getRange(self, depth_line, center_point,levo,desno):
-        #preverimo da ni robni
-            if levo == -1:
-                return None
-            if desno == -1:
-                return None
+    def getRange(self, depth_line, center_point,levo,desno):
+    #preverimo da ni robni
+        if levo == -1:
+            return None
+        if desno == -1:
+            return None
 
-            counter = 0
+        counter = 0
 
-            while True:
-                if (center_point-counter) == levo or np.abs(depth_line[center_point-counter]-depth_line[center_point-counter+1])>0.1:
-                    counter -= 1
-                    break
-                if (center_point+counter) == desno or np.abs(depth_line[center_point+counter]-depth_line[center_point+counter-1])>0.1:
-                    counter -= 1
-                    break
-                counter += 1
-            shift = np.floor((counter*2)/5).astype(int)
-            if shift < 1 or shift > 50:
-                return None
-            #vzamemo levo 3 in 6 in desno 3 in 6 oddaljena pixla ter računamo razmerje razmerja rabita biti priblizno enaka na obeh straneh
-            LL = depth_line[center_point - shift*2]
-            L = depth_line[center_point - shift]
-            RR = depth_line[center_point + shift*2]
-            R = depth_line[center_point + shift]
-            C = depth_line[center_point]
-            LL_C = LL-C
-            L_C = L-C
-            C_R = R-C
-            C_RR = RR-C
+        while True:
+            if (center_point-counter) == levo or np.abs(depth_line[center_point-counter]-depth_line[center_point-counter+1])>0.1:
+                counter -= 1
+                break
+            if (center_point+counter) == desno or np.abs(depth_line[center_point+counter]-depth_line[center_point+counter-1])>0.1:
+                counter -= 1
+                break
+            counter += 1
+        shift = np.floor((counter*2)/5).astype(int)
+        if shift < 1 or shift > 50:
+            return None
+        #vzamemo levo 3 in 6 in desno 3 in 6 oddaljena pixla ter računamo razmerje razmerja rabita biti priblizno enaka na obeh straneh
+        LL = depth_line[center_point - shift*2]
+        L = depth_line[center_point - shift]
+        RR = depth_line[center_point + shift*2]
+        R = depth_line[center_point + shift]
+        C = depth_line[center_point]
+        LL_C = LL-C
+        L_C = L-C
+        C_R = R-C
+        C_RR = RR-C
 
-            if LL_C<=0 or L_C<=0 or C_R<=0 or C_RR<=0:
-                return None
+        if LL_C<=0 or L_C<=0 or C_R<=0 or C_RR<=0:
+            return None
 
-            if LL_C<L_C*3 or C_RR<C_R*3:
-                return None
-            return (center_point-shift*2,center_point+shift*2)
+        if LL_C<L_C*3 or C_RR<C_R*3:
+            return None
+        return (center_point-shift*2,center_point+shift*2)
 
     def get_ujemanja(self,acum_intervals,vrstica):
         #to so vrstice v katerih je interval to se rab prstet overall
