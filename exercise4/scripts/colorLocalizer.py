@@ -974,8 +974,8 @@ class color_localizer:
         markedImage = self.find_QR(rgb_image,depth_im_shifted,depth_image_message.header.stamp, markedImage)
         markedImage = self.find_digits_new(rgb_image,depth_im_shifted,depth_image_message.header.stamp, markedImage)
         #!
-        module.checkForApproach(self.positions["face"],"face",face_pub)
-        module.checkForApproach(self.positions["cylinder"],"cylinder",cylinder_pub)
+        module.checkForApproach(self.positions["face"],"face",self.face_pub)
+        module.checkForApproach(self.positions["cylinder"],"cylinder",self.cylinder_pub)
         #for objectType in ["ring","cylinder"]:
         #    module.checkPosition(self.positions[objectType],self.basePosition, objectType, self.points_pub)
 
