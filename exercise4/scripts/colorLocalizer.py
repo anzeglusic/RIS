@@ -52,7 +52,7 @@ class color_localizer:
         self.knn_HSV = pickle.load(open(f"{modelsDir}/knn_HSV.sav", 'rb'))
         self.knn_RGB = pickle.load(open(f"{modelsDir}/knn_RGB.sav", 'rb'))
         self.mouth_finder = cv2.CascadeClassifier(mouth)
-        if mouths_finder.empty():
+        if self.mouths_finder.empty():
             raise IOError("no mouth detector")
 
         self.positions = {
