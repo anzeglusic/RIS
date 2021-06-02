@@ -999,7 +999,7 @@ class color_localizer:
 
         return self.foundAll
 
-    
+
 #! ================================================== digits start ==================================================
     def find_digits(self, rgb_image, depth_image_shifted, stamp,grayBGR_toDrawOn):
         ret, thresh = cv2.threshold(module.bgr2gray(rgb_image), 40, 255, 0)
@@ -1645,19 +1645,12 @@ class color_localizer:
         mouth_rects = self.mouth_finder.detectMultiScale(face_im)
         if len(mouth_rects) > 0:
             return False
-<<<<<<< HEAD
-        for (x,y,w,h) in mouth_rects:
-            cv2.rectangle(face_im, (x,y), (x+w,y+h), (0,255,0), 3)
-        return face_im
-
-=======
         else:
             return True
         # for (x,y,w,h) in mouth_rects:
         #     cv2.rectangle(face_im, (x,y), (x+w,y+h), (0,255,0), 3)
         # return face_im
-    
->>>>>>> 9109f8eb53755a5da900c1d55734fe72153d3fdb
+
     def norm_accumulator(self, norm, center_point,dist1):
         found = -1
         if norm.size == 0  or center_point.size == 0 or dist1>1.5:
