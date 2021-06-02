@@ -439,7 +439,7 @@ class ring_maker:
                 # cntr_ring = self.chk_ring(depth_im,h11,h21,w11,w21,c[2])
                 try:
                     #EDIT ali so koordinate pravilne
-                    pnts = np.array( (image[cntr_ring[3][0][1],cntr_ring[3][0][2]], image[cntr_ring[3][1][1],cntr_ring[3][1][2]],image[cntr_ring[3][2][1],cntr_ring[3][2][2]]))
+                    #pnts = np.array( (image[cntr_ring[3][0][1],cntr_ring[3][0][2]], image[cntr_ring[3][1][1],cntr_ring[3][1][2]],image[cntr_ring[3][2][1],cntr_ring[3][2][2]]))
 
                     standin = np.zeros(image.shape)
 
@@ -450,7 +450,7 @@ class ring_maker:
                     else:
                         cv2.ellipse(standin,e2,(0, 255, 0),-1)
                         cv2.ellipse(standin,e1,(0, 0, 0),-1)
-
+                    print("hello?")
                     self.faceIm_pub.publish(CvBridge().cv2_to_imgmsg(standin, encoding="passthrough"))
 
                 except Exception as e:
