@@ -20,6 +20,19 @@ import subprocess
 import pyzbar.pyzbar as pyzbar
 import pytesseract
 
+def keepExploring(positions):
+    if len(positions["faces"]) < 4:
+        return True
+    if len(positions["cylinder"]) <4:
+        return True
+    if len(positions["ring"]) <4:
+        return True
+    if len(positions["QR"])< 8:
+        return True
+    if len(positions["digits"]) <4:
+        return True
+    return False
+
 def checkForApproach(positions,objectType,publisher):
     for obj in positions:
         if obj["approached"]:

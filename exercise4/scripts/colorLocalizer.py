@@ -985,6 +985,9 @@ class color_localizer:
         self.pic_pub.publish(CvBridge().cv2_to_imgmsg(markedImage, encoding="passthrough"))
         #self.markers_pub.publish(self.m_arr)
 
+        #preverjamo ce smo vse ze zaznali
+        self.foundAll = module.keepExploring(self.positions)
+
         return self.foundAll
 
     def find_elipse(self,contours):
@@ -1752,7 +1755,7 @@ def main():
                 else:
                     skipCounter -= 1
             else:
-                pass
+                print("we done")
 
             rate.sleep()
 
