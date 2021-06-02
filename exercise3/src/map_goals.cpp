@@ -123,6 +123,23 @@ double X = -0.5, Y = 0.5;
 bool konec = false;
 void vozi(int y3, int x3, double y, double x, int dir)
 {
+    if (y == -0.5 && x == 0.5)
+    {
+        x = 0.3;
+        y = -0.75;
+    }
+    if (y == -0.5 && x == 1.5)
+    {
+        y = -0.75;
+    }
+    if (y == 1.5 && x == 1.5)
+    {
+        y = 1.25;
+    }
+    if (y == 2.5 && x == 1.5)
+    {
+        y = 2.6;
+    }
     mozi = false;
     X = x;
     Y = y;
@@ -366,8 +383,8 @@ bool preveri(int my, int mx, int dir)
 
 void statusCallback(const actionlib_msgs::GoalStatusArray::ConstPtr &msg)
 {
-    cout << "VLEZEEE" << endl;
-    cout << mozi << endl;
+    //cout << "VLEZEEE" << endl;
+    //cout << mozi << endl;
     if (msg->status_list.size() == 0)
         return;
     int nn = msg->status_list.size();
@@ -404,9 +421,14 @@ void approaching(double zY, double zX, int kaj)
     for (map<pair<double, pair<double, int>>, bool>::iterator it = can1.begin(); it != can1.end(); it++)
     {
         pair<double, pair<double, int>> pp = it->first;
+        cout << pp.second.first << " " << pp.first << " " << euc(zX, zY, pp.second.first, pp.first) << endl;
         if (euc(zX, zY, pp.second.first, pp.first) < dist)
         {
+            if (zY > 1 && zY < 2 && zX > 0 && zX < 1 && pp.first == 1.5 && pp.second.first == 1.5)
+                continue;
+
             dist = euc(zX, zY, pp.second.first, pp.first);
+
             nearest = make_pair(pp.first, pp.second.first);
         }
     }
@@ -422,6 +444,12 @@ void approaching(double zY, double zX, int kaj)
         int direction;
         for (int i = 0; i < 4; i++)
         {
+            if (nearest.first > 0 && nearest.first < 1 && nearest.second > (-2) && nearest.second < (-1) && i == 3)
+            {
+                cout << "ZABRANA" << endl;
+                continue;
+            }
+
             cout << opcii[i].first << " " << opcii[i].second << endl;
             cout << euc(zX, zY, opcii[i].second, opcii[i].first) << endl;
             if (euc(zX, zY, opcii[i].second, opcii[i].first) < maxi_dist)
@@ -433,7 +461,7 @@ void approaching(double zY, double zX, int kaj)
         cout << direction << endl;
         if (direction == 0)
         {
-            vozi(0, 0, zY, zX + 0.3, 0);
+            vozi(0, 0, zY, zX + 0.5, 0);
             int bezveze = 0;
 
             cout << "STASAV" << endl;
@@ -441,19 +469,19 @@ void approaching(double zY, double zX, int kaj)
         }
         else if (direction == 1)
         {
-            vozi(0, 0, zY - 0.3, zX, 1);
+            vozi(0, 0, zY - 0.5, zX, 1);
             cout << "STASAV" << endl;
             //sleep(20);
         }
         else if (direction == 2)
         {
-            vozi(0, 0, zY, zX - 0.3, 2);
+            vozi(0, 0, zY, zX - 0.5, 2);
             cout << "STASAV" << endl;
             // sleep(20);
         }
         else if (direction == 3)
         {
-            vozi(0, 0, zY + 0.3, zX, 3);
+            vozi(0, 0, zY + 0.5, zX, 3);
             cout << "STASAV" << endl;
             // sleep(20);
         }
@@ -527,6 +555,28 @@ void approaching(double zY, double zX, int kaj)
 }
 int krat = 0;
 int isApproaching = 0;
+int endSearching = 3;
+
+void getObrazCall(const geometry_msgs::Twist::ConstPtr &mg)
+{
+    isApproaching = 1;
+    double aY = mg->angular.y;
+    double aX = mg->angular.x;
+    cout << "DOJDEOBRAZ-> " << aY << " " << aX << endl;
+    approaching(aY, aX, 3);
+    sleep(5);
+}
+
+void getCilinderCall(const geometry_msgs::Point::ConstPtr &mg)
+{
+    isApproaching = 1;
+    double aY = mg->y;
+    double aX = mg->x;
+    cout << "DOJDECILINDER-> " << aY << " " << aX << endl;
+    approaching(aY, aX, 1);
+    sleep(5);
+}
+
 int main(int argc, char **argv)
 {
     ros::init(argc, argv, "map_goals");
@@ -535,6 +585,8 @@ int main(int argc, char **argv)
     mozi = true;
     goal_pub = n.advertise<geometry_msgs::PoseStamped>("/move_base_simple/goal", 10);
     ros::Subscriber move_base_sub = n.subscribe("move_base/status", 1000, statusCallback);
+    ros::Subscriber getCilinder = n.subscribe("cylinder_pt", 1000, getCilinderCall);
+    ros::Subscriber getObraz = n.subscribe("face_tw", 1000, getObrazCall);
     roko = n.advertise<std_msgs::String>("/arm_command", 1000);
     namedWindow("Map");
     //ros::Subscriber sub24 = n.subscribe("/our_pub1/chat1", 100, tapa);
@@ -564,7 +616,7 @@ int main(int argc, char **argv)
         }
         ros::spinOnce();
         //brojcccc++;
-        if (!mozi)
+        if (!mozi && stevec > 1)
             continue;
         //ros::spinOnce();
         //ros::Subscriber sub24 = n.subscribe("/our_pub1/chat1", 100, tapa);
@@ -635,7 +687,7 @@ int main(int argc, char **argv)
         }
         //return 0;
 
-        if (krat1 < 3 && y == 0.5 && x == -0.5)
+        /*if (krat1 < 3 && y == 0.5 && x == -0.5)
         {
             isApproaching = 1;
             krat1++;
@@ -695,6 +747,7 @@ int main(int argc, char **argv)
             isApproaching = 1;
             continue;
         }
+        */
         if (mozi && isApproaching == 1)
         {
             cout << "VLEZEAPP" << endl;
@@ -729,7 +782,7 @@ int main(int argc, char **argv)
             waitKey(30);
             continue;
         }
-        if (!mozi)
+        if (!mozi && stevec > 1)
             continue;
 
         cout << y << " " << x << " " << mom << endl;
