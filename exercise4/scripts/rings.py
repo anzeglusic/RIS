@@ -549,7 +549,7 @@ class ring_maker:
         grayImage = module.gray2bgr(grayImage)
         depth_im_shifted = self.find_elipses_first(rgb_image, depth_image,rgb_image_message.header.stamp, depth_image_message.header.stamp, grayImage)
         #print(markedImage)
-        #markedImage = self.find_cylinderDEPTH(rgb_image, depth_im_shifted, markedImage,depth_image_message.header.stamp)
+        markedImage = self.find_cylinderDEPTH(rgb_image, depth_im_shifted, grayImage,depth_image_message.header.stamp)
 
 
     def find_cylinderDEPTH(self,image, depth_image, grayBGR_toDrawOn,depth_stamp):
@@ -633,7 +633,7 @@ class ring_maker:
             center_depth = depth_image[inter[1],(inter[0][0]+inter[0][1])//2]
             if self.check_if_ball(center_depth_up,center_depth,center_depth_down):
                 continue
-            training = image[inter[1]:inter[1]+13,inter[0][0]:inter[0][1],:]
+            training = image[inter[1]:inter[1]+13,inter[0][0]:inter[0][1],:].astype("uint8")
             self.faceIm_pub.publish(CvBridge().cv2_to_imgmsg(training, encoding="passthrough"))
             """for i in range(inter[0][0],inter[0][1]):
                 grayBGR_toDrawOn[inter[1],i] = [0,0,255]
