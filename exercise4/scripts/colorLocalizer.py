@@ -81,7 +81,7 @@ class color_localizer:
         # self.range = 0.2
 
         #! togle za sive markerje
-        self.showEveryDetection = False
+        self.showEveryDetection = True
 
         #! digits detection start
         self.dictm = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_6X6_250)
