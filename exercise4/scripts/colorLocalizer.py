@@ -1628,14 +1628,16 @@ class color_localizer:
                 continue
 
             face_region_m = self.find_mouth(face_region)
+            """
             im_ms = Image()
             im_ms.header.stamp = rospy.Time(0)
             im_ms.header.frame_id = 'map'
             im_ms.height = face_region_m.shape[0]
             im_ms.width = face_region_m.shape[1]
             im_ms.data = face_region_m
-
-            self.faceIm_pub.publish(im_ms)
+            """
+            self.faceIm_pub.publish(CvBridge().cv2_to_imgmsg(face_region_m, encoding="passthrough"))
+            #self.faceIm_pub.publish(im_ms)
             #self.pic_pub.publish(CvBridge().cv2_to_imgmsg(face_region, encoding="passthrough"))
 
             # Visualize the extracted face
