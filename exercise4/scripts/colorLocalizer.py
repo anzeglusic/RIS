@@ -553,7 +553,7 @@ class color_localizer:
                 ring_point = module.get_pose(cntr_ring[1],cntr_ring[0],cntr_ring[2],depth_im_shifted,"ring",depth_stamp,color,self.tf_buf)
                 #ring_point = self.get_pose(cntr_ring[1],cntr_ring[0],cntr_ring[2],depth_im_shifted,"ring",depth_stamp,color)
                 # print("dela 3")
-                (self.nM, self.m_arr) = module.addPosition(np.array((ring_point.position.x,ring_point.position.y,ring_point.position.z)),"ring",color,self.positions["ring"],self.nM, self.m_arr, self.markers_pub, showEveryDetection=self.showEveryDetection)
+                (self.nM, self.m_arr, self.positions) = module.addPosition(np.array((ring_point.position.x,ring_point.position.y,ring_point.position.z)),"ring",color,self.positions,self.nM, self.m_arr, self.markers_pub, showEveryDetection=self.showEveryDetection)
                 # print("dela 4")
                 # ring_point = self.get_pose(cntr_ring[1],cntr_ring[0],cntr_ring[2],depth_im,"ring")
 
@@ -888,7 +888,7 @@ class color_localizer:
             colorToPush = module.calc_rgb(points,self.knn_RGB,self.random_forest_RGB,self.knn_HSV,self.random_forest_HSV)
             pose = module.get_pose((inter[0][0]+inter[0][1])//2,inter[1],depth_image[inter[1],(inter[0][0]+inter[0][1])//2],depth_image,"cylinder",depth_stamp,colorToPush,self.tf_buf)
             #pose = self.get_pose((inter[0][0]+inter[0][1])//2,inter[1],depth_image[inter[1],(inter[0][0]+inter[0][1])//2],depth_image,"cylinder",depth_stamp,colorToPush)
-            (self.nM, self.m_arr) = module.addPosition(np.array([pose.position.x,pose.position.y,pose.position.z]),"cylinder",colorToPush,self.positions["cylinder"],self.nM, self.m_arr, self.markers_pub, showEveryDetection=self.showEveryDetection)
+            (self.nM, self.m_arr, self.positions) = module.addPosition(np.array([pose.position.x,pose.position.y,pose.position.z]),"cylinder",colorToPush,self.positions,self.nM, self.m_arr, self.markers_pub, showEveryDetection=self.showEveryDetection)
             #self.addPosition(np.array([pose.position.x,pose.position.y,pose.position.z]),"cylinder",colorToPush)
 
         return grayBGR_toDrawOn
@@ -1398,7 +1398,7 @@ class color_localizer:
             
             # If the extracted text is of the right length
             if len(text)==2:
-                # TODO: izračunaj normalo !!! --> zaključi, če normala ni možna
+                # izračunaj normalo --> zaključi, če normala ni možna
                 x1 = round(max(center_cordinates[0][0],center_cordinates[2][0]))
                 y1 = round(max(center_cordinates[0][1], center_cordinates[1][1]))
                 x2 = round(min(center_cordinates[1][0],center_cordinates[3][0]))
@@ -1414,18 +1414,18 @@ class color_localizer:
                 num = int(text)
                 # print(f"The extracted datapoints are x={x}, y={y}")
                 print(f"Extracted number: {num}")
-                # TODO: draw
+                # draw
                 color = (0,255,0)
                 thicknes = 5
                 pts = np.array([corners[3][0][0],corners[2][0][1],corners[0][0][2],corners[1][0][3]]).astype("int")
                 grayBGR_toDrawOn = cv2.polylines(grayBGR_toDrawOn, [pts], True, color, thicknes)
-                # TODO: izračunaj pozicijo !!!
+                # izračunaj pozicijo
                 [xin, yin] = np.round(np.mean(center_cordinates, axis=0)).astype("int")
                 dist = depth_image_shifted[yin, xin]
                 pose = module.get_pose(xin,yin,dist, depth_image_shifted,"digits",stamp,None, self.tf_buf)
-                pprint(pose)
-                # TODO: dodaj v akumulator !!!
-                (self.nM, self.m_arr) = module.addPosition(np.array([pose.position.x,pose.position.y,pose.position.z]),"digits", None,self.positions["digits"],self.nM, self.m_arr, self.markers_pub,showEveryDetection=self.showEveryDetection,normal=norm, data=num)
+                # pprint(pose)
+                # dodaj v akumulator
+                (self.nM, self.m_arr, self.positions) = module.addPosition(np.array([pose.position.x,pose.position.y,pose.position.z]),"digits", None,self.positions,self.nM, self.m_arr, self.markers_pub,showEveryDetection=self.showEveryDetection,normal=norm, data=num)
 
         return grayBGR_toDrawOn
 
@@ -1452,7 +1452,7 @@ class color_localizer:
                 continue
             pose = module.get_pose((x1+x2)//2,(y1+y2)//2,depth_image_shifted[(y1+y2)//2,(x1+x2)//2],depth_image_shifted,"QR",stamp,None,self.tf_buf)
             #pose = self.get_pose((x1+x2)//2,(y1+y2)//2,depth_image_shifted[(y1+y2)//2,(x1+x2)//2],depth_image_shifted,"QR",stamp,None)
-            (self.nM, self.m_arr) = module.addPosition(np.array([pose.position.x,pose.position.y,pose.position.z]),"QR", None,self.positions["QR"],self.nM, self.m_arr, self.markers_pub,showEveryDetection=self.showEveryDetection,normal=norm, data=dObject.data.decode())
+            (self.nM, self.m_arr, self.positions) = module.addPosition(np.array([pose.position.x,pose.position.y,pose.position.z]),"QR", None,self.positions,self.nM, self.m_arr, self.markers_pub,showEveryDetection=self.showEveryDetection,normal=norm, data=dObject.data.decode())
             #self.addPosition(np.array([pose.position.x,pose.position.y, pose.position.z]),"QR",None,norm,dObject.data.decode())
 
 
@@ -1650,7 +1650,7 @@ class color_localizer:
             #pose = self.get_pose_face((x1,x2,y1,y2), face_distance, depth_time)
             if not (pose is None) and not (norm is None):
                 newPosition = np.array([pose.position.x,pose.position.y, pose.position.z])
-                (self.nM, self.m_arr) = module.addPosition(newPosition,"face", None, self.positions["face"],self.nM, self.m_arr, self.markers_pub, showEveryDetection=self.showEveryDetection, normal=norm)
+                (self.nM, self.m_arr, self.positions) = module.addPosition(newPosition,"face", None, self.positions,self.nM, self.m_arr, self.markers_pub, showEveryDetection=self.showEveryDetection, normal=norm)
                 #self.addPosition(newPosition, "face", color_char=None, normal=norm)
 
 

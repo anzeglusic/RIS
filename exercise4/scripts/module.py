@@ -137,7 +137,8 @@ def addPosition(newPosition, objectType, color_char, positions, nM, m_arr, marke
                 "detectedNormals": [ pos0, pos1, pos2, pos3],
                 "approached": False,
                 "avgMarkerId": None,
-                "QR_index": None
+                "QR_index": None,
+                "digits_index": None
             },
             ...
         ],
@@ -167,17 +168,20 @@ def addPosition(newPosition, objectType, color_char, positions, nM, m_arr, marke
         ]
     }
     '''
+    if not (objectType in positions):
+        return (nM, m_arr, positions)
+
     qrNormalLength = 0.25
     digitsNormalLength = 0.25
     faceNormalLength = 0.5
     # make normal of magnitude 1
     if objectType == "face" or objectType=="QR" or objectType=="digits":
         if normal is None:
-            return (nM, m_arr)
+            return (nM, m_arr, positions)
         normal = normal/np.sqrt(normal[0]**2 + normal[1]**2 + normal[2]**2)
 
     unique_position = True
-    for area in positions:
+    for area in positions[objectType]:
         if objectType=="face" or objectType=="QR" or objectType=="digits":
             c_sim = np.dot(normal,area["averageNormal"])/(np.linalg.norm(normal)*np.linalg.norm(area["averageNormal"]))
             # print("similarity:",c_sim)
@@ -355,7 +359,7 @@ def addPosition(newPosition, objectType, color_char, positions, nM, m_arr, marke
         if objectType=="ring":
             colorDict = {"r":0,"g":0,"b":0,"y":0,"w":0,"c":0}
             colorDict[color_char] += 1
-            positions.append({ "averagePostion": newPosition.copy(),
+            positions[objectType].append({ "averagePostion": newPosition.copy(),
                                                 "detectedPositions":[newPosition.copy()],
                                                 "color": colorDict,
                                                 "approached": False,
@@ -364,7 +368,7 @@ def addPosition(newPosition, objectType, color_char, positions, nM, m_arr, marke
         elif objectType=="cylinder":
             colorDict = {"r":0,"g":0,"b":0,"y":0,"w":0,"c":0}
             colorDict[color_char] += 1
-            positions.append({ "averagePostion": newPosition.copy(),
+            positions[objectType].append({ "averagePostion": newPosition.copy(),
                                                 "detectedPositions":[newPosition.copy()],
                                                 "color": colorDict,
                                                 "approached": False,
@@ -373,17 +377,18 @@ def addPosition(newPosition, objectType, color_char, positions, nM, m_arr, marke
                                                 })
         elif objectType=="face":
             print("\n\nAdding new face\n\n")
-            positions.append({ "averagePostion": newPosition.copy(),
+            positions[objectType].append({ "averagePostion": newPosition.copy(),
                                                 "averageNormal": normal.copy(),
                                                 "detectedPositions":[newPosition.copy()],
                                                 "detectedNormals":[normal.copy()],
                                                 "approached": False,
                                                 "avgMarkerId": None,
-                                                "QR_index": None
+                                                "QR_index": None,
+                                                "digits_index": None
                                                 })
         elif objectType=="QR":
             print("\n\nAdding new QR code\n\n")
-            positions.append({ "averagePostion": newPosition.copy(),
+            positions[objectType].append({ "averagePostion": newPosition.copy(),
                                                 "averageNormal": normal.copy(),
                                                 "detectedPositions":[newPosition.copy()],
                                                 "detectedNormals":[normal.copy()],
@@ -393,7 +398,7 @@ def addPosition(newPosition, objectType, color_char, positions, nM, m_arr, marke
                                                 })
         elif objectType=="digits":
             print("\n\nAdding new digits\n\n")
-            positions.append({ "averagePostion": newPosition.copy(),
+            positions[objectType].append({ "averagePostion": newPosition.copy(),
                                                 "averageNormal": normal.copy(),
                                                 "detectedPositions":[newPosition.copy()],
                                                 "detectedNormals":[normal.copy()],
@@ -454,7 +459,10 @@ def addPosition(newPosition, objectType, color_char, positions, nM, m_arr, marke
         m_arr.markers.append(marker)
         markers_pub.publish(m_arr)
 
-    return (nM, m_arr)
+    # updating connections
+    positions = update_positions(positions)
+    
+    return (nM, m_arr, positions)
 
 def update_positions(positions):
     '''
@@ -463,13 +471,11 @@ def update_positions(positions):
             { "averagePostion": np.array([x,y,z]), "detectedPositions": [ pos0, pos1, pos2, pos3], "color": {"b":0, "g":0, "r":0, ...}, "approached": False,"avgMarkerId": None },
             { "averagePostion": np.array([x,y,z]), "detectedPositions": [ pos0, pos1, pos2, pos3], "color": {"b":0, "g":0, "r":0, ...}, "approached": False,"avgMarkerId": None },
             { "averagePostion": np.array([x,y,z]), "detectedPositions": [ pos0, pos1, pos2, pos3], "color": {"b":0, "g":0, "r":0, ...}, "approached": False,"avgMarkerId": None }
-
         ],
         "cylinder": [
             { "averagePostion": np.array([x,y,z]), "detectedPositions": [ pos0, pos1, pos2, pos3], "color": {"b":0, "g":0, "r":0, ...}, "approached": False,"avgMarkerId": None, "QR_index": None  },
             { "averagePostion": np.array([x,y,z]), "detectedPositions": [ pos0, pos1, pos2, pos3], "color": {"b":0, "g":0, "r":0, ...}, "approached": False,"avgMarkerId": None, "QR_index": None  },
             { "averagePostion": np.array([x,y,z]), "detectedPositions": [ pos0, pos1, pos2, pos3], "color": {"b":0, "g":0, "r":0, ...}, "approached": False,"avgMarkerId": None, "QR_index": None  }
-
         ],
         "face": [
             {
@@ -479,7 +485,8 @@ def update_positions(positions):
                 "detectedNormals": [ pos0, pos1, pos2, pos3],
                 "approached": False,
                 "avgMarkerId": None,
-                "QR_index": None
+                "QR_index": None,
+                "digits_index": None
             },
             ...
         ],
@@ -509,6 +516,43 @@ def update_positions(positions):
         ]
     }
     '''
+    
+    # TODO: check if any seperate objects with same objectType can be joined
+    # only position dependent
+    for objectType in ["ring","cylinder"]:
+        for i in range(len(positions[objectType])-1, 0, -1):
+            for j in range(i-1, -1, -1):
+                area_avg = positions[objectType][i]["averagePostion"]
+                dist_vector = area_avg - positions[objectType][j]["averagePostion"]
+                dist = np.sqrt(dist_vector[0]**2 + dist_vector[1]**2 + dist_vector[2]**2)
+                if dist > 0.5:
+                    continue
+                else:
+                    # TODO: merge (i) into location of index (j) + do new average calculations
+                    # detectedPositions
+                    positions[objectType][j]["detectedPositions"].extend(positions[objectType][i]["detectedPositions"])
+                    # color
+                    for colorChar in ["r","g","b","y","w","c"]:
+                        positions[objectType][j]["color"][colorChar] += positions[objectType][i]["color"][colorChar]
+                    # approached
+                    positions[objectType][j]["approached"] = positions[objectType][j]["approached"] or positions[objectType][i]["approached"]
+                    # avgMarkerId --> do nothing
+                    # averagePostion
+                    positions[objectType][j]["averagePostion"] = np.sum(positions[objectType][j]["detectedPositions"],axis=0)/len(positions[objectType][j]["detectedPositions"])
+                    # TODO: delete average marker of index (i) --> or make it transparent
+                    # TODO: delete location of index (i)
+                    # TODO: once we delete, we should start over
+                    break
+    
+    # normal dependent
+    for objectType in ["face","QR","digits"]:
+        # TODO
+        pass
+    
+    # TODO: povezovanje "digits" s "face"
+
+    # TODO: povezovanej "QR" s "face"/"cylinder"
+
     return positions
 
 def calc_rgb(point,knn_RGB,random_forest_RGB,knn_HSV,random_forest_HSV):
