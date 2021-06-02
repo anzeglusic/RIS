@@ -31,11 +31,11 @@ def keepExploring(positions):
 
     if len(positions["cylinder"]) <4:
         return True
-    else:
-        # cehck if valid detection
-        for cylinder_dict in positions["cylinder"]:
-            if len(cylinder_dict["detectedPositions"]) < 3:
-                return True
+    # else:
+    #     # cehck if valid detection
+    #     for cylinder_dict in positions["cylinder"]:
+    #         if len(cylinder_dict["detectedPositions"]) < 3:
+    #             return True
 
     if len(positions["ring"]) <4:
         return True
@@ -55,7 +55,7 @@ def checkForApproach(positions,objectType,publisher):
     for obj in positions:
         if obj["approached"]:
             continue
-        if len(obj["detectedPositions"]) < 3:
+        if len(obj["detectedPositions"]) < 3 and objectType=="face":
             continue
         if objectType == "face":
             #rabimo pristopiti poslati moramo twist message za normalo
@@ -302,7 +302,7 @@ def addPosition(newPosition, objectType, color_char, positions, nM, m_arr, marke
         area["averagePostion"] = np.sum(area["detectedPositions"],axis=0)/len(area["detectedPositions"])
 
         # average marker
-        if (objectType=="cylinder" or objectType=="ring") and len(area["detectedPositions"]) >= 3:
+        if objectType=="cylinder" or (objectType=="ring" and len(area["detectedPositions"]) >= 3):
             # Create a Pose object with the same position
             pose = Pose()
             pose.position.x = area["averagePostion"][0]
@@ -892,8 +892,8 @@ def update_positions(nM, m_arr, positions, markers_pub, faceNormalLength, qrNorm
         if (QR_dict["data"] is None) or QR_dict["data"].startswith("https"):
             # chack all cylinders
             for j,cylinder_dict in enumerate(positions["cylinder"]):
-                if len(cylinder_dict["detectedPositions"]) < 3:
-                    continue
+                # if len(cylinder_dict["detectedPositions"]) < 3:
+                #     continue
                 dist_vector = QR_dict["averagePostion"] - cylinder_dict["averagePostion"]
                 dist = np.sqrt(dist_vector[0]**2 + dist_vector[1]**2 + dist_vector[2]**2)
                 if dist < closestObjectDist:
