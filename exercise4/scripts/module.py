@@ -460,11 +460,11 @@ def addPosition(newPosition, objectType, color_char, positions, nM, m_arr, marke
         markers_pub.publish(m_arr)
 
     # updating connections
-    positions = update_positions(positions)
+    (nM, m_arr, positions) = update_positions(nM, m_arr, positions, markers_pub)
     
     return (nM, m_arr, positions)
 
-def update_positions(positions):
+def update_positions(nM, m_arr, positions, markers_pub):
     '''
     positions = {
         "ring": [
@@ -518,42 +518,75 @@ def update_positions(positions):
     '''
     
     # TODO: check if any seperate objects with same objectType can be joined
-    # only position dependent
-    for objectType in ["ring","cylinder"]:
-        for i in range(len(positions[objectType])-1, 0, -1):
-            for j in range(i-1, -1, -1):
-                area_avg = positions[objectType][i]["averagePostion"]
-                dist_vector = area_avg - positions[objectType][j]["averagePostion"]
-                dist = np.sqrt(dist_vector[0]**2 + dist_vector[1]**2 + dist_vector[2]**2)
-                if dist > 0.5:
-                    continue
-                else:
-                    # TODO: merge (i) into location of index (j) + do new average calculations
-                    # detectedPositions
-                    positions[objectType][j]["detectedPositions"].extend(positions[objectType][i]["detectedPositions"])
-                    # color
-                    for colorChar in ["r","g","b","y","w","c"]:
-                        positions[objectType][j]["color"][colorChar] += positions[objectType][i]["color"][colorChar]
-                    # approached
-                    positions[objectType][j]["approached"] = positions[objectType][j]["approached"] or positions[objectType][i]["approached"]
-                    # avgMarkerId --> do nothing
-                    # averagePostion
-                    positions[objectType][j]["averagePostion"] = np.sum(positions[objectType][j]["detectedPositions"],axis=0)/len(positions[objectType][j]["detectedPositions"])
-                    # TODO: delete average marker of index (i) --> or make it transparent
-                    # TODO: delete location of index (i)
-                    # TODO: once we delete, we should start over
+    startOver = True
+    while startOver == True:
+        # only position dependent
+        for objectType in ["ring","cylinder"]:
+            for i in range(len(positions[objectType])-1, 0, -1):
+                doubleBreak = False
+                for j in range(i-1, -1, -1):
+                    area_avg = positions[objectType][i]["averagePostion"]
+                    dist_vector = area_avg - positions[objectType][j]["averagePostion"]
+                    dist = np.sqrt(dist_vector[0]**2 + dist_vector[1]**2 + dist_vector[2]**2)
+                    #!
+                    if dist > 3:
+                        continue
+                    else:
+                        # TODO: merge (i) into location of index (j) + do new average calculations
+                        # detectedPositions
+                        positions[objectType][j]["detectedPositions"].extend(positions[objectType][i]["detectedPositions"])
+                        # color
+                        for colorChar in ["r","g","b","y","w","c"]:
+                            positions[objectType][j]["color"][colorChar] += positions[objectType][i]["color"][colorChar]
+                        # approached
+                        positions[objectType][j]["approached"] = positions[objectType][j]["approached"] or positions[objectType][i]["approached"]
+                        # avgMarkerId --> do nothing
+                        # averagePostion
+                        positions[objectType][j]["averagePostion"] = np.sum(positions[objectType][j]["detectedPositions"],axis=0)/len(positions[objectType][j]["detectedPositions"])
+                        # TODO: delete average marker of index (i) --> or make it transparent
+                        if not (positions[objectType][i]["avgMarkerId"] is None):
+                            # Create a Pose object with the same position
+                            nM += 1
+                            pose = Pose()
+                            pose.position.x = positions[objectType][i]["averagePostion"][0]
+                            pose.position.y = positions[objectType][i]["averagePostion"][1]
+                            pose.position.z = positions[objectType][i]["averagePostion"][2]+0.1
+
+                            # Create a marker used for visualization
+                            marker = Marker()
+                            marker.header.stamp = rospy.Time(0)
+                            marker.header.frame_id = "map"
+                            marker.pose = pose
+                            marker.type = Marker.CUBE if objectType=="ring" else Marker.CYLINDER
+                            marker.action = Marker.ADD
+                            marker.frame_locked = False
+                            marker.lifetime = rospy.Duration.from_sec(0)
+                            marker.scale = Vector3(0.1, 0.1, 0.1)
+                            marker.id = positions[objectType][i]["avgMarkerId"]
+
+                            marker.color = ColorRGBA(1,1,1,0) # make it white + fully transparent
+
+                            m_arr.markers.append(marker)
+                            markers_pub.publish(m_arr)
+                        # TODO: delete location of index (i)
+                        positions[objectType].pop(i)
+                        # TODO: once we delete, we should start over
+                        startOver = True
+                        doubleBreak = True
+                        break
+                if doubleBreak:
                     break
-    
-    # normal dependent
-    for objectType in ["face","QR","digits"]:
-        # TODO
-        pass
+        
+        # normal dependent
+        for objectType in ["face","QR","digits"]:
+            # TODO
+            pass
     
     # TODO: povezovanje "digits" s "face"
 
     # TODO: povezovanej "QR" s "face"/"cylinder"
 
-    return positions
+    return (nM, m_arr, positions)
 
 def calc_rgb(point,knn_RGB,random_forest_RGB,knn_HSV,random_forest_HSV):
     # print("\n!!!!!!!!!!!!!!!!!!!")
