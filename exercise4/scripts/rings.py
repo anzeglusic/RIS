@@ -450,17 +450,27 @@ class ring_maker:
                     else:
                         cv2.ellipse(standin,e1,(0, 255, 0),-1)
                         cv2.ellipse(standin,e2,(0, 0, 0),-1)
-                    print("hello?")
+                    # print(np.sum(standin==(0,0,0)))
+                    # print(type(standin))
                     standin = standin.astype("uint8")
                     mask = standin[:,:,1] == 255
 
                     # pprint(mask)
                     # print(type(mask))
 
-                    masked_image = image.copy()
-                    masked_image[:,:,0] *= mask
-                    masked_image[:,:,1] *= mask
-                    masked_image[:,:,2] *= mask
+                    masked_image = np.zeros(image.shape)
+                    masked_image[:,:,0] += image[:,:,0]*mask
+                    masked_image[:,:,1] += image[:,:,1]*mask
+                    masked_image[:,:,2] += image[:,:,2]*mask
+                    masked_image = masked_image.astype("uint8")
+
+                    # print(masked_image)
+                    t = image[mask,:]
+                    # for a in t:
+                    #     print(a)
+                    print(len(t))
+
+                    
 
                     # TODO: predict color of this ring
 
@@ -551,7 +561,7 @@ def main():
         rate = rospy.Rate(1.25)
         # rate = rospy.Rate(10)
 
-        ch = input("Enter type(color|shape eq. rc - red cylinder)")
+        #! ch = input("Enter type(color|shape eq. rc - red cylinder)")
         skipCounter = 3
         loopTimer = rospy.Time.now().to_sec()
         # print(sleepTimer)
