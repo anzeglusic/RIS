@@ -187,6 +187,8 @@ def addPosition(newPosition, objectType, color_char, positions, nM, m_arr, marke
                 "avgMarkerId": None,
                 "QR_index": None,
                 "digits_index": None
+                #!DODANO
+                "has_mask": False
             },
             ...
         ],

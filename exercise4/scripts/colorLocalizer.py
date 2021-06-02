@@ -33,6 +33,7 @@ from datetime import datetime
 
 #modelsDir = "/home/code8master/Desktop/wsROS/src/RIS/exercise4/scripts"
 modelsDir = '/'.join(os.path.realpath(__file__).split('/')[0:-1])+'/'
+mouth = modelsDir+"mouth/Mouth.xml"
 class color_localizer:
 
     def __init__(self):
@@ -50,6 +51,9 @@ class color_localizer:
         self.random_forest_RGB = pickle.load(open(f"{modelsDir}/random_forest_RGB.sav", 'rb'))
         self.knn_HSV = pickle.load(open(f"{modelsDir}/knn_HSV.sav", 'rb'))
         self.knn_RGB = pickle.load(open(f"{modelsDir}/knn_RGB.sav", 'rb'))
+        self.mouth_finder = cv2.CascadeClassifier(mouth)
+        if mouths_finder.empty():
+            raise IOError("no mouth detector")
 
         self.positions = {
             "ring": [],
@@ -968,14 +972,14 @@ class color_localizer:
         grayImage = module.gray2bgr(grayImage)
         markedImage, depth_im_shifted = self.find_elipses_first(rgb_image, depth_image,rgb_image_message.header.stamp, depth_image_message.header.stamp, grayImage)
         #print(markedImage)
-        markedImage = self.find_cylinderDEPTH(rgb_image, depth_im_shifted, markedImage,depth_image_message.header.stamp)
+        ##markedImage = self.find_cylinderDEPTH(rgb_image, depth_im_shifted, markedImage,depth_image_message.header.stamp)
         # TODO: make it so it marks face and returns the image to display
         self.find_faces(rgb_image,depth_im_shifted,depth_image_message.header.stamp)
-        markedImage = self.find_QR(rgb_image,depth_im_shifted,depth_image_message.header.stamp, markedImage)
-        markedImage = self.find_digits_new(rgb_image,depth_im_shifted,depth_image_message.header.stamp, markedImage)
+        ##markedImage = self.find_QR(rgb_image,depth_im_shifted,depth_image_message.header.stamp, markedImage)
+        ##markedImage = self.find_digits_new(rgb_image,depth_im_shifted,depth_image_message.header.stamp, markedImage)
         #!
-        module.checkForApproach(self.positions["face"],"face",self.face_pub)
-        module.checkForApproach(self.positions["cylinder"],"cylinder",self.cylinder_pub)
+        ##module.checkForApproach(self.positions["face"],"face",self.face_pub)
+        ##module.checkForApproach(self.positions["cylinder"],"cylinder",self.cylinder_pub)
         #for objectType in ["ring","cylinder"]:
         #    module.checkPosition(self.positions[objectType],self.basePosition, objectType, self.points_pub)
 
@@ -1622,14 +1626,15 @@ class color_localizer:
             if min(face_region.shape)==0:
                 continue
 
-            """im_ms = Image()
+            face_region_m = self.find_mouth(face_region)
+            im_ms = Image()
             im_ms.header.stamp = rospy.Time(0)
             im_ms.header.frame_id = 'map'
-            im_ms.height = face_region.shape[0]
-            im_ms.width = face_region.shape[1]
-            im_ms.data = face_region"""
+            im_ms.height = face_region_m.shape[0]
+            im_ms.width = face_region_m.shape[1]
+            im_ms.data = face_region_m
 
-            #self.pic_pub.publish(im_ms)
+            self.pic_pub.publish(im_ms)
             #self.pic_pub.publish(CvBridge().cv2_to_imgmsg(face_region, encoding="passthrough"))
 
             # Visualize the extracted face
@@ -1664,7 +1669,12 @@ class color_localizer:
                 newPosition = np.array([pose.position.x,pose.position.y, pose.position.z])
                 (self.nM, self.m_arr, self.positions) = module.addPosition(newPosition,"face", None, self.positions,self.nM, self.m_arr, self.markers_pub, showEveryDetection=self.showEveryDetection, normal=norm)
                 #self.addPosition(newPosition, "face", color_char=None, normal=norm)
-
+    def find_mouth(self, face_im):
+        face_im = cv2.cvtColor(face_im, cv2.COLOR_BGR2GRAY)
+        mouth_rects = mouths_cascade.detectMultiScale(face_im)
+        for (x,y,w,h) in mouth_rects:
+            cv2.rectangle(face_im, (x,y), (x+w,y+h), (0,255,0), 3)
+        return face_im
 
     def norm_accumulator(self, norm, center_point,dist1):
         found = -1
