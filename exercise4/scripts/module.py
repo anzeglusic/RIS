@@ -46,7 +46,6 @@ def checkForApproach(positions,objectType,publisher):
             publisher.publish(Point(obj["averagePostion"][0],obj["averagePostion"][1],obj["averagePostion"][2]))
     return True
 
-
 def approachForOrder():
     pass
 

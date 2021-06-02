@@ -51,9 +51,9 @@ class color_localizer:
         self.random_forest_RGB = pickle.load(open(f"{modelsDir}/random_forest_RGB.sav", 'rb'))
         self.knn_HSV = pickle.load(open(f"{modelsDir}/knn_HSV.sav", 'rb'))
         self.knn_RGB = pickle.load(open(f"{modelsDir}/knn_RGB.sav", 'rb'))
-        self.mouth_finder = cv2.CascadeClassifier(mouth)
-        if self.mouth_finder.empty():
-            raise IOError("no mouth detector")
+        #self.mouth_finder = cv2.CascadeClassifier(mouth)
+        #if self.mouth_finder.empty():
+        #    raise IOError("no mouth detector")
 
         self.positions = {
             "ring": [],
@@ -1626,7 +1626,9 @@ class color_localizer:
             face_region = rgb_image[y1:y2, x1:x2]
             if min(face_region.shape)==0:
                 continue
+
             """
+            #da posiljamo shit
             face_region_m = self.find_mouth(face_region)
             im_ms = Image()
             im_ms.header.stamp = rospy.Time(0)
@@ -1635,7 +1637,8 @@ class color_localizer:
             im_ms.width = face_region_m.shape[1]
             im_ms.data = face_region_m
 
-            self.faceIm_pub.publish(im_ms)"""
+            self.faceIm_pub.publish(im_ms)
+            """
             #self.pic_pub.publish(CvBridge().cv2_to_imgmsg(face_region, encoding="passthrough"))
 
             # Visualize the extracted face
@@ -1670,13 +1673,13 @@ class color_localizer:
                 newPosition = np.array([pose.position.x,pose.position.y, pose.position.z])
                 (self.nM, self.m_arr, self.positions) = module.addPosition(newPosition,"face", None, self.positions,self.nM, self.m_arr, self.markers_pub, showEveryDetection=self.showEveryDetection, normal=norm)
                 #self.addPosition(newPosition, "face", color_char=None, normal=norm)
-    def find_mouth(self, face_im):
+    """def find_mouth(self, face_im):
         face_im = cv2.cvtColor(face_im, cv2.COLOR_BGR2GRAY)
         mouth_rects = self.mouth_finder.detectMultiScale(face_im)
         for (x,y,w,h) in mouth_rects:
             cv2.rectangle(face_im, (x,y), (x+w,y+h), (0,255,0), 3)
         return face_im
-
+    """
     def norm_accumulator(self, norm, center_point,dist1):
         found = -1
         if norm.size == 0  or center_point.size == 0 or dist1>1.5:
