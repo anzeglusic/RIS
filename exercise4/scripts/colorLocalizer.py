@@ -995,29 +995,7 @@ class color_localizer:
 
         return self.foundAll
 
-    def find_elipse(self,contours):
-        # Fit elipses to all extracted contours
-        elps = []
-        for cnt in contours:
-            #     print cnt
-            #     print cnt.shape
-            if cnt.shape[0] >= 20:
-                ellipse = cv2.fitEllipse(cnt)
-                elps.append(ellipse)
-
-
-        # Find two elipses with same centers
-        # candidates = []
-        # for n in range(len(elps)):
-        #     for m in range(n + 1, len(elps)):
-        #         e1 = elps[n]
-        #         e2 = elps[m]
-        #         dist = np.sqrt(((e1[0][0] - e2[0][0]) ** 2 + (e1[0][1] - e2[0][1]) ** 2))
-        #         #             print dist
-        #         if dist < 5:
-        #             candidates.append((e1,e2))
-
-        return elps
+    
 #! ================================================== digits start ==================================================
     def find_digits(self, rgb_image, depth_image_shifted, stamp,grayBGR_toDrawOn):
         ret, thresh = cv2.threshold(module.bgr2gray(rgb_image), 40, 255, 0)
@@ -1668,7 +1646,7 @@ class color_localizer:
         for (x,y,w,h) in mouth_rects:
             cv2.rectangle(face_im, (x,y), (x+w,y+h), (0,255,0), 3)
         return face_im
-    
+
     def norm_accumulator(self, norm, center_point,dist1):
         found = -1
         if norm.size == 0  or center_point.size == 0 or dist1>1.5:
