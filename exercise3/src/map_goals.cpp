@@ -38,8 +38,8 @@ int yy11 = 259;
 int xx11 = 255;
 //proba
 string s1 = "-1";
-double z[] = {1, 0.7, 0, -0.7, -0.93};
-double w[] = {0, 0.7, 1, 0.7, 0.36};
+double z[] = {1, 0.7, 0, -0.7, 0.93, 0.39, -0.39, -0.93};
+double w[] = {0, 0.7, 1, 0.7, 0.39, 0.93, 0.93, 0.39};
 map<pair<double, pair<double, int>>, bool> looked;
 map<pair<double, pair<double, int>>, bool> went;
 map<pair<double, pair<double, int>>, bool> can;
@@ -454,6 +454,70 @@ void approaching(double zY, double zX, int kaj)
             sleep(20);
         }
     }
+    else
+    {
+        double maxi_dist = 1e9;
+        int direction;
+        for (int i = 0; i < 4; i++)
+        {
+            if (i % 2 == 0)
+                continue;
+            if (euc(zX, zY, opcii[i].second, opcii[i].first) < maxi_dist)
+            {
+                direction = i;
+                maxi_dist = euc(zX, zY, opcii[i].second, opcii[i].first);
+            }
+        }
+        cout << direction << endl;
+        if (direction == 1)
+        {
+            if (!can1[make_pair(nearest.first, make_pair(nearest.second, direction))])
+            {
+                if (zX <= opcii[1].second)
+                {
+                    vozi(0, 0, zY - 0.3, zX - 0.3, 5);
+                    cout << "STASAV" << endl;
+                    sleep(20);
+                }
+                else
+                {
+                    vozi(0, 0, zY - 0.3, zX + 0.3, 4);
+                    cout << "STASAV" << endl;
+                    sleep(20);
+                }
+            }
+            else
+            {
+                if (zX >= opcii[1].second)
+                {
+                    vozi(0, 0, zY - 0.3, zX - 0.3, 5);
+                    cout << "STASAV" << endl;
+                    sleep(20);
+                }
+                else
+                {
+                    vozi(0, 0, zY - 0.3, zX + 0.3, 4);
+                    cout << "STASAV" << endl;
+                    sleep(20);
+                }
+            }
+        }
+        else
+        {
+            if (zX <= opcii[3].second)
+            {
+                vozi(0, 0, zY + 0.3, zX + 0.3, 7);
+                cout << "STASAV" << endl;
+                sleep(20);
+            }
+            else
+            {
+                vozi(0, 0, zY + 0.3, zX - 0.3, 6);
+                cout << "STASAV" << endl;
+                sleep(20);
+            }
+        }
+    }
 }
 int krat = 0;
 int main(int argc, char **argv)
@@ -481,8 +545,11 @@ int main(int argc, char **argv)
     int krat1 = 0;
     int krat2 = 0;
     int krat3 = 0;
+    int krat4 = 0;
+    int krat5 = 0;
     while (ros::ok())
     {
+        Kaj = 1;
         if (konec)
         {
             cout << "THE END" << endl;
@@ -565,21 +632,37 @@ int main(int argc, char **argv)
             krat1++;
             approaching(0.2, -1.79, 1);
             approaching(1.32, 0.39, 1);
+            approaching(1.01, -1.2, 3);
+            Kaj = 3;
         }
-        if (krat2 == 0 && y == 2.5 && x == 2.5)
+        if (krat4 == 0 && y == 2.5 && x == 0.5)
+        {
+            krat4++;
+            Kaj = 3;
+            approaching(2.00, 1.45, 3);
+        }
+        if (krat2 == 0 && y == 1.5 && x == 2.5)
         {
             krat2++;
             approaching(1.28, 2.94, 1);
+            Kaj = 3;
+            approaching(2.00, 2.00, 3);
+        }
+        if (krat5 == 0 && y == 0.5 && x == 2.5)
+        {
+            krat5++;
+            Kaj = 3;
+            approaching(-0.87, 2.89, 3);
         }
         if (krat3 == 0 && y == -0.5 && x == 2.5)
         {
             krat3++;
             approaching(-0.44, 4.06, 1);
         }
-        if (Kaj == 4)
+        if (Kaj == 4 || Kaj == 3)
         {
             std_msgs::String mgg1;
-            mgg1.data = "streched";
+            mgg1.data = "extend";
             roko.publish(mgg1);
             sleep(5);
             std_msgs::String mgg;
@@ -694,7 +777,7 @@ roslaunch turtlebot_rviz_launchers view_navigation.launch 2>/dev/null
 rostopic echo /camera/rgb/image_raw --noarr
 rosrun exercise4 colorLocalizer.py
 rosrun exercise3 map_goals
-rosrun exercise3 move_arm.py
+rosrun exercise7 move_arm.py
 
 Sepravi vektor je od lokacije kjer aprochas in cilindra in potem naredis arcustanges kota do x osi atan2. Js posiljam kr obicajen gole tako da orientation.z =sin(kot/2), orientation.w = cos(kot/2)
 */
