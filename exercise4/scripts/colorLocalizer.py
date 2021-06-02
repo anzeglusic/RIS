@@ -1403,8 +1403,8 @@ class color_localizer:
                 y1 = round(max(center_cordinates[0][1], center_cordinates[1][1]))
                 x2 = round(min(center_cordinates[1][0],center_cordinates[3][0]))
                 y2 = round(min(center_cordinates[2][1], center_cordinates[3][1]))
-                print(type(x1),type(y1),type(x2),type(y2))
-                norm = module.get_normal(depth_image_shifted, (x1,y1,x2,y2),stamp,None,None, self.tf_buf)
+                #print(type(x1),type(y1),type(x2),type(y2))
+                norm = module.get_normal(depth_image_shifted, (int(x1),int(y1),int(x2),int(y2)),stamp,None,None, self.tf_buf)
                 # if we are too close to QR code
                 if norm is None:
                     print(f"Too close to the digits!")
