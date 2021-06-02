@@ -202,7 +202,7 @@ def addPosition(newPosition, objectType, color_char, positions, nM, m_arr, marke
             if area["data"] is None:
                 area["data"] = data
             else:
-                assert area["data"]==data, "\n\n\tnovi QR podatki so drugačni kot so predvideni za to pozicijo"
+                assert area["data"]==data, f"\n\n\tnovi {objectType} podatki so drugačni kot so predvideni za to pozicijo"
 
         # depending on the type of object
         if objectType=="cylinder" or objectType=="ring":
@@ -460,11 +460,11 @@ def addPosition(newPosition, objectType, color_char, positions, nM, m_arr, marke
         markers_pub.publish(m_arr)
 
     # updating connections
-    (nM, m_arr, positions) = update_positions(nM, m_arr, positions, markers_pub)
+    (nM, m_arr, positions) = update_positions(nM, m_arr, positions, markers_pub,faceNormalLength, qrNormalLength, digitsNormalLength)
     
     return (nM, m_arr, positions)
 
-def update_positions(nM, m_arr, positions, markers_pub):
+def update_positions(nM, m_arr, positions, markers_pub, faceNormalLength, qrNormalLength, digitsNormalLength):
     '''
     positions = {
         "ring": [
@@ -517,9 +517,10 @@ def update_positions(nM, m_arr, positions, markers_pub):
     }
     '''
     
-    # TODO: check if any seperate objects with same objectType can be joined
+    # check if any seperate objects with same objectType can be joined
     startOver = True
     while startOver == True:
+        startOver = False
         # only position dependent
         for objectType in ["ring","cylinder"]:
             for i in range(len(positions[objectType])-1, 0, -1):
@@ -528,11 +529,13 @@ def update_positions(nM, m_arr, positions, markers_pub):
                     area_avg = positions[objectType][i]["averagePostion"]
                     dist_vector = area_avg - positions[objectType][j]["averagePostion"]
                     dist = np.sqrt(dist_vector[0]**2 + dist_vector[1]**2 + dist_vector[2]**2)
-                    #!
-                    if dist > 3:
+                    if objectType=="ring" and dist>0.35:
                         continue
+                    elif objectType=="cylinder" and dist > 0.5:
+                        continue
+                    
                     else:
-                        # TODO: merge (i) into location of index (j) + do new average calculations
+                        # merge (i) into location of index (j) + do new average calculations
                         # detectedPositions
                         positions[objectType][j]["detectedPositions"].extend(positions[objectType][i]["detectedPositions"])
                         # color
@@ -543,7 +546,37 @@ def update_positions(nM, m_arr, positions, markers_pub):
                         # avgMarkerId --> do nothing
                         # averagePostion
                         positions[objectType][j]["averagePostion"] = np.sum(positions[objectType][j]["detectedPositions"],axis=0)/len(positions[objectType][j]["detectedPositions"])
-                        # TODO: delete average marker of index (i) --> or make it transparent
+                        # update average marker if index (j)
+                        # Create a Pose object with the same position
+                        pose = Pose()
+                        pose.position.x = positions[objectType][j]["averagePostion"][0]
+                        pose.position.y = positions[objectType][j]["averagePostion"][1]
+                        pose.position.z = positions[objectType][j]["averagePostion"][2]+0.1
+
+                        # Create a marker used for visualization
+                        nM += 1
+                        marker = Marker()
+                        marker.header.stamp = rospy.Time(0)
+                        marker.header.frame_id = "map"
+                        marker.pose = pose
+                        marker.type = Marker.CUBE if objectType=="ring" else Marker.CYLINDER
+                        marker.action = Marker.ADD
+                        marker.frame_locked = False
+                        marker.lifetime = rospy.Duration.from_sec(0)
+                        marker.scale = Vector3(0.1, 0.1, 0.1)
+
+                        if positions[objectType][j]["avgMarkerId"] == None:
+                            marker.id = nM
+                            positions[objectType][j]["avgMarkerId"] = nM
+                        else:
+                            marker.id = positions[objectType][j]["avgMarkerId"]
+
+                        best_color = chose_color(positions[objectType][j]["color"])
+                        marker.color = rgba_from_char(best_color)
+
+                        m_arr.markers.append(marker)
+                        markers_pub.publish(m_arr)
+                        # delete average marker of index (i) --> or make it transparent
                         if not (positions[objectType][i]["avgMarkerId"] is None):
                             # Create a Pose object with the same position
                             nM += 1
@@ -568,9 +601,9 @@ def update_positions(nM, m_arr, positions, markers_pub):
 
                             m_arr.markers.append(marker)
                             markers_pub.publish(m_arr)
-                        # TODO: delete location of index (i)
+                        # delete location of index (i)
                         positions[objectType].pop(i)
-                        # TODO: once we delete, we should start over
+                        # once we delete, we should start over
                         startOver = True
                         doubleBreak = True
                         break
@@ -579,13 +612,220 @@ def update_positions(nM, m_arr, positions, markers_pub):
         
         # normal dependent
         for objectType in ["face","QR","digits"]:
-            # TODO
-            pass
+            for i in range(len(positions[objectType])-1, 0, -1):
+                doubleBreak = False
+                for j in range(i-1, -1, -1):
+                    c_sim = np.dot(positions[objectType][i]["averageNormal"],positions[objectType][j]["averageNormal"])/(np.linalg.norm(positions[objectType][i]["averageNormal"])*np.linalg.norm(positions[objectType][j]["averageNormal"]))
+                    if c_sim<=0.5:
+                        continue
+                    area_avg = positions[objectType][i]["averagePostion"]
+                    dist_vector = area_avg - positions[objectType][j]["averagePostion"]
+                    dist = np.sqrt(dist_vector[0]**2 + dist_vector[1]**2 + dist_vector[2]**2)
+                    if dist > 0.5:
+                        continue
+                    else:
+                        # merge (i) into location of index (j) + do new average calculations
+                        # detectedPositions
+                        positions[objectType][j]["detectedPositions"].extend(positions[objectType][i]["detectedPositions"])
+                        # detectedNormals
+                        positions[objectType][j]["detectedNormals"].extend(positions[objectType][i]["detectedNormals"])
+                        if objectType == "face":
+                            # approached
+                            positions[objectType][j]["approached"] = positions[objectType][j]["approached"] or positions[objectType][i]["approached"]
+                        # avgMarkerId --> do nothing
+                        # QR_index --> do nothing
+                        # digits_index --> do nothing
+                        # averagePostion
+                        positions[objectType][j]["averagePostion"] = np.sum(positions[objectType][j]["detectedPositions"],axis=0)/len(positions[objectType][j]["detectedPositions"])
+                        # averageNormal
+                        positions[objectType][j]["averageNormal"] = np.sum(positions[objectType][j]["detectedNormals"],axis=0)/len(positions[objectType][j]["detectedNormals"])
+                        positions[objectType][j]["averageNormal"] = positions[objectType][j]["averageNormal"]/np.sqrt(positions[objectType][j]["averageNormal"][0]**2 + positions[objectType][j]["averageNormal"][1]**2 + positions[objectType][j]["averageNormal"][2]**2)
+                        # update average marker of index (j)
+                        nM += 1
+                        marker = Marker()
+                        marker.header.stamp = rospy.Time(0)
+                        marker.header.frame_id = "map"
+                        marker.action = Marker.ADD
+                        marker.frame_locked = False
+                        marker.lifetime = rospy.Duration.from_sec(0)
+
+                        if positions[objectType][j]["avgMarkerId"] == None:
+                            marker.id = nM
+                            positions[objectType][j]["avgMarkerId"] = nM
+                        else:
+                            marker.id = positions[objectType][j]["avgMarkerId"]
+
+                        marker.ns = 'points_arrow'
+                        marker.type = Marker.ARROW
+                        marker.pose.orientation.y = 0
+                        marker.pose.orientation.w = 1
+                        if objectType == "face":
+                            marker.scale = Vector3(1,1,1)
+                            marker.color = ColorRGBA(1,0,0,0.5)
+                        elif objectType == "QR":
+                            marker.scale = Vector3(0.5,0.5,0.5)
+                            marker.color = ColorRGBA(0,0,1,0.5)
+                        elif objectType == "digits":
+                            marker.scale = Vector3(0.5,0.5,0.5)
+                            marker.color = ColorRGBA(0,1,0,0.5)
+
+
+                        orig_arr = positions[objectType][j]["averagePostion"].copy()
+                        orig_arr[2] += 0.1
+
+                        if objectType == "face":
+                            dest_arr = orig_arr - positions[objectType][j]["averageNormal"]*faceNormalLength
+                        elif objectType == "QR":
+                            dest_arr = orig_arr - positions[objectType][j]["averageNormal"]*qrNormalLength
+                        elif objectType == "digits":
+                            dest_arr = orig_arr - positions[objectType][j]["averageNormal"]*digitsNormalLength
+                        
+                        head = Point(orig_arr[0],orig_arr[1],orig_arr[2])
+                        tail = Point(dest_arr[0],dest_arr[1],dest_arr[2])
+
+                        marker.points = [tail,head]
+
+                        m_arr.markers.append(marker)
+                        markers_pub.publish(m_arr)
+                        # delete average marker of index (i) --> or make it transparent
+                        if not (positions[objectType][i]["avgMarkerId"] is None):
+                            
+                            nM += 1
+                            marker = Marker()
+                            marker.header.stamp = rospy.Time(0)
+                            marker.header.frame_id = "map"
+                            marker.action = Marker.ADD
+                            marker.frame_locked = False
+                            marker.lifetime = rospy.Duration.from_sec(0)
+
+                            marker.id = positions[objectType][i]["avgMarkerId"]
+
+                            marker.ns = 'points_arrow'
+                            marker.type = Marker.ARROW
+                            marker.pose.orientation.y = 0
+                            marker.pose.orientation.w = 1
+                            if objectType == "face":
+                                marker.scale = Vector3(1,1,1)
+                                marker.color = ColorRGBA(1,1,1,0)
+                            elif objectType == "QR":
+                                marker.scale = Vector3(0.5,0.5,0.5)
+                                marker.color = ColorRGBA(1,1,1,0)
+                            elif objectType == "digits":
+                                marker.scale = Vector3(0.5,0.5,0.5)
+                                marker.color = ColorRGBA(1,1,1,0)
+
+
+                            orig_arr = positions[objectType][i]["averagePostion"].copy()
+                            orig_arr[2] += 0.1
+
+                            if objectType == "face":
+                                dest_arr = orig_arr - positions[objectType][i]["averageNormal"]*faceNormalLength
+                            elif objectType == "QR":
+                                dest_arr = orig_arr - positions[objectType][i]["averageNormal"]*qrNormalLength
+                            elif objectType == "digits":
+                                dest_arr = orig_arr - positions[objectType][i]["averageNormal"]*digitsNormalLength
+                            
+                            head = Point(orig_arr[0],orig_arr[1],orig_arr[2])
+                            tail = Point(dest_arr[0],dest_arr[1],dest_arr[2])
+
+                            marker.points = [tail,head]
+
+                            m_arr.markers.append(marker)
+                            markers_pub.publish(m_arr)
+                        # delete location of index (i)
+                        positions[objectType].pop(i)
+                        # once we delete, we should start over
+                        startOver = True
+                        doubleBreak = True
+                        break
+                if doubleBreak:
+                    break
+    
+    # reset connections
+    for QR_dict in positions["QR"]:
+        QR_dict["isAssigned"] = False
+    for digits_dict in positions["digits"]:
+        digits_dict["isAssigned"] = False
+    for cylinder_dict in positions["cylinder"]:
+        cylinder_dict["QR_index"] = None
+    for face_dict in positions["face"]:
+        face_dict["QR_index"] = None
+        face_dict["digits_index"] = None
     
     # TODO: povezovanje "digits" s "face"
+    for i,digits_dict in enumerate(positions["digits"]):
+        closestObjectKey = None
+        closestObjectIndx = None
+        closestObjectDist = np.inf
+
+        # check all faces
+        for j,face_dict in enumerate(positions["face"]):
+            # include only those that have correct oriantation
+            c_sim = np.dot(digits_dict["averageNormal"],face_dict["averageNormal"])/(np.linalg.norm(digits_dict["averageNormal"])*np.linalg.norm(face_dict["averageNormal"]))
+            if c_sim<=0.5:
+                continue
+
+            dist_vector = digits_dict["averagePostion"] - face_dict["averagePostion"]
+            dist = np.sqrt(dist_vector[0]**2 + dist_vector[1]**2 + dist_vector[2]**2)
+
+            if dist < closestObjectDist:
+                closestObjectDist = dist
+                closestObjectKey = "face"
+                closestObjectIndx = j
+
+
+        # check if distance is ok
+        if closestObjectDist > 0.5:
+            continue
+
+        # assign
+        digits_dict["isAssigned"] = True
+        assert positions[closestObjectKey][closestObjectIndx]["digits_index"] is None, "Objekt ima že določen svoj digits"
+        positions[closestObjectKey][closestObjectIndx]["digits_index"] = i
+
 
     # TODO: povezovanej "QR" s "face"/"cylinder"
+    for i,QR_dict in enumerate(positions["QR"]):
+        closestObjectKey = None
+        closestObjectIndx = None
+        closestObjectDist = np.inf
+        
+        # chack all cylinders
+        for j,cylinder_dict in enumerate(positions["cylinder"]):
+            dist_vector = QR_dict["averagePostion"] - cylinder_dict["averagePostion"]
+            dist = np.sqrt(dist_vector[0]**2 + dist_vector[1]**2 + dist_vector[2]**2)
+            if dist < closestObjectDist:
+                closestObjectDist = dist
+                closestObjectKey = "cylinder"
+                closestObjectIndx = j
 
+        # check all faces
+        for j,face_dict in enumerate(positions["face"]):
+            # include only those that have correct oriantation
+            c_sim = np.dot(QR_dict["averageNormal"],face_dict["averageNormal"])/(np.linalg.norm(QR_dict["averageNormal"])*np.linalg.norm(face_dict["averageNormal"]))
+            if c_sim<=0.5:
+                continue
+
+            dist_vector = QR_dict["averagePostion"] - face_dict["averagePostion"]
+            dist = np.sqrt(dist_vector[0]**2 + dist_vector[1]**2 + dist_vector[2]**2)
+
+            if dist < closestObjectDist:
+                closestObjectDist = dist
+                closestObjectKey = "face"
+                closestObjectIndx = j
+
+
+        # check if distance is ok
+        if closestObjectDist > 0.5:
+            continue
+
+        # assign
+        QR_dict["isAssigned"] = True
+        assert positions[closestObjectKey][closestObjectIndx]["QR_index"] is None, "Objekt ima že določeno svojo QR kodo"
+        positions[closestObjectKey][closestObjectIndx]["QR_index"] = i
+
+
+    pprint(positions)
     return (nM, m_arr, positions)
 
 def calc_rgb(point,knn_RGB,random_forest_RGB,knn_HSV,random_forest_HSV):
