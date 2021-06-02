@@ -21,7 +21,7 @@ import pyzbar.pyzbar as pyzbar
 import pytesseract
 
 def keepExploring(positions):
-    if len(positions["faces"]) < 4:
+    if len(positions["face"]) < 4:
         return True
     if len(positions["cylinder"]) <4:
         return True
