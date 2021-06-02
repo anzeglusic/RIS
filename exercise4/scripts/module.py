@@ -40,7 +40,7 @@ def checkForApproach(positions,objectType,publisher):
         if objectType == "face":
             #rabimo pristopiti poslati moramo twist message za normalo
             obj["approached"] = True
-            publisher.publish(Vector3(obj["averageNormal"][0],obj["averageNormal"][0],obj["averageNormal"][0]),Vector3(obj["averagePostion"][0],obj["averagePostion"][1],obj["averagePostion"][2]))
+            publisher.publish(Vector3(obj["averageNormal"][0]+obj["averagePostion"][0],obj["averageNormal"][1]+obj["averagePostion"][1],obj["averageNormal"][2]+obj["averagePostion"][2]),Vector3(obj["averagePostion"][0],obj["averagePostion"][1],obj["averagePostion"][2]))
         elif objectType == "cylinder":
             obj["approached"] = True
             publisher.publish(Point(obj["averagePostion"][0],obj["averagePostion"][1],obj["averagePostion"][2]))
@@ -161,7 +161,7 @@ def rgba_from_char(color_char):
     if color_char == "y":
         return ColorRGBA(1, 1, 0, 1)
 
-def addPosition(newPosition, objectType, color_char, positions, nM, m_arr, markers_pub, showEveryDetection=True, normal=None, data=None):
+def addPosition(newPosition, objectType, color_char, positions, nM, m_arr, markers_pub, showEveryDetection=True, normal=None, data=None, mask=None):
     '''
     positions = {
         "ring": [
@@ -245,6 +245,12 @@ def addPosition(newPosition, objectType, color_char, positions, nM, m_arr, marke
             continue
 
         unique_position = False
+
+        if objectType == "face":
+            if mask == True:
+                area["mask"]["yes"] += 1
+            else:
+                area["mask"]["no"] += 1
 
         if objectType=="QR" or objectType=="digits":
             # print(data)
@@ -433,7 +439,12 @@ def addPosition(newPosition, objectType, color_char, positions, nM, m_arr, marke
                                                 "approached": False,
                                                 "avgMarkerId": None,
                                                 "QR_index": None,
-                                                "digits_index": None
+                                                "digits_index": None,
+                                                "mask": {
+                                                    "yes":1 if mask==True else 0,
+                                                    "no":1 if mask == False else 0
+                                                }
+
                                                 })
         elif objectType=="QR":
             print("\n\nAdding new QR code\n\n")
@@ -536,6 +547,10 @@ def update_positions(nM, m_arr, positions, markers_pub, faceNormalLength, qrNorm
                 "avgMarkerId": None,
                 "QR_index": None,
                 "digits_index": None
+                "mask": {
+                    "yes":int,
+                    "no": int
+                }
             },
             ...
         ],
@@ -674,6 +689,7 @@ def update_positions(nM, m_arr, positions, markers_pub, faceNormalLength, qrNorm
                         continue
                     else:
                         # merge (i) into location of index (j) + do new average calculations
+
                         # detectedPositions
                         positions[objectType][j]["detectedPositions"].extend(positions[objectType][i]["detectedPositions"])
                         # detectedNormals
@@ -681,6 +697,10 @@ def update_positions(nM, m_arr, positions, markers_pub, faceNormalLength, qrNorm
                         if objectType == "face":
                             # approached
                             positions[objectType][j]["approached"] = positions[objectType][j]["approached"] or positions[objectType][i]["approached"]
+
+                            # mask
+                            positions[objectType][j]["mask"]["yes"] += positions[objectType][i]["mask"]["yes"]
+                            positions[objectType][j]["mask"]["no"] += positions[objectType][i]["mask"]["no"]
                         # avgMarkerId --> do nothing
                         # QR_index --> do nothing
                         # digits_index --> do nothing

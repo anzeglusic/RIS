@@ -973,14 +973,14 @@ class color_localizer:
         grayImage = module.gray2bgr(grayImage)
         markedImage, depth_im_shifted = self.find_elipses_first(rgb_image, depth_image,rgb_image_message.header.stamp, depth_image_message.header.stamp, grayImage)
         #print(markedImage)
-        markedImage = self.find_cylinderDEPTH(rgb_image, depth_im_shifted, markedImage,depth_image_message.header.stamp)
+        ##markedImage = self.find_cylinderDEPTH(rgb_image, depth_im_shifted, markedImage,depth_image_message.header.stamp)
         # TODO: make it so it marks face and returns the image to display
         self.find_faces(rgb_image,depth_im_shifted,depth_image_message.header.stamp)
-        markedImage = self.find_QR(rgb_image,depth_im_shifted,depth_image_message.header.stamp, markedImage)
-        markedImage = self.find_digits_new(rgb_image,depth_im_shifted,depth_image_message.header.stamp, markedImage)
+        ##markedImage = self.find_QR(rgb_image,depth_im_shifted,depth_image_message.header.stamp, markedImage)
+        ##markedImage = self.find_digits_new(rgb_image,depth_im_shifted,depth_image_message.header.stamp, markedImage)
         #!
-        module.checkForApproach(self.positions["face"],"face",self.face_pub)
-        module.checkForApproach(self.positions["cylinder"],"cylinder",self.cylinder_pub)
+        ##module.checkForApproach(self.positions["face"],"face",self.face_pub)
+        ##module.checkForApproach(self.positions["cylinder"],"cylinder",self.cylinder_pub)
         #for objectType in ["ring","cylinder"]:
         #    module.checkPosition(self.positions[objectType],self.basePosition, objectType, self.points_pub)
 
@@ -1622,30 +1622,14 @@ class color_localizer:
             (x1, x2) = face["x"]
             (y1,y2) = face["y"]
 
+
             # Extract region containing face
             face_region = rgb_image[y1:y2, x1:x2]
             if min(face_region.shape)==0:
                 continue
+            has_mask = self.find_mouth(face_region)
+            #self.faceIm_pub.publish(CvBridge().cv2_to_imgmsg(face_region_m, encoding="passthrough"))
 
-            """
-            #da posiljamo shit
-            face_region_m = self.find_mouth(face_region)
-            im_ms = Image()
-            im_ms.header.stamp = rospy.Time(0)
-            im_ms.header.frame_id = 'map'
-            im_ms.height = face_region_m.shape[0]
-            im_ms.width = face_region_m.shape[1]
-            im_ms.data = face_region_m
-
-            self.faceIm_pub.publish(im_ms)
-            """
-            #self.pic_pub.publish(CvBridge().cv2_to_imgmsg(face_region, encoding="passthrough"))
-
-            # Visualize the extracted face
-            #cv2.imshow("ImWindow", face_region)
-            #cv2.waitKey(1)
-
-            #self.pic_pub = rospy.Publisher('face_im', Image, queue_size=1000)
 
             # Find the distance to the detected face
             #assert y1 != y2, "Y sta ista !!!!!!!!!!!"
@@ -1671,15 +1655,20 @@ class color_localizer:
             #pose = self.get_pose_face((x1,x2,y1,y2), face_distance, depth_time)
             if not (pose is None) and not (norm is None):
                 newPosition = np.array([pose.position.x,pose.position.y, pose.position.z])
-                (self.nM, self.m_arr, self.positions) = module.addPosition(newPosition,"face", None, self.positions,self.nM, self.m_arr, self.markers_pub, showEveryDetection=self.showEveryDetection, normal=norm)
+                (self.nM, self.m_arr, self.positions) = module.addPosition(newPosition,"face", None, self.positions,self.nM, self.m_arr, self.markers_pub, showEveryDetection=self.showEveryDetection, normal=norm, mask=has_mask)
                 #self.addPosition(newPosition, "face", color_char=None, normal=norm)
-    """def find_mouth(self, face_im):
+
+    def find_mouth(self, face_im):
         face_im = cv2.cvtColor(face_im, cv2.COLOR_BGR2GRAY)
         mouth_rects = self.mouth_finder.detectMultiScale(face_im)
+        if mouth_rects:
+            return True
+        else:
+            return False
         for (x,y,w,h) in mouth_rects:
             cv2.rectangle(face_im, (x,y), (x+w,y+h), (0,255,0), 3)
         return face_im
-    """
+    
     def norm_accumulator(self, norm, center_point,dist1):
         found = -1
         if norm.size == 0  or center_point.size == 0 or dist1>1.5:
