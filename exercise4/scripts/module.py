@@ -23,10 +23,28 @@ import pytesseract
 def keepExploring(positions):
     if len(positions["face"]) < 4:
         return True
+    else:
+        # cehck if valid detection
+        for face_dict in positions["face"]:
+            if len(face_dict["detectedPositions"]) < 3:
+                return True
+
     if len(positions["cylinder"]) <4:
         return True
+    else:
+        # cehck if valid detection
+        for cylinder_dict in positions["cylinder"]:
+            if len(cylinder_dict["detectedPositions"]) < 3:
+                return True
+
     if len(positions["ring"]) <4:
         return True
+    else:
+        # cehck if valid detection
+        for ring_dict in positions["ring"]:
+            if len(ring_dict["detectedPositions"]) < 3:
+                return True
+                
     if len(positions["QR"])< 8:
         return True
     if len(positions["digits"]) <4:
@@ -36,6 +54,8 @@ def keepExploring(positions):
 def checkForApproach(positions,objectType,publisher):
     for obj in positions:
         if obj["approached"]:
+            continue
+        if len(obj["detectedPositions"]) < 3:
             continue
         if objectType == "face":
             #rabimo pristopiti poslati moramo twist message za normalo
@@ -241,8 +261,12 @@ def addPosition(newPosition, objectType, color_char, positions, nM, m_arr, marke
         dist = np.sqrt(dist_vector[0]**2 + dist_vector[1]**2 + dist_vector[2]**2)
 
             # print("Dist --> ",dist)
-        if dist > 0.5:
-            continue
+        if objectType == "ring":
+            if dist > 0.35:
+                continue
+        else:
+            if dist > 0.5:
+                continue
 
         unique_position = False
 
@@ -278,7 +302,7 @@ def addPosition(newPosition, objectType, color_char, positions, nM, m_arr, marke
         area["averagePostion"] = np.sum(area["detectedPositions"],axis=0)/len(area["detectedPositions"])
 
         # average marker
-        if objectType=="cylinder" or objectType=="ring":
+        if (objectType=="cylinder" or objectType=="ring") and len(area["detectedPositions"]) >= 3:
             # Create a Pose object with the same position
             pose = Pose()
             pose.position.x = area["averagePostion"][0]
@@ -309,7 +333,7 @@ def addPosition(newPosition, objectType, color_char, positions, nM, m_arr, marke
             m_arr.markers.append(marker)
             markers_pub.publish(m_arr)
 
-        elif objectType=="face":
+        elif objectType=="face" and len(area["detectedPositions"]) >= 3:
             nM += 1
             marker = Marker()
             marker.header.stamp = rospy.Time(0)
@@ -588,8 +612,10 @@ def update_positions(nM, m_arr, positions, markers_pub, faceNormalLength, qrNorm
         # only position dependent
         for objectType in ["ring","cylinder"]:
             for i in range(len(positions[objectType])-1, 0, -1):
+                # TODO: consider only those that have 3 or more detections --> maybe could help
                 doubleBreak = False
                 for j in range(i-1, -1, -1):
+                    # TODO: consider only those that have 3 or more detections --> maybe could help
                     area_avg = positions[objectType][i]["averagePostion"]
                     dist_vector = area_avg - positions[objectType][j]["averagePostion"]
                     dist = np.sqrt(dist_vector[0]**2 + dist_vector[1]**2 + dist_vector[2]**2)
@@ -677,8 +703,10 @@ def update_positions(nM, m_arr, positions, markers_pub, faceNormalLength, qrNorm
         # normal dependent
         for objectType in ["face","QR","digits"]:
             for i in range(len(positions[objectType])-1, 0, -1):
+                # TODO: consider only those faces that have 3 or more detections --> maybe could help
                 doubleBreak = False
                 for j in range(i-1, -1, -1):
+                    # TODO: consider only those faces that have 3 or more detections --> maybe could help
                     c_sim = np.dot(positions[objectType][i]["averageNormal"],positions[objectType][j]["averageNormal"])/(np.linalg.norm(positions[objectType][i]["averageNormal"])*np.linalg.norm(positions[objectType][j]["averageNormal"]))
                     if c_sim<=0.5:
                         continue
@@ -821,7 +849,7 @@ def update_positions(nM, m_arr, positions, markers_pub, faceNormalLength, qrNorm
         face_dict["QR_index"] = None
         face_dict["digits_index"] = None
 
-    # TODO: povezovanje "digits" s "face"
+    # povezovanje "digits" s "face"
     for i,digits_dict in enumerate(positions["digits"]):
         closestObjectKey = None
         closestObjectIndx = None
@@ -829,6 +857,8 @@ def update_positions(nM, m_arr, positions, markers_pub, faceNormalLength, qrNorm
 
         # check all faces
         for j,face_dict in enumerate(positions["face"]):
+            if len(face_dict["detectedPositions"]) < 3:
+                continue
             # include only those that have correct oriantation
             c_sim = np.dot(digits_dict["averageNormal"],face_dict["averageNormal"])/(np.linalg.norm(digits_dict["averageNormal"])*np.linalg.norm(face_dict["averageNormal"]))
             if c_sim<=0.5:
@@ -853,35 +883,42 @@ def update_positions(nM, m_arr, positions, markers_pub, faceNormalLength, qrNorm
         positions[closestObjectKey][closestObjectIndx]["digits_index"] = i
 
 
-    # TODO: povezovanej "QR" s "face"/"cylinder"
+    # povezovanej "QR" s "face"/"cylinder"
     for i,QR_dict in enumerate(positions["QR"]):
         closestObjectKey = None
         closestObjectIndx = None
         closestObjectDist = np.inf
+        
+        if (QR_dict["data"] is None) or QR_dict["data"].startswith("https"):
+            # chack all cylinders
+            for j,cylinder_dict in enumerate(positions["cylinder"]):
+                if len(cylinder_dict["detectedPositions"]) < 3:
+                    continue
+                dist_vector = QR_dict["averagePostion"] - cylinder_dict["averagePostion"]
+                dist = np.sqrt(dist_vector[0]**2 + dist_vector[1]**2 + dist_vector[2]**2)
+                if dist < closestObjectDist:
+                    closestObjectDist = dist
+                    closestObjectKey = "cylinder"
+                    closestObjectIndx = j
 
-        # chack all cylinders
-        for j,cylinder_dict in enumerate(positions["cylinder"]):
-            dist_vector = QR_dict["averagePostion"] - cylinder_dict["averagePostion"]
-            dist = np.sqrt(dist_vector[0]**2 + dist_vector[1]**2 + dist_vector[2]**2)
-            if dist < closestObjectDist:
-                closestObjectDist = dist
-                closestObjectKey = "cylinder"
-                closestObjectIndx = j
 
-        # check all faces
-        for j,face_dict in enumerate(positions["face"]):
-            # include only those that have correct oriantation
-            c_sim = np.dot(QR_dict["averageNormal"],face_dict["averageNormal"])/(np.linalg.norm(QR_dict["averageNormal"])*np.linalg.norm(face_dict["averageNormal"]))
-            if c_sim<=0.5:
-                continue
+        if (QR_dict["data"] is None) or (not QR_dict["data"].startswith("https")):
+            # check all faces
+            for j,face_dict in enumerate(positions["face"]):
+                if len(face_dict["detectedPositions"]) < 3:
+                    continue
+                # include only those that have correct oriantation
+                c_sim = np.dot(QR_dict["averageNormal"],face_dict["averageNormal"])/(np.linalg.norm(QR_dict["averageNormal"])*np.linalg.norm(face_dict["averageNormal"]))
+                if c_sim<=0.5:
+                    continue
 
-            dist_vector = QR_dict["averagePostion"] - face_dict["averagePostion"]
-            dist = np.sqrt(dist_vector[0]**2 + dist_vector[1]**2 + dist_vector[2]**2)
+                dist_vector = QR_dict["averagePostion"] - face_dict["averagePostion"]
+                dist = np.sqrt(dist_vector[0]**2 + dist_vector[1]**2 + dist_vector[2]**2)
 
-            if dist < closestObjectDist:
-                closestObjectDist = dist
-                closestObjectKey = "face"
-                closestObjectIndx = j
+                if dist < closestObjectDist:
+                    closestObjectDist = dist
+                    closestObjectKey = "face"
+                    closestObjectIndx = j
 
 
         # check if distance is ok
@@ -894,7 +931,7 @@ def update_positions(nM, m_arr, positions, markers_pub, faceNormalLength, qrNorm
         positions[closestObjectKey][closestObjectIndx]["QR_index"] = i
 
 
-    pprint(positions)
+    # pprint(positions)
     return (nM, m_arr, positions)
 
 def calc_rgb(point,knn_RGB,random_forest_RGB,knn_HSV,random_forest_HSV):
@@ -975,9 +1012,9 @@ def get_pose(xin,yin,dist, depth_im,objectType,depth_stamp,color_char, tf_buf):
 
     angle_to_target = np.arctan2(xin,k_f)
 
-    if objectType == "cylinder":
-        dist += 0.125
-        print("adding depth !!!!!!!!!!!!!!")
+    # if objectType == "cylinder":
+    #     dist += 0.125
+    #     print("adding depth !!!!!!!!!!!!!!")
 
     # Get the angles in the base_link relative coordinate system
     x,y = dist*np.cos(angle_to_target), dist*np.sin(angle_to_target)

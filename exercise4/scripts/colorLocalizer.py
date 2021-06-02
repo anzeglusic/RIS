@@ -51,9 +51,10 @@ class color_localizer:
         self.random_forest_RGB = pickle.load(open(f"{modelsDir}/random_forest_RGB.sav", 'rb'))
         self.knn_HSV = pickle.load(open(f"{modelsDir}/knn_HSV.sav", 'rb'))
         self.knn_RGB = pickle.load(open(f"{modelsDir}/knn_RGB.sav", 'rb'))
-        #self.mouth_finder = cv2.CascadeClassifier(mouth)
-        #if self.mouth_finder.empty():
-        #    raise IOError("no mouth detector")
+        print(mouth)
+        self.mouth_finder = cv2.CascadeClassifier(mouth)
+        if self.mouth_finder.empty():
+           raise IOError("no mouth detector")
 
         self.positions = {
             "ring": [],
@@ -984,6 +985,9 @@ class color_localizer:
         #for objectType in ["ring","cylinder"]:
         #    module.checkPosition(self.positions[objectType],self.basePosition, objectType, self.points_pub)
 
+        # for qr in self.positions["QR"]:
+        #     print(qr["data"])
+
         # print(type(markedImage))
         # print(markedImage.shape)
         #print(markedImage)
@@ -1661,13 +1665,13 @@ class color_localizer:
     def find_mouth(self, face_im):
         face_im = cv2.cvtColor(face_im, cv2.COLOR_BGR2GRAY)
         mouth_rects = self.mouth_finder.detectMultiScale(face_im)
-        if mouth_rects:
-            return True
-        else:
+        if len(mouth_rects) > 0:
             return False
-        for (x,y,w,h) in mouth_rects:
-            cv2.rectangle(face_im, (x,y), (x+w,y+h), (0,255,0), 3)
-        return face_im
+        else:
+            return True
+        # for (x,y,w,h) in mouth_rects:
+        #     cv2.rectangle(face_im, (x,y), (x+w,y+h), (0,255,0), 3)
+        # return face_im
     
     def norm_accumulator(self, norm, center_point,dist1):
         found = -1
