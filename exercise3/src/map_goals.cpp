@@ -135,6 +135,7 @@ void vozi(int y3, int x3, double y, double x, int dir)
     if (y == 1.5 && x == 1.5)
     {
         y = 1.25;
+        x = 1.25;
     }
     if (y == 2.5 && x == 1.5)
     {
@@ -459,9 +460,14 @@ void approaching(double zY, double zX, int kaj)
             }
         }
         cout << direction << endl;
-        if (direction == 0)
+        if (zY > 1 && zY < 2 && zX > 0 && zX < 1)
         {
-            vozi(0, 0, zY, zX + 0.5, 0);
+            vozi(0, 0, zY - 0.3, zX - 0.3, 5);
+            cout << "STASAV" << endl;
+        }
+        else if (direction == 0)
+        {
+            vozi(0, 0, zY, zX + 0.3, 0);
             int bezveze = 0;
 
             cout << "STASAV" << endl;
@@ -469,19 +475,19 @@ void approaching(double zY, double zX, int kaj)
         }
         else if (direction == 1)
         {
-            vozi(0, 0, zY - 0.5, zX, 1);
+            vozi(0, 0, zY - 0.3, zX, 1);
             cout << "STASAV" << endl;
             //sleep(20);
         }
         else if (direction == 2)
         {
-            vozi(0, 0, zY, zX - 0.5, 2);
+            vozi(0, 0, zY, zX - 0.3, 2);
             cout << "STASAV" << endl;
             // sleep(20);
         }
         else if (direction == 3)
         {
-            vozi(0, 0, zY + 0.5, zX, 3);
+            vozi(0, 0, zY + 0.3, zX, 3);
             cout << "STASAV" << endl;
             // sleep(20);
         }
