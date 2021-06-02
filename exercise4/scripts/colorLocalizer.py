@@ -659,7 +659,7 @@ class color_localizer:
         C_R = R-C
         C_RR = RR-C
         #! C_RRR = RRR-C
-        
+
         # LLL_LL = LLL - LL
         LL_L = LL - L
         R_RR = RR - R
@@ -670,7 +670,7 @@ class color_localizer:
         #! if LL_C<=0 or L_C<=0 or C_R<=0 or C_RR<=0 or LLL_C<=0 or C_RRR<=0:
             # print(f"razlike niso uredu")
             return None
-        
+
         detection_error = 0.1
         if (0.13-detection_error < L_C/LL_C < 0.25+detection_error) and (0.13-detection_error < C_R/C_RR < 0.25+detection_error) and (0.16-detection_error < L_C/LL_L < 0.33+detection_error) and (0.16-detection_error < C_R/R_RR < 0.33+detection_error):
             return (center_point-shift*2,center_point+shift*2)
@@ -762,7 +762,7 @@ class color_localizer:
         if np.isnan(center_depth_up) or np.isnan(center_depth) or np.isnan(center_depth_down):
             print(f"BALL !!!!!!!!!!!!")
             return True
-        
+
         detection_error = 0.01
         cd = center_depth
         cdd = center_depth_down
@@ -770,7 +770,7 @@ class color_localizer:
         if (np.abs(cd-cdd)>detection_error) or (np.abs(cd-cdu)>detection_error) or (np.abs(cdu-cdd)>detection_error):
             print(f"BALL !!!!!!!!!!!!")
             return True
-        
+
 
 
 
@@ -929,7 +929,7 @@ class color_localizer:
             # stop everything if images are not up to date !!!
             pprint("skip")
             return
-        
+
         # print how many secounds passed since previous loop
         tempLoop = datetime.now()
         tempRGB = rgb_image_message.header.stamp.to_sec()
@@ -945,7 +945,7 @@ class color_localizer:
         print(f"depth_stamp_sec:  {depth_image_message.header.stamp.to_sec()}")
         print(f"diff:             {diff}")
         print()
-        
+
 
 
         # Convert the images into a OpenCV (numpy) format
@@ -1269,10 +1269,10 @@ class color_localizer:
     def find_digits_new(self, rgb_image, depth_image_shifted, stamp,grayBGR_toDrawOn):
 
         corners, ids, rejected_corners = cv2.aruco.detectMarkers(rgb_image,self.dictm,parameters=self.params)
-        
+
         if ids is None:
             return grayBGR_toDrawOn
-        
+
         # drawing specific markers
         # for i,marker in enumerate(corners):
         #     # print(marker[0])
@@ -1280,14 +1280,14 @@ class color_localizer:
         #     maximums = np.max(marker[0],axis=0)
         #     bgr_color = (0,255,0)
         #     if ids[i][0] == 1:
-        #         bgr_color = (255,0,0) 
+        #         bgr_color = (255,0,0)
         #     elif ids[i][0] == 2:
         #         bgr_color = (0,255,0)
         #     elif ids[i][0] == 3:
         #         bgr_color = (0,0,255)
         #     elif ids[i][0] == 4:
         #         bgr_color = (255,255,0)
-                
+
         #     start_point = (round(minimums[0]),round(minimums[1]))
         #     end_point = (round(maximums[0]),round(maximums[1]))
         #     thickness = 5
@@ -1339,14 +1339,14 @@ class color_localizer:
 
             src_points = np.zeros((4,2))
             cens_mars = np.zeros((4,2))
-        
+
             for idx in ids:
                 # Calculate the center point of all markers
                 cors = np.squeeze(corners[idx[0]-1])
                 cen_mar = np.mean(cors,axis=0)
                 cens_mars[idx[0]-1]=cen_mar
                 cen_point = np.mean(cens_mars,axis=0)
-        
+
             for coords in cens_mars:
                 #  Map the correct source points
                 if coords[0]<cen_point[0] and coords[1]<cen_point[1]:
@@ -1360,42 +1360,42 @@ class color_localizer:
 
             h, status = cv2.findHomography(src_points, out_pts)
             img_out = cv2.warpPerspective(rgb_image, h, (img_out.shape[1],img_out.shape[0]))
-            
+
             ################################################
             #### Extraction of digits starts here
             ################################################
-            
+
             # Cut out everything but the numbers
             img_out = img_out[125:221,50:195,:]
-            
+
             # Convert the image to grayscale
             img_out = cv2.cvtColor(img_out, cv2.COLOR_BGR2GRAY)
-            
+
             # Option 1 - use ordinairy threshold the image to get a black and white image
             #ret,img_out = cv2.threshold(img_out,100,255,0)
 
             # Option 1 - use adaptive thresholding
             img_out = cv2.adaptiveThreshold(img_out,255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C,cv2.THRESH_BINARY,11,5)
-            
+
             # Use Otsu's thresholding
             #ret,img_out = cv2.threshold(img_out,0,255,cv2.THRESH_BINARY+cv2.THRESH_OTSU)
-            
+
             # Pass some options to tesseract
             config = '--psm 13 outputbase nobatch digits'
-            
+
             # Visualize the image we are passing to Tesseract
             # cv2.imshow('Warped image',img_out)
             # cv2.waitKey(1)
-        
+
             # Extract text from image
             text = pytesseract.image_to_string(img_out, config = config)
-            
+
             # Check and extract data from text
             # print('Extracted>>',text)
-            
+
             # Remove any whitespaces from the left and right
             text = text.strip()
-            
+
             # If the extracted text is of the right length
             if len(text)==2:
                 # izračunaj normalo --> zaključi, če normala ni možna
@@ -1403,12 +1403,13 @@ class color_localizer:
                 y1 = round(max(center_cordinates[0][1], center_cordinates[1][1]))
                 x2 = round(min(center_cordinates[1][0],center_cordinates[3][0]))
                 y2 = round(min(center_cordinates[2][1], center_cordinates[3][1]))
+                print(type(x1),type(y1),type(x2),type(y2))
                 norm = module.get_normal(depth_image_shifted, (x1,y1,x2,y2),stamp,None,None, self.tf_buf)
                 # if we are too close to QR code
                 if norm is None:
                     print(f"Too close to the digits!")
                     continue
-                
+
                 x=int(text[0])
                 y=int(text[1])
                 num = int(text)
@@ -1731,7 +1732,7 @@ def main():
         rate = rospy.Rate(1.25)
         # rate = rospy.Rate(10)
 
-        
+
         skipCounter = 3
         loopTimer = rospy.Time.now().to_sec()
         # print(sleepTimer)
