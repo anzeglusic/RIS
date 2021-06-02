@@ -1650,11 +1650,7 @@ class color_localizer:
         # for (x,y,w,h) in mouth_rects:
         #     cv2.rectangle(face_im, (x,y), (x+w,y+h), (0,255,0), 3)
         # return face_im
-<<<<<<< HEAD
 
-=======
-    
->>>>>>> 911d6abec18069571ac64dfa1b70b872d918c336
     def norm_accumulator(self, norm, center_point,dist1):
         found = -1
         if norm.size == 0  or center_point.size == 0 or dist1>1.5:
