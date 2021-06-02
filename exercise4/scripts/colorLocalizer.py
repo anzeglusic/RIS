@@ -973,14 +973,14 @@ class color_localizer:
         grayImage = module.gray2bgr(grayImage)
         markedImage, depth_im_shifted = self.find_elipses_first(rgb_image, depth_image,rgb_image_message.header.stamp, depth_image_message.header.stamp, grayImage)
         #print(markedImage)
-        markedImage = self.find_cylinderDEPTH(rgb_image, depth_im_shifted, markedImage,depth_image_message.header.stamp)
+        ##markedImage = self.find_cylinderDEPTH(rgb_image, depth_im_shifted, markedImage,depth_image_message.header.stamp)
         # TODO: make it so it marks face and returns the image to display
         self.find_faces(rgb_image,depth_im_shifted,depth_image_message.header.stamp)
-        markedImage = self.find_QR(rgb_image,depth_im_shifted,depth_image_message.header.stamp, markedImage)
-        markedImage = self.find_digits_new(rgb_image,depth_im_shifted,depth_image_message.header.stamp, markedImage)
+        ##markedImage = self.find_QR(rgb_image,depth_im_shifted,depth_image_message.header.stamp, markedImage)
+        ##markedImage = self.find_digits_new(rgb_image,depth_im_shifted,depth_image_message.header.stamp, markedImage)
         #!
-        module.checkForApproach(self.positions["face"],"face",self.face_pub)
-        module.checkForApproach(self.positions["cylinder"],"cylinder",self.cylinder_pub)
+        ##module.checkForApproach(self.positions["face"],"face",self.face_pub)
+        ##module.checkForApproach(self.positions["cylinder"],"cylinder",self.cylinder_pub)
         #for objectType in ["ring","cylinder"]:
         #    module.checkPosition(self.positions[objectType],self.basePosition, objectType, self.points_pub)
 
@@ -1626,7 +1626,7 @@ class color_localizer:
             face_region = rgb_image[y1:y2, x1:x2]
             if min(face_region.shape)==0:
                 continue
-            """
+
             face_region_m = self.find_mouth(face_region)
             im_ms = Image()
             im_ms.header.stamp = rospy.Time(0)
@@ -1635,7 +1635,7 @@ class color_localizer:
             im_ms.width = face_region_m.shape[1]
             im_ms.data = face_region_m
 
-            self.faceIm_pub.publish(im_ms)"""
+            self.faceIm_pub.publish(im_ms)
             #self.pic_pub.publish(CvBridge().cv2_to_imgmsg(face_region, encoding="passthrough"))
 
             # Visualize the extracted face
