@@ -3,6 +3,8 @@
 import os
 import itertools
 import sys
+
+from numpy.lib.function_base import _CORE_DIMENSION_LIST
 sys.path.append('/'.join(os.path.realpath(__file__).split('/')[0:-1])+'/')
 import rospy
 import dlib
@@ -23,6 +25,8 @@ import subprocess
 import pyzbar.pyzbar as pyzbar
 import pytesseract
 import module
+from datetime import datetime
+
 
 
 # /home/sebastjan/Documents/faks/3letnk/ris/ROS_task/src/exercise4/scripts
@@ -33,8 +37,9 @@ class color_localizer:
 
     def __init__(self):
         print()
-        self.found_rings = []
-        self.found_cylinders = []
+        self.loopTimer = datetime.now()
+        self.rgbTimer = 0
+        self.depthTimer = 0
 
         self.basePosition = {"x":0, "y":0, "z":0}
         self.baseAngularSpeed = 0
@@ -48,7 +53,8 @@ class color_localizer:
             "ring": [],
             "cylinder": [],
             "face": [],
-            "QR": []
+            "QR": [],
+            "digits": []
         }
 
         rospy.init_node('color_localizer', anonymous=True)
@@ -178,8 +184,6 @@ class color_localizer:
         # print("\n\n\n")
         return
 
-
-
     def chk_ring(self,de,h1,h2,w1,w2,cent):
         #depoth im je for some reason 480x640
         #sprememeba 1: dodal sem da shrani se koordinate v sliki notr MOZNO DA JIH BO TREBA OBRNT
@@ -229,18 +233,7 @@ class color_localizer:
                     return (cent[1],cent[0],avgdist,i)
         return None
 
-
-
     def find_elipses_first(self,image,depth_image,im_stamp,depth_stamp,grayBGR_toDrawOn):
-        print(f"rgb_stamp_sec:    {im_stamp.to_sec()}")
-        print(f"depth_stamp_sec:  {depth_stamp.to_sec()}")
-        diff = (depth_stamp.to_sec()-im_stamp.to_sec())
-        print(f"diff:             {diff}")
-        print()
-
-        if (np.abs(diff) > 0.5):
-            pprint("skip")
-            return grayBGR_toDrawOn,depth_image
 
         # change depth image
         minValue = np.nanmin(depth_image)
@@ -560,7 +553,7 @@ class color_localizer:
                 ring_point = module.get_pose(cntr_ring[1],cntr_ring[0],cntr_ring[2],depth_im_shifted,"ring",depth_stamp,color,self.tf_buf)
                 #ring_point = self.get_pose(cntr_ring[1],cntr_ring[0],cntr_ring[2],depth_im_shifted,"ring",depth_stamp,color)
                 # print("dela 3")
-                (self.nM, self.m_arr) = module.addPosition(np.array((ring_point.position.x,ring_point.position.y,ring_point.position.z)),"ring",color,self.positions["ring"],self.nM, self.m_arr, self.markers_pub)
+                (self.nM, self.m_arr) = module.addPosition(np.array((ring_point.position.x,ring_point.position.y,ring_point.position.z)),"ring",color,self.positions["ring"],self.nM, self.m_arr, self.markers_pub, showEveryDetection=self.showEveryDetection)
                 # print("dela 4")
                 # ring_point = self.get_pose(cntr_ring[1],cntr_ring[0],cntr_ring[2],depth_im,"ring")
 
@@ -579,9 +572,8 @@ class color_localizer:
             except Exception as e:
                 print(f"Ring error: {e}")
                 pass
+        print()
         return grayBGR_toDrawOn, depth_im_shifted
-
-
 
     #OHRANI
     def getLows(self, depth_line):
@@ -896,7 +888,7 @@ class color_localizer:
             colorToPush = module.calc_rgb(points,self.knn_RGB,self.random_forest_RGB,self.knn_HSV,self.random_forest_HSV)
             pose = module.get_pose((inter[0][0]+inter[0][1])//2,inter[1],depth_image[inter[1],(inter[0][0]+inter[0][1])//2],depth_image,"cylinder",depth_stamp,colorToPush,self.tf_buf)
             #pose = self.get_pose((inter[0][0]+inter[0][1])//2,inter[1],depth_image[inter[1],(inter[0][0]+inter[0][1])//2],depth_image,"cylinder",depth_stamp,colorToPush)
-            (self.nM, self.m_arr) = module.addPosition(np.array([pose.position.x,pose.position.y,pose.position.z]),"cylinder",colorToPush,self.positions["cylinder"],self.nM, self.m_arr, self.markers_pub)
+            (self.nM, self.m_arr) = module.addPosition(np.array([pose.position.x,pose.position.y,pose.position.z]),"cylinder",colorToPush,self.positions["cylinder"],self.nM, self.m_arr, self.markers_pub, showEveryDetection=self.showEveryDetection)
             #self.addPosition(np.array([pose.position.x,pose.position.y,pose.position.z]),"cylinder",colorToPush)
 
         return grayBGR_toDrawOn
@@ -907,7 +899,6 @@ class color_localizer:
 
     def find_objects(self):
         #print('I got a new image!')
-        print("--------------------------------------------------------")
 
         # Get the next rgb and depth images that are posted from the camera
         try:
@@ -931,6 +922,30 @@ class color_localizer:
             print(e)
             return 0
 
+        #! timing operations
+        print("--------------------------------------------------------")
+        diff = (depth_image_message.header.stamp.to_sec()-rgb_image_message.header.stamp.to_sec())
+        if (np.abs(diff) > 0.5):
+            # stop everything if images are not up to date !!!
+            pprint("skip")
+            return
+        
+        # print how many secounds passed since previous loop
+        tempLoop = datetime.now()
+        tempRGB = rgb_image_message.header.stamp.to_sec()
+        tempDepth = depth_image_message.header.stamp.to_sec()
+        print(f"\t\t  loop: {np.round((tempLoop-self.loopTimer).total_seconds(),2)} s")
+        print(f"\t\t   rgb: {np.round(tempRGB-self.rgbTimer,2)} s")
+        print(f"\t\t depth: {np.round(tempDepth-self.depthTimer,2)} s\n")
+        self.loopTimer = tempLoop
+        self.rgbTimer = tempRGB
+        self.depthTimer = tempDepth
+        # print("--------------------------------------------------------")
+        print(f"rgb_stamp_sec:    {rgb_image_message.header.stamp.to_sec()}")
+        print(f"depth_stamp_sec:  {depth_image_message.header.stamp.to_sec()}")
+        print(f"diff:             {diff}")
+        print()
+        
 
 
         # Convert the images into a OpenCV (numpy) format
@@ -948,11 +963,11 @@ class color_localizer:
         grayImage = module.gray2bgr(grayImage)
         markedImage, depth_im_shifted = self.find_elipses_first(rgb_image, depth_image,rgb_image_message.header.stamp, depth_image_message.header.stamp, grayImage)
         #print(markedImage)
-        # TODO: make it so it marks face and returns the image to display
         markedImage = self.find_cylinderDEPTH(rgb_image, depth_im_shifted, markedImage,depth_image_message.header.stamp)
+        # TODO: make it so it marks face and returns the image to display
         self.find_faces(rgb_image,depth_im_shifted,depth_image_message.header.stamp)
         markedImage = self.find_QR(rgb_image,depth_im_shifted,depth_image_message.header.stamp, markedImage)
-        markedImage = self.find_digits(rgb_image,depth_im_shifted,depth_image_message.header.stamp, markedImage)
+        markedImage = self.find_digits_new(rgb_image,depth_im_shifted,depth_image_message.header.stamp, markedImage)
         #!
         """
         for objectType in ["ring","cylinder"]:
@@ -1250,6 +1265,170 @@ class color_localizer:
 
         return grayBGR_toDrawOn
         # return img_out
+
+    def find_digits_new(self, rgb_image, depth_image_shifted, stamp,grayBGR_toDrawOn):
+
+        corners, ids, rejected_corners = cv2.aruco.detectMarkers(rgb_image,self.dictm,parameters=self.params)
+        
+        if ids is None:
+            return grayBGR_toDrawOn
+        
+        # drawing specific markers
+        # for i,marker in enumerate(corners):
+        #     # print(marker[0])
+        #     minimums = np.min(marker[0],axis=0)
+        #     maximums = np.max(marker[0],axis=0)
+        #     bgr_color = (0,255,0)
+        #     if ids[i][0] == 1:
+        #         bgr_color = (255,0,0) 
+        #     elif ids[i][0] == 2:
+        #         bgr_color = (0,255,0)
+        #     elif ids[i][0] == 3:
+        #         bgr_color = (0,0,255)
+        #     elif ids[i][0] == 4:
+        #         bgr_color = (255,255,0)
+                
+        #     start_point = (round(minimums[0]),round(minimums[1]))
+        #     end_point = (round(maximums[0]),round(maximums[1]))
+        #     thickness = 5
+        #     grayBGR_toDrawOn = cv2.rectangle(grayBGR_toDrawOn, start_point, end_point, bgr_color, thickness)
+
+
+        tempIds = ids.flatten()
+        indxs_1 = np.where(tempIds==1)[0]
+        indxs_2 = np.where(tempIds==2)[0]
+        indxs_3 = np.where(tempIds==3)[0]
+        indxs_4 = np.where(tempIds==4)[0]
+
+        centers = np.array([ np.mean(x[0],axis=0) for x in corners])
+
+        papers = []
+        # find indx_1 (top-left)
+        for indx_1 in indxs_1:
+            # find indx_3 (bottom-left)
+            for indx_3 in indxs_3:
+                # check vertical alignment with indx_1
+                if np.abs(centers[indx_1][0]-centers[indx_3][0]) > 10:
+                    continue
+                # find indx_2 (top-right)
+                for indx_2 in indxs_2:
+                    # check horizontal distnace from indx_1 with respect to vertical length between indx_1 and indx_3
+                    if np.abs(centers[indx_1][0]-centers[indx_2][0])/np.abs(centers[indx_1][1]-centers[indx_3][1]) > 0.75:
+                        continue
+                    # find indx_4 (bottom-right)
+                    for indx_4 in indxs_4:
+                        # check vertical alignment with indx_2
+                        if np.abs(centers[indx_2][0]-centers[indx_4][0]) > 10:
+                            continue
+                        current_corners = [corners[indx_4], corners[indx_3], corners[indx_2], corners[indx_1]]
+                        current_ids = np.array([[4],[3],[2],[1]]).astype("int32")
+                        center_cordinates = np.array([centers[indx_1], centers[indx_2], centers[indx_3], centers[indx_4]])
+                        papers.append((current_corners, current_ids, center_cordinates))
+
+        # Increase proportionally if you want a larger image
+        image_size=(351,248,3)
+        marker_side=50
+
+        for (corners, ids, center_cordinates) in papers:
+
+            img_out = np.zeros(image_size, np.uint8)
+            out_pts = np.array([[marker_side/2,img_out.shape[0]-marker_side/2],
+                            [img_out.shape[1]-marker_side/2,img_out.shape[0]-marker_side/2],
+                            [marker_side/2,marker_side/2],
+                            [img_out.shape[1]-marker_side/2,marker_side/2]])
+
+            src_points = np.zeros((4,2))
+            cens_mars = np.zeros((4,2))
+        
+            for idx in ids:
+                # Calculate the center point of all markers
+                cors = np.squeeze(corners[idx[0]-1])
+                cen_mar = np.mean(cors,axis=0)
+                cens_mars[idx[0]-1]=cen_mar
+                cen_point = np.mean(cens_mars,axis=0)
+        
+            for coords in cens_mars:
+                #  Map the correct source points
+                if coords[0]<cen_point[0] and coords[1]<cen_point[1]:
+                    src_points[2]=coords
+                elif coords[0]<cen_point[0] and coords[1]>cen_point[1]:
+                    src_points[0]=coords
+                elif coords[0]>cen_point[0] and coords[1]<cen_point[1]:
+                    src_points[3]=coords
+                else:
+                    src_points[1]=coords
+
+            h, status = cv2.findHomography(src_points, out_pts)
+            img_out = cv2.warpPerspective(rgb_image, h, (img_out.shape[1],img_out.shape[0]))
+            
+            ################################################
+            #### Extraction of digits starts here
+            ################################################
+            
+            # Cut out everything but the numbers
+            img_out = img_out[125:221,50:195,:]
+            
+            # Convert the image to grayscale
+            img_out = cv2.cvtColor(img_out, cv2.COLOR_BGR2GRAY)
+            
+            # Option 1 - use ordinairy threshold the image to get a black and white image
+            #ret,img_out = cv2.threshold(img_out,100,255,0)
+
+            # Option 1 - use adaptive thresholding
+            img_out = cv2.adaptiveThreshold(img_out,255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C,cv2.THRESH_BINARY,11,5)
+            
+            # Use Otsu's thresholding
+            #ret,img_out = cv2.threshold(img_out,0,255,cv2.THRESH_BINARY+cv2.THRESH_OTSU)
+            
+            # Pass some options to tesseract
+            config = '--psm 13 outputbase nobatch digits'
+            
+            # Visualize the image we are passing to Tesseract
+            # cv2.imshow('Warped image',img_out)
+            # cv2.waitKey(1)
+        
+            # Extract text from image
+            text = pytesseract.image_to_string(img_out, config = config)
+            
+            # Check and extract data from text
+            # print('Extracted>>',text)
+            
+            # Remove any whitespaces from the left and right
+            text = text.strip()
+            
+            # If the extracted text is of the right length
+            if len(text)==2:
+                # TODO: izračunaj normalo !!! --> zaključi, če normala ni možna
+                x1 = round(max(center_cordinates[0][0],center_cordinates[2][0]))
+                y1 = round(max(center_cordinates[0][1], center_cordinates[1][1]))
+                x2 = round(min(center_cordinates[1][0],center_cordinates[3][0]))
+                y2 = round(min(center_cordinates[2][1], center_cordinates[3][1]))
+                norm = module.get_normal(depth_image_shifted, (x1,y1,x2,y2),stamp,None,None, self.tf_buf)
+                # if we are too close to QR code
+                if norm is None:
+                    print(f"Too close to the digits!")
+                    continue
+                
+                x=int(text[0])
+                y=int(text[1])
+                num = int(text)
+                # print(f"The extracted datapoints are x={x}, y={y}")
+                print(f"Extracted number: {num}")
+                # TODO: draw
+                color = (0,255,0)
+                thicknes = 5
+                pts = np.array([corners[3][0][0],corners[2][0][1],corners[0][0][2],corners[1][0][3]]).astype("int")
+                grayBGR_toDrawOn = cv2.polylines(grayBGR_toDrawOn, [pts], True, color, thicknes)
+                # TODO: izračunaj pozicijo !!!
+                [xin, yin] = np.round(np.mean(center_cordinates, axis=0)).astype("int")
+                dist = depth_image_shifted[yin, xin]
+                pose = module.get_pose(xin,yin,dist, depth_image_shifted,"digits",stamp,None, self.tf_buf)
+                pprint(pose)
+                # TODO: dodaj v akumulator !!!
+                (self.nM, self.m_arr) = module.addPosition(np.array([pose.position.x,pose.position.y,pose.position.z]),"digits", None,self.positions["digits"],self.nM, self.m_arr, self.markers_pub,showEveryDetection=self.showEveryDetection,normal=norm, data=num)
+
+        return grayBGR_toDrawOn
+
 #! =================================================== digits end ===================================================
 # ===================================================================================================================
 #! ==================================================== QR start ====================================================
@@ -1273,7 +1452,7 @@ class color_localizer:
                 continue
             pose = module.get_pose((x1+x2)//2,(y1+y2)//2,depth_image_shifted[(y1+y2)//2,(x1+x2)//2],depth_image_shifted,"QR",stamp,None,self.tf_buf)
             #pose = self.get_pose((x1+x2)//2,(y1+y2)//2,depth_image_shifted[(y1+y2)//2,(x1+x2)//2],depth_image_shifted,"QR",stamp,None)
-            (self.nM, self.m_arr) = module.addPosition(np.array([pose.position.x,pose.position.y,pose.position.z]),"QR", None,self.positions["QR"],self.nM, self.m_arr, self.markers_pub,normal=norm, data=dObject.data.decode())
+            (self.nM, self.m_arr) = module.addPosition(np.array([pose.position.x,pose.position.y,pose.position.z]),"QR", None,self.positions["QR"],self.nM, self.m_arr, self.markers_pub,showEveryDetection=self.showEveryDetection,normal=norm, data=dObject.data.decode())
             #self.addPosition(np.array([pose.position.x,pose.position.y, pose.position.z]),"QR",None,norm,dObject.data.decode())
 
 
@@ -1471,7 +1650,7 @@ class color_localizer:
             #pose = self.get_pose_face((x1,x2,y1,y2), face_distance, depth_time)
             if not (pose is None) and not (norm is None):
                 newPosition = np.array([pose.position.x,pose.position.y, pose.position.z])
-                (self.nM, self.m_arr) = module.addPosition(newPosition,"face", None, self.positions["face"],self.nM, self.m_arr, self.markers_pub, normal=norm)
+                (self.nM, self.m_arr) = module.addPosition(newPosition,"face", None, self.positions["face"],self.nM, self.m_arr, self.markers_pub, showEveryDetection=self.showEveryDetection, normal=norm)
                 #self.addPosition(newPosition, "face", color_char=None, normal=norm)
 
 
@@ -1545,18 +1724,24 @@ class color_localizer:
 
 def main():
 
+
         color_finder = color_localizer()
 
+
         rate = rospy.Rate(1.25)
+        # rate = rospy.Rate(10)
+
+        
         skipCounter = 3
+        loopTimer = rospy.Time.now().to_sec()
+        # print(sleepTimer)
         while not rospy.is_shutdown():
             # print("hello!")
             if skipCounter <= 0:
                 color_finder.find_objects()
             else:
                 skipCounter -= 1
-            #print("hello")
-            #print("\n-----------\n")
+
             rate.sleep()
 
         cv2.destroyAllWindows()

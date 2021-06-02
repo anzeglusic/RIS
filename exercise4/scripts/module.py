@@ -152,21 +152,33 @@ def addPosition(newPosition, objectType, color_char, positions, nM, m_arr, marke
                     "isAssigned": False
                 },
                 ...
+            ],
+            "digits": [
+                {
+                    "averagePostion": np.array([x,y,z]),
+                    "averageNormal": np.array([x,y,z]),
+                    "detectedPositions": [ pos0, pos1, pos2, pos3],
+                    "detectedNormals": [ pos0, pos1, pos2, pos3],
+                    "data": None,
+                    "avgMarkerId": None,
+                    "isAssigned": False
+                },
+                ...
             ]
         }
         '''
         qrNormalLength = 0.25
+        digitsNormalLength = 0.25
         faceNormalLength = 0.5
         # make normal of magnitude 1
-        if objectType == "face" or objectType=="QR":
+        if objectType == "face" or objectType=="QR" or objectType=="digits":
             if normal is None:
-                #none vrne
-                return
+                return (nM, m_arr)
             normal = normal/np.sqrt(normal[0]**2 + normal[1]**2 + normal[2]**2)
 
         unique_position = True
         for area in positions:
-            if objectType=="face" or objectType=="QR":
+            if objectType=="face" or objectType=="QR" or objectType=="digits":
                 c_sim = np.dot(normal,area["averageNormal"])/(np.linalg.norm(normal)*np.linalg.norm(area["averageNormal"]))
                 # print("similarity:",c_sim)
                 if c_sim<=0.5:
@@ -181,7 +193,7 @@ def addPosition(newPosition, objectType, color_char, positions, nM, m_arr, marke
 
             unique_position = False
 
-            if objectType=="QR":
+            if objectType=="QR" or objectType=="digits":
                 # print(data)
                 if area["data"] is None:
                     area["data"] = data
@@ -192,7 +204,7 @@ def addPosition(newPosition, objectType, color_char, positions, nM, m_arr, marke
             if objectType=="cylinder" or objectType=="ring":
                 # color
                 area["color"][color_char] += 1
-            elif objectType=="face" or objectType=="QR":
+            elif objectType=="face" or objectType=="QR" or objectType=="digits":
                 # collection of normals
                 area["detectedNormals"].append(normal)
                 # average normal
@@ -306,6 +318,39 @@ def addPosition(newPosition, objectType, color_char, positions, nM, m_arr, marke
                 m_arr.markers.append(marker)
                 markers_pub.publish(m_arr)
 
+            elif objectType=="digits":
+                nM += 1
+                marker = Marker()
+                marker.header.stamp = rospy.Time(0)
+                marker.header.frame_id = "map"
+                marker.action = Marker.ADD
+                marker.frame_locked = False
+                marker.lifetime = rospy.Duration.from_sec(0)
+
+                if area["avgMarkerId"] == None:
+                    marker.id = nM
+                    area["avgMarkerId"] = nM
+                else:
+                    marker.id = area["avgMarkerId"]
+
+                marker.ns = 'points_arrow'
+                marker.type = Marker.ARROW
+                marker.pose.orientation.y = 0
+                marker.pose.orientation.w = 1
+                marker.scale = Vector3(0.5,0.5,0.5)
+                marker.color = ColorRGBA(0,1,0,0.5)
+
+                orig_arr = area["averagePostion"].copy()
+                orig_arr[2] += 0.1
+                dest_arr = orig_arr - area["averageNormal"]*digitsNormalLength
+                head = Point(orig_arr[0],orig_arr[1],orig_arr[2])
+                tail = Point(dest_arr[0],dest_arr[1],dest_arr[2])
+
+                marker.points = [tail,head]
+
+                m_arr.markers.append(marker)
+                markers_pub.publish(m_arr)
+
         if unique_position == True:
             if objectType=="ring":
                 colorDict = {"r":0,"g":0,"b":0,"y":0,"w":0,"c":0}
@@ -342,7 +387,17 @@ def addPosition(newPosition, objectType, color_char, positions, nM, m_arr, marke
                                                     "averageNormal": normal.copy(),
                                                     "detectedPositions":[newPosition.copy()],
                                                     "detectedNormals":[normal.copy()],
-                                                    "data": None,
+                                                    "data": data,
+                                                    "avgMarkerId": None,
+                                                    "isAssigned": False
+                                                    })
+            elif objectType=="digits":
+                print("\n\nAdding new digits\n\n")
+                positions.append({ "averagePostion": newPosition.copy(),
+                                                    "averageNormal": normal.copy(),
+                                                    "detectedPositions":[newPosition.copy()],
+                                                    "detectedNormals":[normal.copy()],
+                                                    "data": data,
                                                     "avgMarkerId": None,
                                                     "isAssigned": False
                                                     })
@@ -381,7 +436,7 @@ def addPosition(newPosition, objectType, color_char, positions, nM, m_arr, marke
                 tail = Point(dest_arr[0],dest_arr[1],dest_arr[2])
 
                 marker.points = [tail,head]
-            elif objectType=="QR":
+            elif objectType=="QR" or objectType=="digits":
                 marker.ns = 'points_arrow'
                 marker.type = Marker.ARROW
                 marker.pose.orientation.y = 0
