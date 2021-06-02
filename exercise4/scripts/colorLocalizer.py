@@ -41,6 +41,8 @@ class color_localizer:
         self.rgbTimer = 0
         self.depthTimer = 0
 
+        self.foundAll = True
+
         self.basePosition = {"x":0, "y":0, "z":0}
         self.baseAngularSpeed = 0
 
@@ -67,7 +69,10 @@ class color_localizer:
         self.markers_pub = rospy.Publisher('ring_markers', MarkerArray, queue_size=1000)
         self.pic_pub = rospy.Publisher('face_im', Image, queue_size=1000)
         self.points_pub = rospy.Publisher('/our_pub1/chat1', Point, queue_size=1000)
-        # self.twist_pub = rospy.Publisher('/our_pub1/chat1', Twist, queue_size=1000)
+        self.twist_pub = rospy.Publisher('/our_pub1/chat2', Twist, queue_size=1000)
+        #ta dva se uporabljata za objavo
+        self.face_pub = rospy.Publisher('face_tw', Twist, queue_size=1000)
+        self.cylinder_pub = rospy.Publisher('cylinder_pt', Point, queue_size=1000)
 
         # Object we use for transforming between coordinate frames
         self.tf_buf = tf2_ros.Buffer()
@@ -969,15 +974,18 @@ class color_localizer:
         markedImage = self.find_QR(rgb_image,depth_im_shifted,depth_image_message.header.stamp, markedImage)
         markedImage = self.find_digits_new(rgb_image,depth_im_shifted,depth_image_message.header.stamp, markedImage)
         #!
-        """
-        for objectType in ["ring","cylinder"]:
-            module.checkPosition(self.positions[objectType],self.basePosition, objectType, self.points_pub)
-        """
+        module.checkForApproach(self.positions["face"],"face",face_pub)
+        module.checkForApproach(self.positions["cylinder"],"cylinder",cylinder_pub)
+        #for objectType in ["ring","cylinder"]:
+        #    module.checkPosition(self.positions[objectType],self.basePosition, objectType, self.points_pub)
+
         # print(type(markedImage))
         # print(markedImage.shape)
         #print(markedImage)
         self.pic_pub.publish(CvBridge().cv2_to_imgmsg(markedImage, encoding="passthrough"))
         #self.markers_pub.publish(self.m_arr)
+
+        return self.foundAll
 
     def find_elipse(self,contours):
         # Fit elipses to all extracted contours
@@ -1732,16 +1740,19 @@ def main():
         rate = rospy.Rate(1.25)
         # rate = rospy.Rate(10)
 
-
+        explore = True
         skipCounter = 3
         loopTimer = rospy.Time.now().to_sec()
         # print(sleepTimer)
         while not rospy.is_shutdown():
             # print("hello!")
-            if skipCounter <= 0:
-                color_finder.find_objects()
+            if explore:
+                if skipCounter <= 0:
+                    explore = color_finder.find_objects()
+                else:
+                    skipCounter -= 1
             else:
-                skipCounter -= 1
+                pass
 
             rate.sleep()
 

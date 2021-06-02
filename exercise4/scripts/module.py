@@ -20,6 +20,30 @@ import subprocess
 import pyzbar.pyzbar as pyzbar
 import pytesseract
 
+def checkForApproach(positions,objectType,publisher):
+    for obj in positions:
+        if obj["approached"]:
+            continue
+        if objectType == "face":
+            #rabimo pristopiti poslati moramo twist message za normalo
+            obj["approached"] = True
+            publisher.publish(Vector3(obj["averageNormal"][0],obj["averageNormal"][0],obj["averageNormal"][0]),Vector3(obj["averagePostion"][0],obj["averagePostion"][1],obj["averagePostion"][2]))
+        elif objectType == "cylinder":
+            obj["approached"] = True
+            publisher.publish(Point(obj["averagePostion"][0],obj["averagePostion"][1],obj["averagePostion"][2]))
+    return True
+
+
+def approachForOrder():
+    pass
+
+def resetApproachesForTask(positions):
+    for objT in positions:
+        if objT == "QR" or objT == "digits":
+            continue
+        positions[objT]["approached"] = False
+    return positions
+
 def checkPosition(positions,base,objectType, publisher):
     '''
     positions = {
@@ -34,7 +58,18 @@ def checkPosition(positions,base,objectType, publisher):
             { "averagePostion": np.array([x,y,z]), "detectedPositions": [ pos0, pos1, pos2, pos3], "color": {"b":0, "g":0, "r":0, ...}, "approached": False  },
             { "averagePostion": np.array([x,y,z]), "detectedPositions": [ pos0, pos1, pos2, pos3], "color": {"b":0, "g":0, "r":0, ...}, "approached": False  }
 
-        ]
+        ],
+        "face": [
+            {
+                "averagePostion": np.array([x,y,z]),
+                "averageNormal": np.array([x,y,z]),
+                "detectedPositions": [ pos0, pos1, pos2, pos3],
+                "detectedNormals": [ pos0, pos1, pos2, pos3],
+                "approached": False,
+                "avgMarkerId": None,
+                "QR_index": None,
+                "digits_index": None
+            },
     }
     '''
     for area in positions:
@@ -461,7 +496,7 @@ def addPosition(newPosition, objectType, color_char, positions, nM, m_arr, marke
 
     # updating connections
     (nM, m_arr, positions) = update_positions(nM, m_arr, positions, markers_pub,faceNormalLength, qrNormalLength, digitsNormalLength)
-    
+
     return (nM, m_arr, positions)
 
 def update_positions(nM, m_arr, positions, markers_pub, faceNormalLength, qrNormalLength, digitsNormalLength):
@@ -516,7 +551,7 @@ def update_positions(nM, m_arr, positions, markers_pub, faceNormalLength, qrNorm
         ]
     }
     '''
-    
+
     # check if any seperate objects with same objectType can be joined
     startOver = True
     while startOver == True:
@@ -533,7 +568,7 @@ def update_positions(nM, m_arr, positions, markers_pub, faceNormalLength, qrNorm
                         continue
                     elif objectType=="cylinder" and dist > 0.5:
                         continue
-                    
+
                     else:
                         # merge (i) into location of index (j) + do new average calculations
                         # detectedPositions
@@ -609,7 +644,7 @@ def update_positions(nM, m_arr, positions, markers_pub, faceNormalLength, qrNorm
                         break
                 if doubleBreak:
                     break
-        
+
         # normal dependent
         for objectType in ["face","QR","digits"]:
             for i in range(len(positions[objectType])-1, 0, -1):
@@ -679,7 +714,7 @@ def update_positions(nM, m_arr, positions, markers_pub, faceNormalLength, qrNorm
                             dest_arr = orig_arr - positions[objectType][j]["averageNormal"]*qrNormalLength
                         elif objectType == "digits":
                             dest_arr = orig_arr - positions[objectType][j]["averageNormal"]*digitsNormalLength
-                        
+
                         head = Point(orig_arr[0],orig_arr[1],orig_arr[2])
                         tail = Point(dest_arr[0],dest_arr[1],dest_arr[2])
 
@@ -689,7 +724,7 @@ def update_positions(nM, m_arr, positions, markers_pub, faceNormalLength, qrNorm
                         markers_pub.publish(m_arr)
                         # delete average marker of index (i) --> or make it transparent
                         if not (positions[objectType][i]["avgMarkerId"] is None):
-                            
+
                             nM += 1
                             marker = Marker()
                             marker.header.stamp = rospy.Time(0)
@@ -724,7 +759,7 @@ def update_positions(nM, m_arr, positions, markers_pub, faceNormalLength, qrNorm
                                 dest_arr = orig_arr - positions[objectType][i]["averageNormal"]*qrNormalLength
                             elif objectType == "digits":
                                 dest_arr = orig_arr - positions[objectType][i]["averageNormal"]*digitsNormalLength
-                            
+
                             head = Point(orig_arr[0],orig_arr[1],orig_arr[2])
                             tail = Point(dest_arr[0],dest_arr[1],dest_arr[2])
 
@@ -740,7 +775,7 @@ def update_positions(nM, m_arr, positions, markers_pub, faceNormalLength, qrNorm
                         break
                 if doubleBreak:
                     break
-    
+
     # reset connections
     for QR_dict in positions["QR"]:
         QR_dict["isAssigned"] = False
@@ -751,7 +786,7 @@ def update_positions(nM, m_arr, positions, markers_pub, faceNormalLength, qrNorm
     for face_dict in positions["face"]:
         face_dict["QR_index"] = None
         face_dict["digits_index"] = None
-    
+
     # TODO: povezovanje "digits" s "face"
     for i,digits_dict in enumerate(positions["digits"]):
         closestObjectKey = None
@@ -789,7 +824,7 @@ def update_positions(nM, m_arr, positions, markers_pub, faceNormalLength, qrNorm
         closestObjectKey = None
         closestObjectIndx = None
         closestObjectDist = np.inf
-        
+
         # chack all cylinders
         for j,cylinder_dict in enumerate(positions["cylinder"]):
             dist_vector = QR_dict["averagePostion"] - cylinder_dict["averagePostion"]
