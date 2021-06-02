@@ -12,6 +12,7 @@
 #include <geometry_msgs/Twist.h>
 #include <actionlib/client/terminal_state.h>
 #include <actionlib_msgs/GoalStatusArray.h>
+#include <vector>
 #include <cmath>
 #include <map>
 #include <wait.h>
@@ -128,7 +129,7 @@ void vozi(int y3, int x3, double y, double x, int dir)
     dirrr = dir;
     geometry_msgs::PoseStamped goal;
     cout << stevec << endl;
-    if (stevec % 5 == 0)
+    /* if (stevec % 5 == 0)
     {
         posiljaj = true;
         if (retract == false)
@@ -137,6 +138,7 @@ void vozi(int y3, int x3, double y, double x, int dir)
             streched = true, retract = false;
         /// brojcccc = 0;
     }
+    */
     goal.header.frame_id = "map";
     goal.pose.orientation.w = w[dir];
     goal.pose.orientation.z = z[dir];
@@ -174,14 +176,6 @@ double sx(double x, int dir)
         return x + 1;
     else
         return x;
-}
-
-void ins()
-{
-    can[make_pair(2.5, make_pair(1.5, 3))] = false;
-    can[make_pair(1.5, make_pair(1.5, 1))] = false;
-    can[make_pair(0.5, make_pair(1.5, 1))] = false;
-    can[make_pair(0.5, make_pair(2.5, 2))] = true;
 }
 
 double y2 = -19999;
@@ -299,187 +293,6 @@ int cil = 0;
 int arc[] = {0, 1, 2, 0};
 int brci = 0;
 int brrin = 0;
-void tapa(const geometry_msgs::Point::ConstPtr &mg)
-{
-    cout << "DOJDE" << dirrr << endl;
-    y2 = mg->y;
-    x2 = mg->x;
-    cout << y2 << " " << x2 << endl;
-    double z2 = mg->z;
-    if (isnan(x2) || isnan(y2))
-        return;
-
-    double yy1 = y2;
-    double xx1 = x2;
-
-    double a = euc(xx1, yy1 - 0.5, X, Y);
-    double b = euc(xx1 - 0.5, yy1, X, Y);
-    double c = euc(xx1, yy1 + 0.5, X, Y);
-    double d = euc(xx1 + 0.5, yy1, X, Y);
-    if (a < b && a < c && a < d)
-        dirrr = 1;
-    else if (b < a && b < c && b < d)
-        dirrr = 2;
-    else if (c < a && c < b && c < d)
-        dirrr = 3;
-    else
-        dirrr = 0;
-
-    if (z2 >= 0.5)
-    {
-        brrin = brrin + 1;
-        if (brrin == 4)
-        {
-            brrin = 3;
-            cout << "Imamo tri ringe" << endl;
-            return;
-        }
-        int nasdir = 4;
-        if (xx1 <= -1)
-            ringe = 1;
-        else if (xx1 <= 0 && yy1 >= 1)
-            ringe = 0;
-        else if (xx1 >= 2 && yy1 <= 0)
-            ringe = 2;
-        else if (xx1 >= 1 && yy1 >= 1)
-            ringe = 3;
-        else
-            cout << "NE GRE TAM" << endl;
-        nasdir = arr[ringe];
-        double yr = ary[ringe];
-        double xr = arx[ringe];
-
-        cout << "SMER " << nasdir << endl;
-        if (nasdir == 1)
-        {
-
-            vozi(yy11, xx11, yy1 + yr, xx1 + xr, 1);
-            sleep(10);
-        }
-        else if (nasdir == 2)
-        {
-
-            vozi(yy11, xx11, yy1 + yr, xx1 + xr, 2);
-            sleep(10);
-        }
-        else if (nasdir == 3)
-        {
-
-            vozi(yy11, xx11, yy1 + yr, xx1 + xr, 3);
-            sleep(10);
-        }
-        else if (nasdir == 0)
-        {
-
-            vozi(yy11, xx11, yy1 + yr, xx1 + xr, 0);
-            sleep(10);
-        }
-        else
-            return;
-    }
-    else
-    {
-        //dirrr = arc[cil];
-        brci = brci + 1;
-        if (brci == 4)
-        {
-            brci = 3;
-            cout << "IMAMO 3 CILINDRE" << endl;
-            return;
-        }
-        cil++;
-        double dx = 0;
-        if (dirrr == 3)
-            dirrr = 0;
-        dirrr = 4;
-        if (xx1 <= -1 && yy1 >= 0 && yy1 <= 1)
-            dirrr = 0;
-        else if (yy1 >= 2)
-            dirrr = 1;
-        else if (xx1 >= 2)
-            dirrr = 2;
-        else if (xx1 <= 0 && xx1 >= -1 && yy1 <= -1 && yy1 >= -2)
-            dx = 0.5, dirrr = 3;
-        else
-            cout << "NE GRE TAM" << endl;
-        if (dirrr == 1)
-        {
-
-            vozi(yy11, xx11, yy1 - 0.5, xx1, 1);
-            sleep(10);
-            //cout << "POZDRAAAAAAAAAAAAAAV" << endl;
-            //system("/home/iletavcioski/ROS/src/exercise3/src/pozdrav.sh");
-            if (z2 < 0.5)
-            {
-                std_msgs::String msg;
-                msg.data = "extend";
-                roko.publish(msg);
-                sleep(10);
-                msg.data = "retract";
-                roko.publish(msg);
-            }
-        }
-        else if (dirrr == 2)
-        {
-
-            vozi(yy11, xx11, yy1, xx1 - 0.45, 2);
-            sleep(10);
-            if (z2 < 0.5)
-            {
-                std_msgs::String msg;
-                msg.data = "extend";
-                roko.publish(msg);
-                sleep(10);
-                msg.data = "retract";
-                roko.publish(msg);
-            }
-            //cout << "POZDRAAAAAAAAAAAAAAV" << endl;
-            //system("/home/iletavcioski/ROS/src/exercise3/src/pozdrav.sh");
-        }
-        else if (dirrr == 3)
-        {
-            if (dx == 0.5)
-                vozi(yy11, xx11, yy1 + 0.5, xx1 + dx, 4);
-            else
-                vozi(yy11, xx11, yy1 + 0.5, xx1 + dx, 3);
-            sleep(10);
-            std_msgs::String msg;
-            if (z2 < 0.5)
-            {
-                std_msgs::String msg;
-                msg.data = "extend";
-                roko.publish(msg);
-                sleep(10);
-                msg.data = "retract";
-                roko.publish(msg);
-            }
-            // cout << "POZDRAAAAAAAAAAAAAAV" << endl;
-            //system("/home/iletavcioski/ROS/src/exercise3/src/pozdrav.sh");
-            //sleep(20);
-        }
-        else if (dirrr == 0)
-        {
-
-            vozi(yy11, xx11, yy1, xx1 + 0.5, 0);
-            sleep(10);
-            if (z2 < 0.5)
-            {
-                std_msgs::String msg;
-                msg.data = "extend";
-                roko.publish(msg);
-                sleep(10);
-                msg.data = "retract";
-                roko.publish(msg);
-            }
-            // cout << "POZDRAAAAAAAAAAAAAAV" << endl;
-            //system("/home/iletavcioski/ROS/src/exercise3/src/pozdrav.sh");
-        }
-        else
-            return;
-        sleep(5);
-    }
-    return;
-}
 
 int syy(int my, int dir)
 {
@@ -568,7 +381,81 @@ void statusCallback(const actionlib_msgs::GoalStatusArray::ConstPtr &msg)
     return;
 }
 int brojcccc = 0;
+map<pair<double, pair<double, int>>, bool> can1;
+map<pair<double, pair<double, int>>, bool> went1;
 
+void ins()
+{
+    can[make_pair(2.5, make_pair(1.5, 3))] = false;
+    can[make_pair(1.5, make_pair(1.5, 1))] = false;
+    can[make_pair(0.5, make_pair(1.5, 1))] = false;
+    can[make_pair(0.5, make_pair(2.5, 2))] = true;
+    can1[make_pair(2.5, make_pair(1.5, 3))] = false;
+    can1[make_pair(1.5, make_pair(1.5, 1))] = false;
+    can1[make_pair(0.5, make_pair(1.5, 1))] = false;
+    can1[make_pair(0.5, make_pair(2.5, 2))] = true;
+}
+
+void approaching(double zY, double zX, int kaj)
+{
+    cout << "APPROACHING-> " << zY << " " << zX << endl;
+    pair<double, double> nearest;
+    double dist = 1e9;
+    for (map<pair<double, pair<double, int>>, bool>::iterator it = can1.begin(); it != can1.end(); it++)
+    {
+        pair<double, pair<double, int>> pp = it->first;
+        if (euc(zX, zY, pp.second.first, pp.first) < dist)
+        {
+            dist = euc(zX, zY, pp.second.first, pp.first);
+            nearest = make_pair(pp.second.first, pp.first);
+        }
+    }
+    cout << nearest.first << " " << nearest.second << endl;
+    vector<pair<double, double>> opcii;
+    opcii.push_back(make_pair(nearest.first, nearest.second - 0.5));
+    opcii.push_back(make_pair(nearest.first + 0.5, nearest.second));
+    opcii.push_back(make_pair(nearest.first, nearest.second + 0.5));
+    opcii.push_back(make_pair(nearest.first - 0.5, nearest.second));
+    if (kaj == 1 || kaj == 3 || kaj == 4)
+    {
+        double maxi_dist = 1e9;
+        int direction;
+        for (int i = 0; i < 4; i++)
+        {
+            if (euc(zX, zY, opcii[i].second, opcii[i].first) < maxi_dist)
+            {
+                direction = i;
+                maxi_dist = euc(zX, zY, opcii[i].second, opcii[i].first);
+            }
+        }
+        cout << direction << endl;
+        if (direction == 0)
+        {
+            vozi(0, 0, zY, zX + 0.3, 0);
+            cout << "STASAV" << endl;
+            sleep(20);
+        }
+        else if (direction == 1)
+        {
+            vozi(0, 0, zY - 0.3, zX, 1);
+            cout << "STASAV" << endl;
+            sleep(20);
+        }
+        else if (direction == 2)
+        {
+            vozi(0, 0, zY, zX - 0.3, 2);
+            cout << "STASAV" << endl;
+            sleep(20);
+        }
+        else if (direction == 0)
+        {
+            vozi(0, 0, zY + 0.3, zX, 3);
+            cout << "STASAV" << endl;
+            sleep(20);
+        }
+    }
+}
+int krat = 0;
 int main(int argc, char **argv)
 {
     ros::init(argc, argv, "map_goals");
@@ -579,7 +466,7 @@ int main(int argc, char **argv)
     ros::Subscriber move_base_sub = n.subscribe("move_base/status", 1000, statusCallback);
     roko = n.advertise<std_msgs::String>("/arm_command", 1000);
     namedWindow("Map");
-    ros::Subscriber sub24 = n.subscribe("/our_pub1/chat1", 100, tapa);
+    //ros::Subscriber sub24 = n.subscribe("/our_pub1/chat1", 100, tapa);
     std_msgs::String mgg;
     mgg.data = "retract";
     roko.publish(mgg);
@@ -589,6 +476,11 @@ int main(int argc, char **argv)
     xx11 = 235;
     int mom = 1;
     bool cc = true;
+
+    int Kaj = 1;
+    int krat1 = 0;
+    int krat2 = 0;
+    int krat3 = 0;
     while (ros::ok())
     {
         if (konec)
@@ -604,6 +496,101 @@ int main(int argc, char **argv)
         if (!cv_map.empty())
             imshow("Map", cv_map);
         //cout << "NOVO" << endl;
+        double zy = 0.5;
+        double zx = -0.5;
+
+        int zy1 = 259;
+        int zx1 = 235;
+        int mom1 = 1;
+        while (krat == 0)
+        {
+            cout << "VLEZE V KRAT" << endl;
+            //cout << zy << " " << zx << " " << mom1 << endl;
+            int le1 = (mom1 + 3) % 4;
+            int de1 = (mom1 + 1) % 4;
+            int naz1 = (mom1 + 2) % 4;
+            int nap1 = mom1;
+
+            can1[make_pair(zy, make_pair(zx, le1))] = preveri(zy1, zx1, le1);
+            can1[make_pair(zy, make_pair(zx, de1))] = preveri(zy1, zx1, de1);
+            can1[make_pair(zy, make_pair(zx, naz1))] = preveri(zy1, zx1, naz1);
+            can1[make_pair(zy, make_pair(zx, nap1))] = preveri(zy1, zx1, nap1);
+            ins();
+            if (!can1[make_pair(zy, make_pair(zx, le1))] && !went1[make_pair(zy, make_pair(zx, le1))])
+            {
+                went1[make_pair(zy, make_pair(zx, le1))] = true;
+                mom1 = le1;
+                zy = sy(zy, mom1);
+                zx = sx(zx, mom1);
+                zy1 = syy(zy1, mom1);
+                zx1 = sxx(zx1, mom1);
+            }
+            else if (!can1[make_pair(zy, make_pair(zx, nap1))] && !went1[make_pair(zy, make_pair(zx, nap1))])
+            {
+                went1[make_pair(zy, make_pair(zx, nap1))] = true;
+                mom1 = nap1;
+                zy = sy(zy, mom1);
+                zx = sx(zx, mom1);
+                zy1 = syy(zy1, mom1);
+                zx1 = sxx(zx1, mom1);
+            }
+            else if (!can1[make_pair(zy, make_pair(zx, de1))] && !went1[make_pair(zy, make_pair(zx, de1))])
+            {
+                went1[make_pair(zy, make_pair(zx, de1))] = true;
+                mom1 = de1;
+                zy = sy(zy, mom1);
+                zx = sx(zx, mom1);
+                zy1 = syy(zy1, mom1);
+                zx1 = sxx(zx1, mom1);
+            }
+            else if (!can1[make_pair(zy, make_pair(zx, naz1))] && !went1[make_pair(zy, make_pair(zx, naz1))])
+            {
+                went1[make_pair(zy, make_pair(zx, naz1))] = true;
+                mom1 = naz1;
+                zy = sy(zy, mom1);
+                zx = sx(zx, mom1);
+                zy1 = syy(zy1, mom1);
+                zx1 = sxx(zx1, mom1);
+            }
+            else
+            {
+                krat++;
+                break;
+            }
+        }
+        //return 0;
+
+        if (krat1 == 0 && y == 0.5 && x == -0.5)
+        {
+            krat1++;
+            approaching(0.2, -1.79, 1);
+            approaching(1.32, 0.39, 1);
+        }
+        if (krat2 == 0 && y == 2.5 && x == 2.5)
+        {
+            krat2++;
+            approaching(1.28, 2.94, 1);
+        }
+        if (krat3 == 0 && y == -0.5 && x == 2.5)
+        {
+            krat3++;
+            approaching(-0.44, 4.06, 1);
+        }
+        if (Kaj == 4)
+        {
+            std_msgs::String mgg1;
+            mgg1.data = "streched";
+            roko.publish(mgg1);
+            sleep(5);
+            std_msgs::String mgg;
+            mgg.data = "retract";
+            roko.publish(mgg);
+            sleep(5);
+        }
+        //approaching(1.32, 0.39, 1);
+        //approaching(1.28, 2.94, 1);
+        //approaching(-0.44, 4.06, 1);
+
         if (cc)
         {
             cc = false;
