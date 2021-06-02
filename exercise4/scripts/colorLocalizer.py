@@ -72,7 +72,7 @@ class color_localizer:
         # Publiser for the visualization markers
         self.markers_pub = rospy.Publisher('ring_markers', MarkerArray, queue_size=1000)
         self.pic_pub = rospy.Publisher('face_im', Image, queue_size=1000)
-        self.face_pub = rospy.Publisher('face_im2', Image, queue_size=1000)
+        self.faceIm_pub = rospy.Publisher('face_im2', Image, queue_size=1000)
         self.points_pub = rospy.Publisher('/our_pub1/chat1', Point, queue_size=1000)
         self.twist_pub = rospy.Publisher('/our_pub1/chat2', Twist, queue_size=1000)
         #ta dva se uporabljata za objavo
@@ -1635,7 +1635,7 @@ class color_localizer:
             im_ms.width = face_region_m.shape[1]
             im_ms.data = face_region_m
 
-            self.face_pub.publish(im_ms)
+            self.faceIm_pub.publish(im_ms)
             #self.pic_pub.publish(CvBridge().cv2_to_imgmsg(face_region, encoding="passthrough"))
 
             # Visualize the extracted face
