@@ -38,8 +38,8 @@ int yy11 = 259;
 int xx11 = 255;
 //proba
 string s1 = "-1";
-double z[] = {1, 0.7, 0, -0.7, 0.93, 0.39, -0.39, -0.93};
-double w[] = {0, 0.7, 1, 0.7, 0.39, 0.93, 0.93, 0.39};
+double z[] = {1, 0.7, 0, -0.7, 0.925, 0.3797, -0.3797, -0.925};
+double w[] = {0, 0.7, 1, 0.7, 0.3797, 0.925, 0.925, 0.3797};
 map<pair<double, pair<double, int>>, bool> looked;
 map<pair<double, pair<double, int>>, bool> went;
 map<pair<double, pair<double, int>>, bool> can;
@@ -366,8 +366,8 @@ bool preveri(int my, int mx, int dir)
 
 void statusCallback(const actionlib_msgs::GoalStatusArray::ConstPtr &msg)
 {
-    //cout << "VLEZE" << endl;
-    //cout << mozi << endl;
+    cout << "VLEZEEE" << endl;
+    cout << mozi << endl;
     if (msg->status_list.size() == 0)
         return;
     int nn = msg->status_list.size();
@@ -407,7 +407,7 @@ void approaching(double zY, double zX, int kaj)
         if (euc(zX, zY, pp.second.first, pp.first) < dist)
         {
             dist = euc(zX, zY, pp.second.first, pp.first);
-            nearest = make_pair(pp.second.first, pp.first);
+            nearest = make_pair(pp.first, pp.second.first);
         }
     }
     cout << nearest.first << " " << nearest.second << endl;
@@ -422,6 +422,8 @@ void approaching(double zY, double zX, int kaj)
         int direction;
         for (int i = 0; i < 4; i++)
         {
+            cout << opcii[i].first << " " << opcii[i].second << endl;
+            cout << euc(zX, zY, opcii[i].second, opcii[i].first) << endl;
             if (euc(zX, zY, opcii[i].second, opcii[i].first) < maxi_dist)
             {
                 direction = i;
@@ -432,26 +434,28 @@ void approaching(double zY, double zX, int kaj)
         if (direction == 0)
         {
             vozi(0, 0, zY, zX + 0.3, 0);
+            int bezveze = 0;
+
             cout << "STASAV" << endl;
-            sleep(20);
+            //sleep(20);
         }
         else if (direction == 1)
         {
             vozi(0, 0, zY - 0.3, zX, 1);
             cout << "STASAV" << endl;
-            sleep(20);
+            //sleep(20);
         }
         else if (direction == 2)
         {
             vozi(0, 0, zY, zX - 0.3, 2);
             cout << "STASAV" << endl;
-            sleep(20);
+            // sleep(20);
         }
-        else if (direction == 0)
+        else if (direction == 3)
         {
             vozi(0, 0, zY + 0.3, zX, 3);
             cout << "STASAV" << endl;
-            sleep(20);
+            // sleep(20);
         }
     }
     else
@@ -471,34 +475,36 @@ void approaching(double zY, double zX, int kaj)
         cout << direction << endl;
         if (direction == 1)
         {
+            cout << opcii[1].second << endl;
             if (!can1[make_pair(nearest.first, make_pair(nearest.second, direction))])
             {
                 if (zX <= opcii[1].second)
                 {
                     vozi(0, 0, zY - 0.3, zX - 0.3, 5);
                     cout << "STASAV" << endl;
-                    sleep(20);
+                    // sleep(20);
                 }
                 else
                 {
                     vozi(0, 0, zY - 0.3, zX + 0.3, 4);
                     cout << "STASAV" << endl;
-                    sleep(20);
+                    // sleep(20);
                 }
             }
             else
             {
+                cout << "VLEZERING" << endl;
                 if (zX >= opcii[1].second)
-                {
-                    vozi(0, 0, zY - 0.3, zX - 0.3, 5);
-                    cout << "STASAV" << endl;
-                    sleep(20);
-                }
-                else
                 {
                     vozi(0, 0, zY - 0.3, zX + 0.3, 4);
                     cout << "STASAV" << endl;
-                    sleep(20);
+                    // sleep(20);
+                }
+                else
+                {
+                    vozi(0, 0, zY - 0.3, zX - 0.3, 5);
+                    cout << "STASAV" << endl;
+                    // sleep(20);
                 }
             }
         }
@@ -520,6 +526,7 @@ void approaching(double zY, double zX, int kaj)
     }
 }
 int krat = 0;
+int isApproaching = 0;
 int main(int argc, char **argv)
 {
     ros::init(argc, argv, "map_goals");
@@ -557,7 +564,8 @@ int main(int argc, char **argv)
         }
         ros::spinOnce();
         //brojcccc++;
-
+        if (!mozi)
+            continue;
         //ros::spinOnce();
         //ros::Subscriber sub24 = n.subscribe("/our_pub1/chat1", 100, tapa);
         if (!cv_map.empty())
@@ -627,40 +635,75 @@ int main(int argc, char **argv)
         }
         //return 0;
 
-        if (krat1 == 0 && y == 0.5 && x == -0.5)
+        if (krat1 < 3 && y == 0.5 && x == -0.5)
         {
+            isApproaching = 1;
             krat1++;
-            approaching(0.2, -1.79, 1);
-            approaching(1.32, 0.39, 1);
-            approaching(1.01, -1.2, 3);
-            Kaj = 3;
+            if (krat1 == 1)
+            {
+                approaching(0.3, -1.79, 1);
+                continue;
+            }
+            else if (krat1 == 2)
+            {
+                approaching(1.35, 0.29, 1);
+                continue;
+            }
+            else
+            {
+                approaching(1.01, -1.2, 2);
+                Kaj = 2;
+                continue;
+            }
         }
-        if (krat4 == 0 && y == 2.5 && x == 0.5)
+        if (krat4 == 0 && y == 2.5 && x == 1.5)
         {
             krat4++;
-            Kaj = 3;
-            approaching(2.00, 1.45, 3);
+            Kaj = 2;
+            approaching(2.00, 1.45, 2);
+            isApproaching = 1;
+            continue;
         }
-        if (krat2 == 0 && y == 1.5 && x == 2.5)
+        if (krat2 < 2 && y == 1.5 && x == 2.5)
         {
+            isApproaching = 1;
             krat2++;
-            approaching(1.28, 2.94, 1);
-            Kaj = 3;
-            approaching(2.00, 2.00, 3);
+            if (krat2 == 1)
+            {
+                approaching(1.28, 2.94, 1);
+                continue;
+            }
+            else
+            {
+                approaching(2.00, 2.00, 2);
+                continue;
+            }
+            Kaj = 2;
         }
         if (krat5 == 0 && y == 0.5 && x == 2.5)
         {
             krat5++;
-            Kaj = 3;
-            approaching(-0.87, 2.89, 3);
+            Kaj = 2;
+            approaching(-0.87, 2.89, 2);
+            isApproaching = 1;
+            continue;
         }
         if (krat3 == 0 && y == -0.5 && x == 2.5)
         {
             krat3++;
             approaching(-0.44, 4.06, 1);
+            isApproaching = 1;
+            continue;
         }
-        if (Kaj == 4 || Kaj == 3)
+        if (mozi && isApproaching == 1)
         {
+            cout << "VLEZEAPP" << endl;
+            isApproaching = 0;
+            sleep(10);
+        }
+        if (Kaj == 4 || Kaj == 2)
+        {
+            Kaj = 1;
             std_msgs::String mgg1;
             mgg1.data = "extend";
             roko.publish(mgg1);
@@ -686,7 +729,7 @@ int main(int argc, char **argv)
             waitKey(30);
             continue;
         }
-        if (!mozi && stevec > 1)
+        if (!mozi)
             continue;
 
         cout << y << " " << x << " " << mom << endl;
