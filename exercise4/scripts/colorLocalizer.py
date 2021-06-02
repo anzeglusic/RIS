@@ -1672,7 +1672,7 @@ class color_localizer:
                 #self.addPosition(newPosition, "face", color_char=None, normal=norm)
     def find_mouth(self, face_im):
         face_im = cv2.cvtColor(face_im, cv2.COLOR_BGR2GRAY)
-        mouth_rects = mouths_cascade.detectMultiScale(face_im)
+        mouth_rects = self.mouth_finder.detectMultiScale(face_im)
         for (x,y,w,h) in mouth_rects:
             cv2.rectangle(face_im, (x,y), (x+w,y+h), (0,255,0), 3)
         return face_im
