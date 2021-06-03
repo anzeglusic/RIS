@@ -748,6 +748,7 @@ int main(int argc, char **argv)
     ros::Subscriber move_base_sub = n.subscribe("move_base/status", 1000, statusCallback);
     ros::Subscriber getCilinder = n.subscribe("cylinder_pt", 1000, getCilinderCall);
     ros::Subscriber getObraz = n.subscribe("face_tw", 1000, getObrazCall);
+    ros::Subscriber getRing = n.subscribe("ring_pt", 1000, getRingCall);
     roko = n.advertise<std_msgs::String>("/arm_command", 1000);
     semNekaj = n.advertise<std_msgs::String>("/sem_nekaj", 1000);
     namedWindow("Map");
