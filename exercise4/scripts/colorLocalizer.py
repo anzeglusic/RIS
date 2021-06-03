@@ -4,6 +4,12 @@ import os
 import itertools
 import sys
 
+
+import roslib
+import time
+
+import speech_recognition as sr
+
 from numpy.lib.function_base import _CORE_DIMENSION_LIST
 sys.path.append('/'.join(os.path.realpath(__file__).split('/')[0:-1])+'/')
 import rospy
@@ -41,6 +47,10 @@ class color_localizer:
         self.loopTimer = datetime.now()
         self.rgbTimer = 0
         self.depthTimer = 0
+
+        #modern talking
+        self.sr = sr.Recognizer()
+        self.mic = sr.Microphone()
 
         self.foundAll = True
 
@@ -585,7 +595,7 @@ class color_localizer:
                 # print("dela 1")
                 # color = module.calc_rgb(pnts,self.knn_RGB,self.random_forest_RGB,self.knn_HSV,self.random_forest_HSV)
                 #------------------------------------------------------#
-                
+
                 # print("dela 2")
                 ring_point = module.get_pose(cntr_ring[1],cntr_ring[0],cntr_ring[2],depth_im_shifted,"ring",depth_stamp,color,self.tf_buf)
                 #ring_point = self.get_pose(cntr_ring[1],cntr_ring[0],cntr_ring[2],depth_im_shifted,"ring",depth_stamp,color)
@@ -648,6 +658,24 @@ class color_localizer:
             pointsClose.append(False)
         # pprint(list(zip(points,pointsClose)))
         return (points,pointsClose)
+
+    def recognize_speech(self):
+        with self.mic as source:
+            print('Adjusting mic for ambient noise...')
+            self.sr.adjust_for_ambient_noise(source)
+            print('SPEAK NOW!')
+            audio = self.sr.listen(source)
+
+        print('I am now processing the sounds you made.')
+        recognized_text = ''
+        try:
+            recognized_text = self.sr.recognize_google(audio)
+        except sr.RequestError as e:
+            print('API is probably unavailable', e)
+        except sr.UnknownValueError:
+            print('Did not manage to recognize anything.')
+
+        return recognized_text
 
     def getRange(self, depth_line, center_point,levo,desno):
         #preverimo da ni robni
@@ -914,7 +942,7 @@ class color_localizer:
             center_depth = depth_image[inter[1],(inter[0][0]+inter[0][1])//2]
             if self.check_if_ball(center_depth_up,center_depth,center_depth_down):
                 continue
-            
+
             for i in range(inter[0][0],inter[0][1]):
                 grayBGR_toDrawOn[inter[1],i] = [0,0,255]
             points = np.array([ image[inter[1],(inter[0][0]+inter[0][1])//2],
@@ -1760,7 +1788,8 @@ def main():
         rate = rospy.Rate(1.25)
         # rate = rospy.Rate(10)
 
-        explore = True
+        #! TESTING
+        explore = False
         skipCounter = 3
         loopTimer = rospy.Time.now().to_sec()
         # print(sleepTimer)
@@ -1772,6 +1801,8 @@ def main():
                 else:
                     skipCounter -= 1
             else:
+                text = st.recognize_speech()
+                print('I recognized this sentence:', text)
                 print("we done")
 
             rate.sleep()
