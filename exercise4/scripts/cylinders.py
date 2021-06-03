@@ -86,7 +86,7 @@ def main():
     # print(sleepTimer)
     while not rospy.is_shutdown():
         # print("hello!")
-
+        listener()
         '''link_class == "<<link>> imefila.sv" '''
 
         rate.sleep()
