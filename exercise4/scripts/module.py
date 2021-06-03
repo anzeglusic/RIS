@@ -172,7 +172,7 @@ def rgba_from_char(color_char):
     if color_char == "y":
         return ColorRGBA(1, 1, 0, 1)
 
-def addPosition(newPosition, objectType, color_char, positions, nM, m_arr, markers_pub, showEveryDetection=True, normal=None, data=None, mask=None, modelName=None):
+def addPosition(newPosition, objectType, color_char, positions, nM, m_arr, markers_pub, showEveryDetection=True, normal=None, data=None, mask=None, modelName=None, publisher = None):
     '''
     positions = {
         "ring": [
@@ -478,6 +478,10 @@ def addPosition(newPosition, objectType, color_char, positions, nM, m_arr, marke
                                                 "isAssigned": False,
                                                 "modelName": modelName
                                                 })
+
+            if data.startswith("https"):
+                publisher.publish(f"{data} {modelName}")
+
         elif objectType=="digits":
             print("\n\nAdding new digits\n\n")
             positions[objectType].append({ "averagePostion": newPosition.copy(),
