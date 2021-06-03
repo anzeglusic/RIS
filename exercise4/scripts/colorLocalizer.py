@@ -47,6 +47,7 @@ class color_localizer:
         self.basePosition = {"x":0, "y":0, "z":0}
         self.baseAngularSpeed = 0
 
+        self.randomForestV2 = pickle.load(open(f"{modelsDir}/random_forestV2.sav", "rb"))
         self.random_forest_HSV = pickle.load(open(f"{modelsDir}/random_forest_HSV.sav", 'rb'))
         self.random_forest_RGB = pickle.load(open(f"{modelsDir}/random_forest_RGB.sav", 'rb'))
         self.knn_HSV = pickle.load(open(f"{modelsDir}/knn_HSV.sav", 'rb'))
@@ -556,6 +557,24 @@ class color_localizer:
 
             # cntr_ring = self.chk_ring(depth_im,h11,h21,w11,w21,c[2])
             try:
+                #########NEW COLOR##########
+                """
+                standin = np.zeros(image.shape)
+
+                # """(32.40898513793945, 39.01688003540039), --> (širina,višina)"""
+                if(e1[1][0]<e2[1][0]):
+                    cv2.ellipse(standin,e2,(0, 255, 0),-1)
+                    cv2.ellipse(standin,e1,(0, 0, 0),-1)
+                else:
+                    cv2.ellipse(standin,e1,(0, 255, 0),-1)
+                    cv2.ellipse(standin,e2,(0, 0, 0),-1)
+                # # print(np.sum(standin==(0,0,0)))
+                # # print(type(standin))
+                standin = standin.astype("uint8")
+                mask = standin[:,:,1] == 255
+                """
+
+
                 #EDIT ali so koordinate pravilne
                 pnts = np.array( (image[cntr_ring[3][0][1],cntr_ring[3][0][2]], image[cntr_ring[3][1][1],cntr_ring[3][1][2]],image[cntr_ring[3][2][1],cntr_ring[3][2][2]]))
                 # print("dela 1")

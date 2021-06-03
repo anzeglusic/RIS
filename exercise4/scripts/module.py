@@ -19,6 +19,8 @@ import pickle
 import subprocess
 import pyzbar.pyzbar as pyzbar
 import pytesseract
+import pandas as pd
+from collections import Counter
 
 def keepExploring(positions):
     if len(positions["face"]) < 4:
@@ -44,7 +46,7 @@ def keepExploring(positions):
         for ring_dict in positions["ring"]:
             if len(ring_dict["detectedPositions"]) < 3:
                 return True
-                
+
     if len(positions["QR"])< 8:
         return True
     if len(positions["digits"]) <4:
@@ -888,7 +890,7 @@ def update_positions(nM, m_arr, positions, markers_pub, faceNormalLength, qrNorm
         closestObjectKey = None
         closestObjectIndx = None
         closestObjectDist = np.inf
-        
+
         if (QR_dict["data"] is None) or QR_dict["data"].startswith("https"):
             # chack all cylinders
             for j,cylinder_dict in enumerate(positions["cylinder"]):
@@ -933,6 +935,27 @@ def update_positions(nM, m_arr, positions, markers_pub, faceNormalLength, qrNorm
 
     # pprint(positions)
     return (nM, m_arr, positions)
+
+def flatten_list(inpt):
+    samples = []
+    #naredimo 4 sample
+    for it in range(4):
+        tem = random.sample(inpt,50)
+        #flattenamo sample
+        flatten_tem = functools.reduce(operator.iconcat,tem,[])
+
+        #dodamo v li
+        samples.append(flatten_tem)
+    return samples
+
+def calc_rgbV2(all_points,random_forest):
+    samples = flatten_list(all_points)
+    df_x = pd.DataFrame(samples)
+    y = random_forest.predict(df_x.to_numpy())
+    dict_res = Counter(y)
+    print(dict_res)
+    res = dict_res.most_common(1)
+    return res[0]
 
 def calc_rgb(point,knn_RGB,random_forest_RGB,knn_HSV,random_forest_HSV):
     # print("\n!!!!!!!!!!!!!!!!!!!")

@@ -35,7 +35,7 @@ mouth = modelsDir+"mouth/Mouth.xml"
 class ring_maker:
 
     def __init__(self):
-        
+
         print()
         self.loopTimer = datetime.now()
         self.rgbTimer = 0
@@ -443,19 +443,19 @@ class ring_maker:
                     #EDIT ali so koordinate pravilne
                     pnts = np.array( (image[cntr_ring[3][0][1],cntr_ring[3][0][2]], image[cntr_ring[3][1][1],cntr_ring[3][1][2]],image[cntr_ring[3][2][1],cntr_ring[3][2][2]]))
 
-                    # standin = np.zeros(image.shape)
+                    standin = np.zeros(image.shape)
 
                     # """(32.40898513793945, 39.01688003540039), --> (širina,višina)"""
-                    # if(e1[1][0]<e2[1][0]):
-                    #     cv2.ellipse(standin,e2,(0, 255, 0),-1)
-                    #     cv2.ellipse(standin,e1,(0, 0, 0),-1)
-                    # else:
-                    #     cv2.ellipse(standin,e1,(0, 255, 0),-1)
-                    #     cv2.ellipse(standin,e2,(0, 0, 0),-1)
+                    if(e1[1][0]<e2[1][0]):
+                        cv2.ellipse(standin,e2,(0, 255, 0),-1)
+                        cv2.ellipse(standin,e1,(0, 0, 0),-1)
+                    else:
+                        cv2.ellipse(standin,e1,(0, 255, 0),-1)
+                        cv2.ellipse(standin,e2,(0, 0, 0),-1)
                     # # print(np.sum(standin==(0,0,0)))
                     # # print(type(standin))
-                    # standin = standin.astype("uint8")
-                    # mask = standin[:,:,1] == 255
+                    standin = standin.astype("uint8")
+                    mask = standin[:,:,1] == 255
 
                     # pprint(mask)
                     # print(type(mask))
@@ -467,11 +467,12 @@ class ring_maker:
                     # masked_image = masked_image.astype("uint8")
 
                     # # print(masked_image)
-                    # t = image[mask,:]
-
+                    t = image[mask,:]
+                    pts = t.tolist()
+                    print(f"Ze color is {module.calc_rgbV2(t)}")
                     #! -----------------------------------------------------------------------------------
                     # print(f"pixels: {len(t)}")
-                    
+
                     # color = ""
                     # #! reading JSON file
                     # try:
@@ -482,7 +483,7 @@ class ring_maker:
                     #         print("------->",len(library["ring"][color]))
                     # except Exception as err:
                     #     print(f"JSON error: {err}")
-                    
+
                     # #! writing in JSON file
                     # if library:
                     #     try:
@@ -570,7 +571,7 @@ class ring_maker:
         grayImage = module.gray2bgr(grayImage)
         depth_im_shifted = self.find_elipses_first(rgb_image, depth_image,rgb_image_message.header.stamp, depth_image_message.header.stamp, grayImage)
         #print(markedImage)
-        markedImage = self.find_cylinderDEPTH(rgb_image, depth_im_shifted, grayImage,depth_image_message.header.stamp)
+        #markedImage = self.find_cylinderDEPTH(rgb_image, depth_im_shifted, grayImage,depth_image_message.header.stamp)
 
 
     def find_cylinderDEPTH(self,image, depth_image, grayBGR_toDrawOn,depth_stamp):
@@ -654,16 +655,16 @@ class ring_maker:
             center_depth = depth_image[inter[1],(inter[0][0]+inter[0][1])//2]
             if self.check_if_ball(center_depth_up,center_depth,center_depth_down):
                 continue
-            
+
             # trainingOut = np.zeros(image.shape)
             # trainingOut[inter[1]:inter[1]+13,inter[0][0]:inter[0][1],:] = 1
             # trainingOut[:,:,0] = image[:,:,0]*(trainingOut[:,:,0]==1)
             # trainingOut[:,:,1] = image[:,:,1]*(trainingOut[:,:,1]==1)
             # trainingOut[:,:,2] = image[:,:,2]*(trainingOut[:,:,2]==1)
             # trainingOut = trainingOut.astype("uint8")
-            
+
             # training = image[inter[1]:inter[1]+13,inter[0][0]:inter[0][1],:].astype("uint8")
-            
+
             # t = training[np.zeros(training[:,:,0].shape)==0,:]
 
             # pprint(training.shape)
@@ -671,7 +672,7 @@ class ring_maker:
 
             # # ! -----------------------------------------------------------------------------------
             # print(f"\npixels: {len(t)}")
-            
+
             # color = ""
             # #! reading JSON file
             # try:
@@ -682,7 +683,7 @@ class ring_maker:
             #         print("----------------->",len(library["cylinder"][color]))
             # except Exception as err:
             #     print(f"JSON error: {err}")
-            
+
             # #! writing in JSON file
             # if library:
             #     try:
