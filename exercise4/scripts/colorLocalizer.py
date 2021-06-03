@@ -32,7 +32,7 @@ import subprocess
 import pyzbar.pyzbar as pyzbar
 import pytesseract
 import module
-#from exercise4.srv import mess
+from exercise4.srv import mess
 from datetime import datetime
 
 
@@ -88,7 +88,7 @@ class color_localizer:
         self.nM = 0
 
         #classifier topic
-        self.class_pub = rospy.Publisher("/classifier", String,queue_size=1000)
+        self.class_pub = rospy.Publisher("/classifier", mess,queue_size=1000)
         # Publiser for the visualization markers
         self.markers_pub = rospy.Publisher('/ring_markers', MarkerArray, queue_size=1000)
         self.pic_pub = rospy.Publisher('/face_im', Image, queue_size=1000)
@@ -1518,7 +1518,7 @@ class color_localizer:
             pose = module.get_pose((x1+x2)//2,(y1+y2)//2,depth_image_shifted[(y1+y2)//2,(x1+x2)//2],depth_image_shifted,"QR",stamp,None,self.tf_buf)
             #pose = self.get_pose((x1+x2)//2,(y1+y2)//2,depth_image_shifted[(y1+y2)//2,(x1+x2)//2],depth_image_shifted,"QR",stamp,None)
             (self.nM, self.m_arr, self.positions) = module.addPosition(np.array([pose.position.x,pose.position.y,pose.position.z]),"QR", None,self.positions,self.nM, self.m_arr, self.markers_pub,showEveryDetection=self.showEveryDetection,normal=norm, data=dObject.data.decode(), modelName=self.models)
-            self.class_pub(f"{dObject.data.decode()} {self.models}")
+            self.class_pub(dObject.data.decode(), f"{self.models}")
             self.models +=1
             #self.addPosition(np.array([pose.position.x,pose.position.y, pose.position.z]),"QR",None,norm,dObject.data.decode())
 
