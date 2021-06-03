@@ -14,17 +14,53 @@ sys.path.append('/'.join(os.path.realpath(__file__).split('/')[0:-1])+'/')
 #modelsDir = "/home/code8master/Desktop/wsROS/src/RIS/exercise4/scripts"
 modelsDir = '/'.join(os.path.realpath(__file__).split('/')[0:-1])+'/'
 
-
+# "face": [
+#     {
+#         "averagePostion": np.array([x,y,z]),
+#         "averageNormal": np.array([x,y,z]),
+#         "detectedPositions": [ pos0, pos1, pos2, pos3],
+#         "detectedNormals": [ pos0, pos1, pos2, pos3],
+#         "approached": False,
+#         "avgMarkerId": None,
+#         "QR_index": None,
+#         "digits_index": None,
+#         "has_mask": False
+#     },
+        
 class Brains:
     def __init__(self):
-        self.faces = [
-                        {"id": 1, "stage" : "warning" }
+        self.faces = [ 
+                        {
+                            "averagePostion": np.array([0,0,0]),
+                            "averageNormal": np.array([1,0,0]),
+                            "digits_index": None,
+                            "has_mask": False,
+                            "id": 1,
+                            "stage": "warning"
+                        },
+                        {
+                            "averagePostion": np.array([0,0.5,0]),
+                            "averageNormal": np.array([1,0,0]),
+                            "digits_index": None,
+                            "has_mask": True,
+                            "id": 2,
+                            "stage": "warning"
+                        }
                      ]
+        
 
-    def processStage(self, face):
+    def processStage(self, indx):
+        try:
+            face = self.faces[indx]
+        except Exception as err:
+            print(f"ProcessStage error: {err}")
+            return
+
         stage = face["stage"]
         if stage == "warning":
             # TODO: check if it has a mask
+            if face["has_mask"]:
+                pass
             # TODO: check for social distancing
             
             # TODO: vocalize decision
@@ -78,12 +114,21 @@ class Brains:
             
     def print(self):
         pprint(self.faces)
-        # print()
+        print()
+
+    def say(self,statement):
+        # TODO: SAY IT !!!
+        print()
+    
+    def run(self):
+        for indx in range(len(self.faces)):
+            print("----------------------------------------------------------------\n")
+            for i in range(6):
+                self.processStage(indx)
 
 
 brain = Brains()
 
 print()
 brain.print()
-for i in range(6):
-    brain.processStage(brain.faces[0])
+brain.run()
