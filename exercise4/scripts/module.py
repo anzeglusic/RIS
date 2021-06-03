@@ -960,9 +960,9 @@ def calc_rgbV2(all_points,random_forest):
 
     y = random_forest.predict(df_x.to_numpy())
     dict_res = Counter(y)
-    print(dict_res)
+    #print(dict_res)
     res = dict_res.most_common(1)
-    return res[0]
+    return res[0][0]
 
 def calc_rgb(point,knn_RGB,random_forest_RGB,knn_HSV,random_forest_HSV):
     # print("\n!!!!!!!!!!!!!!!!!!!")

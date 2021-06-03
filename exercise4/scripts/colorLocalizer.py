@@ -557,8 +557,11 @@ class color_localizer:
 
             # cntr_ring = self.chk_ring(depth_im,h11,h21,w11,w21,c[2])
             try:
-                #########NEW COLOR##########
-                """
+
+                #EDIT ali so koordinate pravilne
+                pnts = np.array( (image[cntr_ring[3][0][1],cntr_ring[3][0][2]], image[cntr_ring[3][1][1],cntr_ring[3][1][2]],image[cntr_ring[3][2][1],cntr_ring[3][2][2]]))
+                #---------------------NEW COLOR------------------------------------#
+
                 standin = np.zeros(image.shape)
 
                 # """(32.40898513793945, 39.01688003540039), --> (širina,višina)"""
@@ -568,17 +571,21 @@ class color_localizer:
                 else:
                     cv2.ellipse(standin,e1,(0, 255, 0),-1)
                     cv2.ellipse(standin,e2,(0, 0, 0),-1)
-                # # print(np.sum(standin==(0,0,0)))
-                # # print(type(standin))
+
                 standin = standin.astype("uint8")
                 mask = standin[:,:,1] == 255
-                """
 
+                t = image[mask,:]
+                pts = t.tolist()
+                color = module.calc_rgbV2(pts,self.randomForestV2)
+                print(f"Ze color is {color}")
+                #-------------------------------------------------------------------#
 
-                #EDIT ali so koordinate pravilne
-                pnts = np.array( (image[cntr_ring[3][0][1],cntr_ring[3][0][2]], image[cntr_ring[3][1][1],cntr_ring[3][1][2]],image[cntr_ring[3][2][1],cntr_ring[3][2][2]]))
+                #---------------------OLD COLOR------------------------#
                 # print("dela 1")
-                color = module.calc_rgb(pnts,self.knn_RGB,self.random_forest_RGB,self.knn_HSV,self.random_forest_HSV)
+                # color = module.calc_rgb(pnts,self.knn_RGB,self.random_forest_RGB,self.knn_HSV,self.random_forest_HSV)
+                #------------------------------------------------------#
+                
                 # print("dela 2")
                 ring_point = module.get_pose(cntr_ring[1],cntr_ring[0],cntr_ring[2],depth_im_shifted,"ring",depth_stamp,color,self.tf_buf)
                 #ring_point = self.get_pose(cntr_ring[1],cntr_ring[0],cntr_ring[2],depth_im_shifted,"ring",depth_stamp,color)

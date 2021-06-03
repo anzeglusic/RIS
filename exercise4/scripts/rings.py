@@ -471,7 +471,8 @@ class ring_maker:
                     # # print(masked_image)
                     t = image[mask,:]
                     pts = t.tolist()
-                    print(f"Ze color is {module.calc_rgbV2(pts,self.randomForestV2)}")
+                    #print(f"Ze color is {module.calc_rgbV2(pts,self.randomForestV2)}")
+
                     #! -----------------------------------------------------------------------------------
                     # print(f"pixels: {len(t)}")
 
@@ -573,7 +574,7 @@ class ring_maker:
         grayImage = module.gray2bgr(grayImage)
         depth_im_shifted = self.find_elipses_first(rgb_image, depth_image,rgb_image_message.header.stamp, depth_image_message.header.stamp, grayImage)
         #print(markedImage)
-        #markedImage = self.find_cylinderDEPTH(rgb_image, depth_im_shifted, grayImage,depth_image_message.header.stamp)
+        markedImage = self.find_cylinderDEPTH(rgb_image, depth_im_shifted, grayImage,depth_image_message.header.stamp)
 
 
     def find_cylinderDEPTH(self,image, depth_image, grayBGR_toDrawOn,depth_stamp):
@@ -665,10 +666,12 @@ class ring_maker:
             # trainingOut[:,:,2] = image[:,:,2]*(trainingOut[:,:,2]==1)
             # trainingOut = trainingOut.astype("uint8")
 
-            # training = image[inter[1]:inter[1]+13,inter[0][0]:inter[0][1],:].astype("uint8")
+            training = image[inter[1]:inter[1]+13,inter[0][0]:inter[0][1],:].astype("uint8")
 
-            # t = training[np.zeros(training[:,:,0].shape)==0,:]
-
+            t = training[np.zeros(training[:,:,0].shape)==0,:]
+            send_me = t.tolist()
+            color = module.calc_rgbV2(send_me,self.randomForestV2)
+            print(f"Ze color is {color}")
             # pprint(training.shape)
             # pprint(t)
 
