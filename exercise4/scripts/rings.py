@@ -46,6 +46,8 @@ class ring_maker:
         self.basePosition = {"x":0, "y":0, "z":0}
         self.baseAngularSpeed = 0
 
+        self.randomForestV2 = pickle.load(open(f"{modelsDir}/random_forestV2.sav", "rb"))
+
         self.random_forest_HSV = pickle.load(open(f"{modelsDir}/random_forest_HSV.sav", 'rb'))
         self.random_forest_RGB = pickle.load(open(f"{modelsDir}/random_forest_RGB.sav", 'rb'))
         self.knn_HSV = pickle.load(open(f"{modelsDir}/knn_HSV.sav", 'rb'))
@@ -469,7 +471,7 @@ class ring_maker:
                     # # print(masked_image)
                     t = image[mask,:]
                     pts = t.tolist()
-                    print(f"Ze color is {module.calc_rgbV2(t)}")
+                    print(f"Ze color is {module.calc_rgbV2(t,self.randomForestV2)}")
                     #! -----------------------------------------------------------------------------------
                     # print(f"pixels: {len(t)}")
 
