@@ -481,7 +481,7 @@ void approaching(double zY, double zX, int kaj)
         if (zY > 1 && zY < 2 && zX > 0 && zX < 1 && kaj == 1)
         {
             cout << "ZABRANA" << endl;
-            vozi(0, 0, zY - 0.3, zX - 0.3, 5);
+            vozi(0, 0, zY - 0.2, zX - 0.2, 5);
             sleep(20);
             cout << "STASAV" << endl;
         }
