@@ -277,8 +277,7 @@ def addPosition(newPosition, objectType, color_char, positions, nM, m_arr, marke
         if objectType=="QR":
             if area["modelName"] is None:
                 area["modelName"] = modelName
-            else:
-                assert area["modelName"]==modelName, f"\n\n\time datoteke za QR je drugačna kot je bila predvidena za to pozicijo"
+            
 
         # depending on the type of object
         if objectType=="cylinder" or objectType=="ring":
