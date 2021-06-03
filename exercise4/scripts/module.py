@@ -1396,7 +1396,7 @@ order = [(f<<face>>,np.array([x,y,z])),(c<<cylinder>>,np.array([x,y,z])),]
 """
 
 def stackOrders(orders, order):
-    if 
+    pass
 
 
 def approachForOrder():
