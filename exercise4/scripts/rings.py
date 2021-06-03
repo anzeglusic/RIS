@@ -27,6 +27,7 @@ import pyzbar.pyzbar as pyzbar
 import pytesseract
 import module
 from datetime import datetime
+import json
 
 modelsDir = '/'.join(os.path.realpath(__file__).split('/')[0:-1])+'/'
 mouth = modelsDir+"mouth/Mouth.xml"
@@ -34,6 +35,7 @@ mouth = modelsDir+"mouth/Mouth.xml"
 class ring_maker:
 
     def __init__(self):
+        
         print()
         self.loopTimer = datetime.now()
         self.rgbTimer = 0
@@ -441,41 +443,60 @@ class ring_maker:
                     #EDIT ali so koordinate pravilne
                     pnts = np.array( (image[cntr_ring[3][0][1],cntr_ring[3][0][2]], image[cntr_ring[3][1][1],cntr_ring[3][1][2]],image[cntr_ring[3][2][1],cntr_ring[3][2][2]]))
 
-                    standin = np.zeros(image.shape)
+                    # standin = np.zeros(image.shape)
 
-                    """(32.40898513793945, 39.01688003540039), --> (širina,višina)"""
-                    if(e1[1][0]<e2[1][0]):
-                        cv2.ellipse(standin,e2,(0, 255, 0),-1)
-                        cv2.ellipse(standin,e1,(0, 0, 0),-1)
-                    else:
-                        cv2.ellipse(standin,e1,(0, 255, 0),-1)
-                        cv2.ellipse(standin,e2,(0, 0, 0),-1)
-                    # print(np.sum(standin==(0,0,0)))
-                    # print(type(standin))
-                    standin = standin.astype("uint8")
-                    mask = standin[:,:,1] == 255
+                    # """(32.40898513793945, 39.01688003540039), --> (širina,višina)"""
+                    # if(e1[1][0]<e2[1][0]):
+                    #     cv2.ellipse(standin,e2,(0, 255, 0),-1)
+                    #     cv2.ellipse(standin,e1,(0, 0, 0),-1)
+                    # else:
+                    #     cv2.ellipse(standin,e1,(0, 255, 0),-1)
+                    #     cv2.ellipse(standin,e2,(0, 0, 0),-1)
+                    # # print(np.sum(standin==(0,0,0)))
+                    # # print(type(standin))
+                    # standin = standin.astype("uint8")
+                    # mask = standin[:,:,1] == 255
 
                     # pprint(mask)
                     # print(type(mask))
 
-                    masked_image = np.zeros(image.shape)
-                    masked_image[:,:,0] += image[:,:,0]*mask
-                    masked_image[:,:,1] += image[:,:,1]*mask
-                    masked_image[:,:,2] += image[:,:,2]*mask
-                    masked_image = masked_image.astype("uint8")
+                    # masked_image = np.zeros(image.shape)
+                    # masked_image[:,:,0] += image[:,:,0]*mask
+                    # masked_image[:,:,1] += image[:,:,1]*mask
+                    # masked_image[:,:,2] += image[:,:,2]*mask
+                    # masked_image = masked_image.astype("uint8")
 
-                    # print(masked_image)
-                    t = image[mask,:]
-                    # for a in t:
-                    #     print(a)
-                    print(len(t))
+                    # # print(masked_image)
+                    # t = image[mask,:]
 
+                    #! -----------------------------------------------------------------------------------
+                    # print(f"pixels: {len(t)}")
+                    
+                    # color = ""
+                    # #! reading JSON file
+                    # try:
+                    #     with open(f"{modelsDir}colorsDataset.json","r",encoding="utf-8") as f:
+                    #         library = json.loads(f.read())
+                    #         # library["ring"][color].append(t)
+                    #         library["ring"][color].append(t.tolist())
+                    #         print("------->",len(library["ring"][color]))
+                    # except Exception as err:
+                    #     print(f"JSON error: {err}")
+                    
+                    # #! writing in JSON file
+                    # if library:
+                    #     try:
+                    #         with open(f"{modelsDir}colorsDataset.json","w",encoding="utf-8") as f:
+                    #             f.write(json.dumps(library))
+                    #     except Exception as err:
+                    #         print(f"JSON error: {err}")
+                    #! -----------------------------------------------------------------------------------
 
 
                     # TODO: predict color of this ring
 
                     # self.faceIm_pub.publish(CvBridge().cv2_to_imgmsg(standin, encoding="passthrough"))
-                    self.faceIm_pub.publish(CvBridge().cv2_to_imgmsg(masked_image, encoding="passthrough"))
+                    # self.faceIm_pub.publish(CvBridge().cv2_to_imgmsg(masked_image, encoding="passthrough"))
 
                 except Exception as e:
                     print(f"Ring error: {e}")
@@ -633,8 +654,49 @@ class ring_maker:
             center_depth = depth_image[inter[1],(inter[0][0]+inter[0][1])//2]
             if self.check_if_ball(center_depth_up,center_depth,center_depth_down):
                 continue
-            training = image[inter[1]:inter[1]+13,inter[0][0]:inter[0][1],:].astype("uint8")
-            self.faceIm_pub.publish(CvBridge().cv2_to_imgmsg(training, encoding="passthrough"))
+            
+            # trainingOut = np.zeros(image.shape)
+            # trainingOut[inter[1]:inter[1]+13,inter[0][0]:inter[0][1],:] = 1
+            # trainingOut[:,:,0] = image[:,:,0]*(trainingOut[:,:,0]==1)
+            # trainingOut[:,:,1] = image[:,:,1]*(trainingOut[:,:,1]==1)
+            # trainingOut[:,:,2] = image[:,:,2]*(trainingOut[:,:,2]==1)
+            # trainingOut = trainingOut.astype("uint8")
+            
+            # training = image[inter[1]:inter[1]+13,inter[0][0]:inter[0][1],:].astype("uint8")
+            
+            # t = training[np.zeros(training[:,:,0].shape)==0,:]
+
+            # pprint(training.shape)
+            # pprint(t)
+
+            # # ! -----------------------------------------------------------------------------------
+            # print(f"\npixels: {len(t)}")
+            
+            # color = ""
+            # #! reading JSON file
+            # try:
+            #     with open(f"{modelsDir}colorsDataset.json","r",encoding="utf-8") as f:
+            #         library = json.loads(f.read())
+            #         # library["cylinder"][color].append(t)
+            #         library["cylinder"][color].append(t.tolist())
+            #         print("----------------->",len(library["cylinder"][color]))
+            # except Exception as err:
+            #     print(f"JSON error: {err}")
+            
+            # #! writing in JSON file
+            # if library:
+            #     try:
+            #         with open(f"{modelsDir}colorsDataset.json","w",encoding="utf-8") as f:
+            #             f.write(json.dumps(library))
+            #     except Exception as err:
+            #         print(f"JSON error: {err}")
+            # #! -----------------------------------------------------------------------------------
+            # print()
+
+
+
+            # self.faceIm_pub.publish(CvBridge().cv2_to_imgmsg(training, encoding="passthrough"))
+            # self.faceIm_pub.publish(CvBridge().cv2_to_imgmsg(trainingOut, encoding="passthrough"))
             """for i in range(inter[0][0],inter[0][1]):
                 grayBGR_toDrawOn[inter[1],i] = [0,0,255]
             points = np.array([ image[inter[1],(inter[0][0]+inter[0][1])//2],
@@ -837,8 +899,8 @@ def main():
         color_finder = ring_maker()
 
 
-        rate = rospy.Rate(1.25)
-        # rate = rospy.Rate(10)
+        # rate = rospy.Rate(1.25)
+        rate = rospy.Rate(10)
 
         #! ch = input("Enter type(color|shape eq. rc - red cylinder)")
         skipCounter = 3
