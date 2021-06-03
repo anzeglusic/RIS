@@ -22,6 +22,7 @@ import pytesseract
 import pandas as pd
 from collections import Counter
 import random
+import functools
 
 def keepExploring(positions):
     if len(positions["face"]) < 4:
