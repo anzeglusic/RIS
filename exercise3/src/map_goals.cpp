@@ -144,6 +144,11 @@ void vozi(int y3, int x3, double y, double x, int dir)
         y = 1.25;
         x = 1.25;
     }
+    if (y == 0.5 && x == 1.5)
+    {
+        //y = 1.25;
+        x = 1.25;
+    }
     if (y == 2.5 && x == 1.5)
     {
         y = 2.6;
