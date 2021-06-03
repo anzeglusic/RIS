@@ -960,7 +960,7 @@ int main(int argc, char **argv)
                 mggg.data = "pridel";
                 semNekaj.publish(mggg);
                 sleep(10);
-                sleep(5);
+                // sleep(5);
 
                 continue;
             }
