@@ -766,7 +766,7 @@ int main(int argc, char **argv)
     endSearching = 0;
     momY = 0.5;
     momX = -0.5;
-    prideCel(-0.44, 4.06, 1);
+    //prideCel(-0.44, 4.06, 1);
     while (ros::ok())
     {
         ros::spinOnce();
