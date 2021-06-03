@@ -29,51 +29,80 @@ modelsDir = '/'.join(os.path.realpath(__file__).split('/')[0:-1])+'/'
         
 class Brains:
     def __init__(self):
-        self.faces = [ 
-                        {
-                            "averagePostion": np.array([0,0,0]),
-                            "averageNormal": np.array([1,0,0]),
-                            "digits_index": None,
-                            "has_mask": False,
-                            "id": 1,
-                            "stage": "warning"
-                        },
-                        {
-                            "averagePostion": np.array([0,0.5,0]),
-                            "averageNormal": np.array([1,0,0]),
-                            "digits_index": None,
-                            "has_mask": True,
-                            "id": 2,
-                            "stage": "warning"
-                        }
-                     ]
+        self.positions = {
+                "face": [ 
+                            {   "averagePostion": np.array([0,0,0]),
+                                "averageNormal": np.array([1,0,0]),
+                                "digits_index": 1,
+                                "has_mask": False,
+                                "stage": "warning",
+                                "was_vaccinated": 0,
+                                "doctor": "red",
+                                "hours_exercise": 25,
+                                "right_vaccine": "Greenzer"
+                            },
+                            {   "averagePostion": np.array([0,0.5,0]), "averageNormal": np.array([1,0,0]),
+                                "digits_index": 2, "has_mask": True, "id": 2, "stage": "warning",
+                                "was_vaccinated": 1, "doctor": "blue", "hours_exercise": 5,
+                                "right_vaccine": "Rederna"
+                            },
+                            {   "averagePostion": np.array([3,0.5,0]), "averageNormal": np.array([1,0,0]),
+                                "digits_index": 0, "has_mask": True, "id": 3, "stage": "warning",
+                                "was_vaccinated": 0, "doctor": "yellow", "hours_exercise": 13,
+                                "right_vaccine": "StellaBluera"
+                            }
+                     ],
+                "digits": [
+                            {   "data": 12 },
+                            {   "data": 57 },
+                            {   "data": 40 }
+                ]
+        }
         
 
     def processStage(self, indx):
         try:
-            face = self.faces[indx]
+            face = self.positions["face"][indx]
         except Exception as err:
             print(f"ProcessStage error: {err}")
             return
 
         stage = face["stage"]
+        print(f"processStage({face['id']}):\t{stage}")
+
         if stage == "warning":
-            # TODO: check if it has a mask
-            if face["has_mask"]:
-                pass
-            # TODO: check for social distancing
+            # check if it has a mask
+            if face["has_mask"] == False:
+                self.say("mask bad")
+            # check for social distancing
+            for i in range(len(self.positions["face"])):
+                if i == indx:
+                    continue
+                else:
+                    area_avg = face["averagePostion"]
+                    dist_vector = area_avg - self.positions["face"][i]["averagePostion"]
+                    dist = np.sqrt(dist_vector[0]**2 + dist_vector[1]**2 + dist_vector[2]**2)
+                    if dist < 1:
+                        self.say("distancing bad")
+                        break
+            # vocalize decision
+            self.say("no more warnings")
             
-            # TODO: vocalize decision
-            pass
         if stage == "talk":
-            # TODO: "age"               --> 0 to 100
+            # "age"                 --> 0 to 100
+            age = self.positions["digits"][face["digits_index"]]["data"]
             # TODO: "was_vaccinated"    --> 0 / 1
             # TODO: "doctor"            --> "red" / "green" / "blue" / "yellow"
             # TODO: "hours_exercise"    --> 0 to 40
             # TODO: "right_vaccine"     --> "Greenzer" / "Rederna" / "StellaBluera" / "BlacknikV"
-            
-            # TODO: vocalize decision
-            pass
+
+            was_vaccinated = face["was_vaccinated"]
+            doctor = face["doctor"]
+            hours_exercise = face["hours_exercise"]
+            right_vaccine = face["right_vaccine"]
+            # vocalize decision
+            self.say("data collected")
+
         if stage == "cylinder":
             # TODO: check if data has already been processed
             # TODO: choose ring
@@ -87,7 +116,6 @@ class Brains:
         if stage == "done":
             # TODO: nothing
             pass
-        print(f"processStage({face['id']}):\t{stage}")
         self.nextStage(face)
         # print()
 
@@ -113,17 +141,17 @@ class Brains:
         print()
             
     def print(self):
-        pprint(self.faces)
+        pprint(self.positions)
         print()
 
     def say(self,statement):
-        # TODO: SAY IT !!!
-        print()
+        # TODO: actualy SAY IT !!!
+        print(f"--> {statement}")
     
     def run(self):
-        for indx in range(len(self.faces)):
+        for indx in range(len(self.positions["face"])):
             print("----------------------------------------------------------------\n")
-            for i in range(6):
+            for i in range(5):
                 self.processStage(indx)
 
 

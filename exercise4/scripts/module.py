@@ -198,7 +198,12 @@ def addPosition(newPosition, objectType, color_char, positions, nM, m_arr, marke
                 "QR_index": None,
                 "digits_index": None,
                 #!DODANO
-                "has_mask": False
+                "has_mask": False,
+                "stage": "warning",
+                "was_vaccinated": None,
+                "doctor": None,
+                "hours_exercise": None,
+                "right_vaccine": None
             },
             ...
         ],
@@ -463,8 +468,12 @@ def addPosition(newPosition, objectType, color_char, positions, nM, m_arr, marke
                                                 "mask": {
                                                     "yes":1 if mask==True else 0,
                                                     "no":1 if mask == False else 0
-                                                }
-
+                                                },
+                                                "stage": "warning",
+                                                "was_vaccinated": None,
+                                                "doctor": None,
+                                                "hours_exercise": None,
+                                                "right_vaccine": None
                                                 })
         elif objectType=="QR":
             print("\n\nAdding new QR code\n\n")
@@ -1389,3 +1398,6 @@ def get_arrow_points(scale, head, tail, idn, marker_num):
 
     m.points = [tail,head]
     return (marker_num,m)
+
+def has_mask(mask):
+    return True if mask["yes"] >= mask["no"] else False

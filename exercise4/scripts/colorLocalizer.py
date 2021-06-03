@@ -668,24 +668,6 @@ class color_localizer:
         # pprint(list(zip(points,pointsClose)))
         return (points,pointsClose)
 
-    def recognize_speech(self):
-        with self.mic as source:
-            print('Adjusting mic for ambient noise...')
-            self.sr.adjust_for_ambient_noise(source)
-            print('SPEAK NOW!')
-            audio = self.sr.listen(source)
-
-        print('I am now processing the sounds you made.')
-        recognized_text = ''
-        try:
-            recognized_text = self.sr.recognize_google(audio)
-        except sr.RequestError as e:
-            print('API is probably unavailable', e)
-        except sr.UnknownValueError:
-            print('Did not manage to recognize anything.')
-
-        return recognized_text
-
     def getRange(self, depth_line, center_point,levo,desno):
         #preverimo da ni robni
         if levo == -1:
@@ -1785,19 +1767,311 @@ class color_localizer:
         return False
 
 #! =============================================== face detection end ===============================================
+# ===================================================================================================================
+#! =============================================== task_master start ================================================
+    def recognize_speech(self, question):
+        with self.mic as source:
+            print('Adjusting mic for ambient noise...')
+            self.sr.adjust_for_ambient_noise(source)
+            self.say(question)
+            print(f"\n{question}")
+            audio = self.sr.listen(source)
 
+        print('I am now processing the sounds you made.')
+        recognized_text = ''
+        try:
+            recognized_text = self.sr.recognize_google(audio)
+        except sr.RequestError as e:
+            print('API is probably unavailable', e)
+        except sr.UnknownValueError:
+            print('Did not manage to recognize anything.')
+        
+        good = input(f"\nIs input [{recognized_text}] what you said?\n[y/n]: ")
+        if good == "y":
+            return recognized_text
+        else:
+            recognized_text = self.recognize_speech(question)
+        # if recognized_text.endswith("stop"):
+        #     recognized_text = self.recognize_speech(question)
+        return recognized_text
+
+    def processStage(self, indx):
+        try:
+            face = self.positions["face"][indx]
+        except Exception as err:
+            print(f"ProcessStage error: {err}")
+            return
+
+        stage = face["stage"]
+        print(f"processStage({indx}):\t{stage}")
+
+        if stage == "warning":
+            # TODO: tell him where to go
+            # TODO: check if he arrived
+            # check if it has a mask
+            if module.has_mask(face["mask"]) == False:
+                self.say("mask bad")
+            # check for social distancing
+            for i in range(len(self.positions["face"])):
+                if i == indx:
+                    continue
+                else:
+                    area_avg = face["averagePostion"]
+                    dist_vector = area_avg - self.positions["face"][i]["averagePostion"]
+                    dist = np.sqrt(dist_vector[0]**2 + dist_vector[1]**2 + dist_vector[2]**2)
+                    if dist < 1:
+                        self.say("distancing bad")
+                        break
+            # vocalize decision
+            # self.say("no more warnings")
+            
+        if stage == "talk":
+            # "right_vaccine"     --> "Greenzer" / "Rederna" / "StellaBluera" / "BlacknikV"
+            # "age"                 --> 0 to 100
+            age = self.positions["digits"][face["digits_index"]]["data"]
+            #! from talking
+            # TODO: # "was_vaccinated"    --> 0 / 1
+            # TODO: was_vaccinated = self.recognize_speech("Have you been vaccinated?")
+            # TODO: while was_vaccinated!="no"and was_vaccinated!="yes":
+            # TODO:     was_vaccinated = self.recognize_speech("Have you been vaccinated?")
+            # TODO: was_vaccinated = 0 if was_vaccinated=="no" else 1
+            
+            
+            # TODO: doctor = None
+            # TODO: tempDoctor = []
+            # TODO: # "doctor"            --> "red" / "green" / "blue" / "yellow"
+            # TODO: while doctor is None:
+            # TODO:     doctor = self.recognize_speech("Who is your personal doctor?")
+            # TODO:     tempDoctor = doctor.split(" ")
+            # TODO:     if len(tempDoctor) == 2:
+            # TODO:         doctor = self.char_from_string(tempDoctor[1])
+            # TODO:     else:
+            # TODO:         doctor = None
+            
+            # TODO: # "hours_exercise"    --> 0 to 40
+            # TODO: while True:
+            # TODO:     try:
+            # TODO:         hours_exercise = int(self.recognize_speech("How many hours per week do you exercise?"))
+            # TODO:         if 0 <= hours_exercise <= 40:
+            # TODO:             break
+            # TODO:     except Exception as e:
+            # TODO:         pass
+            #! from input
+            # "was_vaccinated"    --> 0 / 1
+            was_vaccinated = input("was_vaccinated (yes/no): ")
+            while was_vaccinated!="no"and was_vaccinated!="yes":
+                was_vaccinated = input("was_vaccinated (yes/no): ")
+            was_vaccinated = 0 if was_vaccinated=="no" else 1
+            doctor = None
+            tempDoctor = []
+            
+            # # "doctor"            --> "red" / "green" / "blue" / "yellow"
+            # while doctor is None:
+            #     doctor = input("doctor (red/green/blue/yellow): ")
+            #     tempDoctor = doctor.split(" ")
+            #     if len(tempDoctor) == 2:
+            #         doctor = self.char_from_string(tempDoctor[1])
+            #     else:
+            #         doctor = None
+            
+            # # "hours_exercise"    --> 0 to 40
+            # while True:
+            #     try:
+            #         hours_exercise = int(input("hours_exercise ( 0 <--> 40): "))
+            #         if 0 <= hours_exercise <= 40:
+            #             break
+            #     except Exception as e:
+            #         pass
+            # right_vaccine = input("right_vaccine (Greenzer/Rederna/StellaBluera/BlacknikV): ")
+            #!from QR
+            # was_vaccinated = int(self.positions["QR"][face["QR_index"]]["data"].split(", ")[2])
+            doctor = self.char_from_string(self.positions["QR"][face["QR_index"]]["data"].split(", ")[3].lower())
+            hours_exercise = int(self.positions["QR"][face["QR_index"]]["data"].split(", ")[4])
+            # right_vaccine = self.positions["QR"][face["QR_index"]]["data"].split(", ")[5]
+
+            # print(was_vaccinated)
+            # print(doctor)
+            # print(hours_exercise)
+            # print(right_vaccine)
+            face["was_vaccinated"] = was_vaccinated
+            # has already been vacinated
+            face["doctor"] = doctor
+            face["hours_exercise"] = hours_exercise
+
+            if was_vaccinated == 1:
+                print(f"nextStage({indx}):\t\t{face['stage']} --> done")
+                face["stage"] = "done"
+                return
+                
+            # face["right_vaccine"] = right_vaccine
+            # vocalize decision
+            self.say("data collected")
+
+        if stage == "cylinder":
+            destination_cylinder = None
+            for cylinder in self.positions["cylinder"]:
+                if module.chose_color(cylinder["color"]) == face["doctor"]:
+                    destination_cylinder = cylinder
+
+            temp_model = pickle.load(open(f"{modelsDir}{self.positions['QR'][destination_cylinder['QR_index']]['modelName']}.sav", "rb"))
+            # tell him where to go
+            self.cylinder_pub.publish(Point(destination_cylinder["averagePostion"][0],destination_cylinder["averagePostion"][1],destination_cylinder["averagePostion"][2]))
+            
+            # choose ring
+            age = self.positions["digits"][face["digits_index"]]["data"]
+            toPredict = np.array([[age, face["hours_exercise"]]])
+            face["right_vaccine"] = temp_model.predict(toPredict)[0]
+            
+            # vocalize decition
+            self.say(f"Going to {self.word_from_char(face['doctor'])} cylinder.")
+            
+            # TODO: check if he arrived
+            # while True:
+            #     if self.listener():
+            #         break
+            print(face["right_vaccine"])
+            ringColor = self.word_from_vaccine(face["right_vaccine"].lower())
+            self.say(f"Vaccine is at {ringColor} ring.")
+            
+        if stage == "ring":
+            destination_ring = None
+            for ring in self.positions["ring"]:
+                if module.chose_color(ring["color"]) == self.char_from_string(self.word_from_vaccine(face["right_vaccine"].lower())):
+                    destination_ring = ring
+            
+            # tell him where to go
+            self.ring_pub.publish(Point(destination_ring["averagePostion"][0],destination_ring["averagePostion"][1],destination_ring["averagePostion"][2]))
+
+            # vocalize decition
+            self.say(f"Going to {self.word_from_vaccine(face['right_vaccine'].lower())} ring.")
+
+            # TODO: check if he arrived
+            # while True:
+            #     if self.listener():
+            #         break
+            
+        if stage == "vaccinate":
+            # TODO: tell him where to go
+            self.face_pub.publish(
+                Vector3(face["averageNormal"][0]+face["averagePostion"][0],
+                        face["averageNormal"][1]+face["averagePostion"][1],
+                        face["averageNormal"][2]+face["averagePostion"][2]),
+                Vector3(face["averagePostion"][0],face["averagePostion"][1],face["averagePostion"][2]))
+
+            # vocalize decition
+            self.say(f"Going back to the face.")
+
+            # TODO: check if he arrived
+            # while True:
+            #     if self.listener():
+            #         break
+            
+            # TODO: tell him to extend his hand
+
+            # vocalize decition
+            self.say(f"Here is you vaccination.")
+
+        if stage == "done":
+            # TODO: nothing
+            pass
+        self.nextStage(indx)
+    
+    def listener(self):
+        try:
+            link = rospy.wait_for_message("/sem_nekaj", String)
+            print(link)
+            return True
+        except Exception as e:
+            print(e)
+            return False
+
+    def nextStage(self, indx):
+        face = self.positions["face"][indx]
+        stageBefore = face["stage"]
+        if face["stage"]=="warning":
+            face["stage"] = "talk"
+
+        elif face["stage"]=="talk":
+            face["stage"] = "cylinder"
+        
+        elif face["stage"]=="cylinder":
+            face["stage"] = "ring"
+        
+        elif face["stage"]=="ring":
+            face["stage"] = "vaccinate"
+        
+        elif face["stage"]=="vaccinate":
+            face["stage"] = "done"
+
+        print(f"nextStage({indx}):\t\t{stageBefore} --> {face['stage']}")
+
+    def say(self,statement):
+        # TODO: actualy SAY IT !!!
+        print(f"\n\t--> {statement}\n")
+
+    def char_from_string(self, color_string):
+        if color_string == "black":
+            return "c"
+        if color_string == "white":
+            return "w"
+        if color_string == "red":
+            return "r"
+        if color_string == "green":
+            return "g"
+        if color_string == "blue":
+            return "b"
+        if color_string == "yellow":
+            return "y"
+        return None
+    
+    def word_from_char(self, color_char):
+        if color_char == "c":
+            return "black"
+        if color_char == "w":
+            return "white"
+        if color_char == "r":
+            return "red"
+        if color_char == "g":
+            return "green"
+        if color_char == "b":
+            return "blue"
+        if color_char == "y":
+            return "yellow"
+
+    def word_from_vaccine(self, vaccine):
+        if vaccine == "Greenzer".lower():
+            return "green"
+        if vaccine == "Rederna".lower():
+            return "red"
+        if vaccine == "StellaBluera".lower():
+            return "blue"
+        if vaccine == "BlacknikV".lower():
+            return "black"
+
+    def brain(self):
+        for indx in range(0,len(self.positions["face"])):
+            print("----------------------------------------------------------------\n")
+            for i in range(5):
+                print()
+                self.processStage(indx)
+                if self.positions["face"][indx]["stage"]=="done":
+                    break
+                text = input("Are you at next location yet?")
+
+#! ================================================ task_master end ================================================
 def main():
 
 
         color_finder = color_localizer()
 
+        # color_finder.positions = tempKrNeki
 
         rate = rospy.Rate(1.25)
         # rate = rospy.Rate(10)
 
         #! TESTING
         explore = True
-        skipCounter = 3
+        skipCounter = 0
         loopTimer = rospy.Time.now().to_sec()
         # print(sleepTimer)
         while not rospy.is_shutdown():
@@ -1808,14 +2082,26 @@ def main():
                 else:
                     skipCounter -= 1
             else:
-                text = color_finder.recognize_speech()
-                print('I recognized this sentence:', text)
+                # text = color_finder.recognize_speech()
+                # print('I recognized this sentence:', text)
                 print("we done")
-
+                while True:
+                    if color_finder.listener():
+                        break
+                color_finder.brain()
+                break
             rate.sleep()
 
         cv2.destroyAllWindows()
 
+
+
+
+
+
+
+
+tempKrNeki = {'ring': [{'averagePostion':np.array([ 2.81610412, -0.94318618,  0.2972    ]), 'detectedPositions': [np.array([ 2.94788736, -0.95712757,  0.2972    ]),np.array([ 2.86090865, -1.05065474,  0.2972    ]),np.array([ 2.65596364, -0.88268708,  0.2972    ]),np.array([ 2.63763366, -0.8886651 ,  0.2972    ]),np.array([ 2.68567003, -0.88327188,  0.2972    ]),np.array([ 2.92282008, -0.96124302,  0.2972    ]),np.array([ 2.92007471, -0.96469404,  0.2972    ]),np.array([ 2.89787487, -0.95714603,  0.2972    ])], 'color': {'r': 0, 'g': 0, 'b': 8, 'y': 0, 'w': 0, 'c': 0}, 'approached': False, 'avgMarkerId': 87}, {'averagePostion':np.array([-1.21440732,  1.05342329,  0.2972    ]), 'detectedPositions': [np.array([-1.22989409,  1.05515189,  0.2972    ]),np.array([-1.21839109,  1.05447691,  0.2972    ]),np.array([-1.21624633,  1.05172252,  0.2972    ]),np.array([-1.19309776,  1.05234185,  0.2972    ])], 'color': {'r': 0, 'g': 4, 'b': 0, 'y': 0, 'w': 0, 'c': 0}, 'approached': False, 'avgMarkerId': 82}, {'averagePostion':np.array([1.3828572 , 1.92886465, 0.2972    ]), 'detectedPositions': [np.array([1.38985897, 1.93085347, 0.2972    ]),np.array([1.38180099, 1.919463  , 0.2972    ]),np.array([1.37538029, 1.90476483, 0.2972    ]),np.array([1.38438855, 1.96037731, 0.2972    ])], 'color': {'r': 0, 'g': 1, 'b': 0, 'y': 0, 'w': 0, 'c': 3}, 'approached': False, 'avgMarkerId': 187}, {'averagePostion':np.array([1.6669117 , 2.33890599, 0.2972    ]), 'detectedPositions': [np.array([1.6257893 , 2.38255613, 0.2972    ]),np.array([1.68742498, 2.31719537, 0.2972    ]),np.array([1.68752081, 2.31696647, 0.2972    ])], 'color': {'r': 3, 'g': 0, 'b': 0, 'y': 0, 'w': 0, 'c': 0}, 'approached': False, 'avgMarkerId': 255}], 'cylinder': [{'averagePostion':np.array([-1.76331041,  0.15568962,  0.2972    ]), 'detectedPositions': [np.array([-1.79645995,  0.09618325,  0.2972    ]),np.array([-1.76878749,  0.15839875,  0.2972    ]),np.array([-1.7704159 ,  0.17945724,  0.2972    ]),np.array([-1.76090852,  0.15240529,  0.2972    ]),np.array([-1.76069804,  0.15299632,  0.2972    ]),np.array([-1.7568068 ,  0.16253023,  0.2972    ]),np.array([-1.75680562,  0.16251377,  0.2972    ]),np.array([-1.75681537,  0.1625936 ,  0.2972    ]),np.array([-1.75667243,  0.16230303,  0.2972    ]),np.array([-1.75630019,  0.16198642,  0.2972    ]),np.array([-1.75574419,  0.16121792,  0.2972    ])], 'color': {'r': 0, 'g': 11, 'b': 0, 'y': 0, 'w': 0, 'c': 0}, 'approached': True, 'avgMarkerId': 2, 'QR_index': 0}, {'averagePostion':np.array([0.39332062, 1.32513901, 0.2972    ]), 'detectedPositions': [np.array([0.4176197 , 1.19432779, 0.2972    ]),np.array([0.40388624, 1.33765771, 0.2972    ]),np.array([0.40283732, 1.33790291, 0.2972    ]),np.array([0.39745508, 1.34132422, 0.2972    ]),np.array([0.39476845, 1.3422516 , 0.2972    ]),np.array([0.38869529, 1.34281598, 0.2972    ]),np.array([0.38757439, 1.34208728, 0.2972    ]),np.array([0.38274938, 1.34129872, 0.2972    ]),np.array([0.3642997 , 1.34658489, 0.2972    ])], 'color': {'r': 0, 'g': 0, 'b': 9, 'y': 0, 'w': 0, 'c': 0}, 'approached': True, 'avgMarkerId': 28, 'QR_index': 1}, {'averagePostion':np.array([ 3.93364722, -0.50891001,  0.2972    ]), 'detectedPositions': [np.array([ 3.93989992, -0.50080574,  0.2972    ]),np.array([ 3.93700886, -0.49459029,  0.2972    ]),np.array([ 3.93318318, -0.4979407 ,  0.2972    ]),np.array([ 3.93097849, -0.49781012,  0.2972    ]),np.array([ 3.93095283, -0.50847619,  0.2972    ]),np.array([ 3.93082039, -0.50863221,  0.2972    ]),np.array([ 3.93076723, -0.50853788,  0.2972    ]),np.array([ 3.93160251, -0.51048583,  0.2972    ]),np.array([ 3.93089371, -0.51004031,  0.2972    ]),np.array([ 3.93502493, -0.50829406,  0.2972    ]),np.array([ 3.93503451, -0.50951552,  0.2972    ]),np.array([ 3.93760013, -0.55179125,  0.2972    ])], 'color': {'r': 0, 'g': 0, 'b': 0, 'y': 12, 'w': 0, 'c': 0}, 'approached': True, 'avgMarkerId': 98, 'QR_index': 3}, {'averagePostion':np.array([ 0.92574202, -0.12808591,  0.2972    ]), 'detectedPositions': [np.array([ 0.88289588, -0.14672508,  0.2972    ]),np.array([ 0.93138161, -0.14040482,  0.2972    ]),np.array([ 0.92563918, -0.12957609,  0.2972    ]),np.array([ 0.92691301, -0.1277871 ,  0.2972    ]),np.array([ 0.93207716, -0.11524721,  0.2972    ]),np.array([ 0.93215079, -0.11525347,  0.2972    ]),np.array([ 0.94913653, -0.12160759,  0.2972    ])], 'color': {'r': 7, 'g': 0, 'b': 0, 'y': 0, 'w': 0, 'c': 0}, 'approached': True, 'avgMarkerId': 168, 'QR_index': 5}], 'face': [{'averagePostion':np.array([-0.10987265, -1.64377577,  0.2972    ]), 'averageNormal':np.array([-0.0195094 , -0.99952619, -0.02380723]), 'detectedPositions': [np.array([-0.11775418, -1.66505193,  0.2972    ]),np.array([-0.12022563, -1.66493652,  0.2972    ]),np.array([-0.11158538, -1.65688679,  0.2972    ]),np.array([-0.11266341, -1.65680778,  0.2972    ]),np.array([-0.10873119, -1.65193661,  0.2972    ]),np.array([-0.11038316, -1.65194426,  0.2972    ]),np.array([-0.11791542, -1.64677141,  0.2972    ]),np.array([-0.109031  , -1.62706538,  0.2972    ]),np.array([-0.1090294 , -1.62704638,  0.2972    ]),np.array([-0.08140773, -1.58931061,  0.2972    ])], 'detectedNormals': [np.array([-0.01733354, -0.99963262, -0.0208367 ]),np.array([-0.01919565, -0.99953873, -0.02353405]),np.array([-0.01297902, -0.99968169, -0.02163491]),np.array([-0.01402521, -0.99961293, -0.02402667]),np.array([-0.01393909, -0.99955349, -0.02642963]),np.array([-0.01664269, -0.99952817, -0.02581585]),np.array([-0.00898452, -0.99963834, -0.02534678]),np.array([ 0.15996332, -0.98681653, -0.02459399]),np.array([ 0.15999874, -0.98678887, -0.0254584 ]),np.array([-0.40976143, -0.91202066, -0.01771692])], 'approached': True, 'avgMarkerId': 53, 'QR_index': 2, 'digits_index': 0, 'mask': {'yes': 10, 'no': 0}, 'stage': 'warning', 'was_vaccinated': None, 'doctor': None, 'hours_exercise': None, 'right_vaccine': None}, {'averagePostion':np.array([0.55852742, 1.25890332, 0.2972    ]), 'averageNormal':np.array([-0.9833539 , -0.18030703, -0.02246052]), 'detectedPositions': [np.array([0.50497741, 1.22345543, 0.2972    ]),np.array([0.54067596, 1.2363011 , 0.2972    ]),np.array([0.54069273, 1.23629524, 0.2972    ]),np.array([0.54474395, 1.23482981, 0.2972    ]),np.array([0.51367617, 1.28729746, 0.2972    ]),np.array([0.61797551, 1.26798151, 0.2972    ]),np.array([0.59469486, 1.26809589, 0.2972    ]),np.array([0.59080309, 1.2723921 , 0.2972    ]),np.array([0.59061658, 1.27289203, 0.2972    ]),np.array([0.5894829 , 1.28261644, 0.2972    ]),np.array([0.59110015, 1.28353196, 0.2972    ]),np.array([0.54365138, 1.26261393, 0.2972    ]),np.array([0.54691253, 1.26245129, 0.2972    ]),np.array([0.50938066, 1.23389232, 0.2972    ])], 'detectedNormals': [np.array([-0.99192563,  0.1242659 , -0.02532862]),np.array([-0.97727719,  0.21043401, -0.02543268]),np.array([-0.97718786,  0.21045871, -0.02847836]),np.array([-0.97157064,  0.2353132 , -0.02604206]),np.array([-0.98476775,  0.17128369, -0.02990597]),np.array([-0.9422557 , -0.33468395, -0.01186838]),np.array([-0.93531253, -0.35348883, -0.01536611]),np.array([-0.92529251, -0.37887239, -0.01701425]),np.array([-0.92560136, -0.37811592, -0.0170433 ]),np.array([-0.92321824, -0.383953  , -0.01575338]),np.array([-0.91925531, -0.3933024 , -0.01681975]),np.array([-0.90031707, -0.43461316, -0.02325028]),np.array([-0.88543568, -0.46420116, -0.02282397]),np.array([-0.96640618, -0.25560173, -0.02696033])], 'approached': True, 'avgMarkerId': 129, 'QR_index': 4, 'digits_index': 1, 'mask': {'yes': 12, 'no': 2}, 'stage': 'warning', 'was_vaccinated': None, 'doctor': None, 'hours_exercise': None, 'right_vaccine': None}, {'averagePostion':np.array([2.01092963, 3.41776147, 0.2972    ]), 'averageNormal':np.array([-0.18313601,  0.98284524, -0.02182731]), 'detectedPositions': [np.array([1.89444299, 3.28694764, 0.2972    ]),np.array([2.0348282 , 3.43939542, 0.2972    ]),np.array([2.01737646, 3.46098661, 0.2972    ]),np.array([2.07221089, 3.41558804, 0.2972    ]),np.array([2.01212729, 3.39628661, 0.2972    ]),np.array([1.97859235, 3.4533621 , 0.2972    ]),np.array([2.01643697, 3.45514253, 0.2972    ]),np.array([2.00139996, 3.46289258, 0.2972    ]),np.array([2.00850108, 3.42011224, 0.2972    ]),np.array([2.01718701, 3.41557275, 0.2972    ]),np.array([2.01879837, 3.41472104, 0.2972    ]),np.array([2.02049298, 3.41428231, 0.2972    ]),np.array([2.02100065, 3.414506  , 0.2972    ]),np.array([2.0203617 , 3.41139443, 0.2972    ]),np.array([2.02037981, 3.41141539, 0.2972    ]),np.array([2.02073736, 3.41157785, 0.2972    ])], 'detectedNormals': [np.array([ 0.39050649,  0.92029093, -0.02385979]),np.array([-0.00244821,  0.99982143, -0.01873794]),np.array([ 0.00297869,  0.9998238 , -0.01853373]),np.array([ 0.02060236,  0.99962508, -0.01803462]),np.array([-0.34721947,  0.93765931, -0.01528571]),np.array([-0.12396776,  0.99196824, -0.02511997]),np.array([ 0.11852   ,  0.99266734, -0.02376067]),np.array([-0.08518164,  0.99603943, -0.02548598]),np.array([-0.33486498,  0.94201519, -0.02174465]),np.array([-0.33088447,  0.9434182 , -0.02185321]),np.array([-0.34482329,  0.93841888, -0.02160807]),np.array([-0.3478451 ,  0.93731464, -0.02109614]),np.array([-0.34787823,  0.93729687, -0.02133821]),np.array([-0.37421268,  0.92710287, -0.02109828]),np.array([-0.374164  ,  0.92711735, -0.02132422]),np.array([-0.37336269,  0.92744076, -0.02130582])], 'approached': True, 'avgMarkerId': 204, 'QR_index': 7, 'digits_index': 3, 'mask': {'yes': 4, 'no': 12}, 'stage': 'warning', 'was_vaccinated': None, 'doctor': None, 'hours_exercise': None, 'right_vaccine': None}, {'averagePostion':np.array([1.34648599, 3.4172927 , 0.2972    ]), 'averageNormal':np.array([-0.00414711,  0.9996854 , -0.02473658]), 'detectedPositions': [np.array([1.33429133, 3.42768026, 0.2972    ]),np.array([1.33194286, 3.42645473, 0.2972    ]),np.array([1.32741998, 3.42467002, 0.2972    ]),np.array([1.32914479, 3.42213254, 0.2972    ]),np.array([1.3407501 , 3.42029512, 0.2972    ]),np.array([1.35661575, 3.34223238, 0.2972    ]),np.array([1.35431968, 3.43484719, 0.2972    ]),np.array([1.37666322, 3.44133852, 0.2972    ]),np.array([1.36722621, 3.41598353, 0.2972    ])], 'detectedNormals': [np.array([ 0.07895869,  0.99654188, -0.02588052]),np.array([ 0.09157424,  0.99545184, -0.0262639 ]),np.array([ 0.10643157,  0.99397233, -0.02629321]),np.array([ 0.12998346,  0.9911677 , -0.02628467]),np.array([ 0.15268431,  0.98792634, -0.02624983]),np.array([-0.38587945,  0.92245552, -0.01314773]),np.array([ 0.07897771,  0.99655067, -0.02548096]),np.array([-0.0193345 ,  0.99946466, -0.02639253]),np.array([-0.27009332,  0.96256184, -0.02289761])], 'approached': True, 'avgMarkerId': 194, 'QR_index': 6, 'digits_index': 2, 'mask': {'yes': 3, 'no': 6}, 'stage': 'warning', 'was_vaccinated': None, 'doctor': None, 'hours_exercise': None, 'right_vaccine': None}], 'QR': [{'averagePostion':np.array([-1.74753383,  0.13118945,  0.2972    ]), 'averageNormal':np.array([-0.99572036, -0.09176526, -0.01095941]), 'detectedPositions': [np.array([-1.74768986,  0.13093603,  0.2972    ]),np.array([-1.74760392,  0.13099825,  0.2972    ]),np.array([-1.74730769,  0.13163406,  0.2972    ])], 'detectedNormals': [np.array([-0.9957258 , -0.09172747, -0.01077989]),np.array([-0.99564027, -0.09262158, -0.01103135]),np.array([-0.99579427, -0.09094666, -0.01106699])], 'data': 'https://box.vicos.si/rins/18.txt', 'avgMarkerId': 19, 'isAssigned': True, 'modelName': 0}, {'averagePostion':np.array([0.40624585, 1.31527475, 0.2972    ]), 'averageNormal':np.array([ 0.52933732,  0.84834414, -0.01068711]), 'detectedPositions': [np.array([0.41058279, 1.31608189, 0.2972    ]),np.array([0.40536772, 1.31702328, 0.2972    ]),np.array([0.40281817, 1.31658946, 0.2972    ]),np.array([0.40621475, 1.31140436, 0.2972    ])], 'detectedNormals': [np.array([ 0.60362334,  0.79720226, -0.01036452]),np.array([ 0.58325691,  0.8122181 , -0.01063679]),np.array([ 0.57381114,  0.81891761, -0.01071108]),np.array([ 0.34102938,  0.93999151, -0.0107205 ])], 'data': 'https://box.vicos.si/rins/12.txt', 'avgMarkerId': 43, 'isAssigned': True, 'modelName': 3}, {'averagePostion':np.array([-0.32594343, -1.61965095,  0.2972    ]), 'averageNormal':np.array([-0.21015762, -0.97757031, -0.01378633]), 'detectedPositions': [np.array([-0.32669599, -1.61278376,  0.2972    ]),np.array([-0.32519086, -1.62651815,  0.2972    ])], 'detectedNormals': [np.array([-0.28401853, -0.9587201 , -0.01375656]),np.array([-0.13507553, -0.99074009, -0.01373599])], 'data': '1, 82, 1, Red, 5, Rederna', 'avgMarkerId': 71, 'isAssigned': True, 'modelName': 7}, {'averagePostion':np.array([ 3.92476412, -0.47046035,  0.2972    ]), 'averageNormal':np.array([ 0.99923889,  0.03789093, -0.00926908]), 'detectedPositions': [np.array([ 3.92746362, -0.4779259 ,  0.2972    ]),np.array([ 3.92745693, -0.47789599,  0.2972    ]),np.array([ 3.92745065, -0.47789311,  0.2972    ]),np.array([ 3.91668527, -0.44812641,  0.2972    ])], 'detectedNormals': [np.array([ 0.99770853,  0.06674325, -0.01109159]),np.array([ 0.99770177,  0.06683636, -0.0111391 ]),np.array([ 0.9977018 ,  0.06684447, -0.01108802]),np.array([ 0.99878933, -0.049052  , -0.00371073])], 'data': 'https://box.vicos.si/rins/14.txt', 'avgMarkerId': 121, 'isAssigned': True, 'modelName': 9}, {'averagePostion':np.array([0.50728764, 1.46832644, 0.2972    ]), 'averageNormal':np.array([-0.99592154, -0.08930725, -0.01282561]), 'detectedPositions': [np.array([0.57667232, 1.44974484, 0.2972    ]),np.array([0.49084217, 1.47613624, 0.2972    ]),np.array([0.4891646, 1.4773171, 0.2972   ]),np.array([0.4897497 , 1.47742077, 0.2972    ]),np.array([0.49000942, 1.46101325, 0.2972    ])], 'detectedNormals': [np.array([-0.92968381, -0.36824925, -0.00897242]),np.array([-0.99885835, -0.04591345, -0.01318912]),np.array([-0.99826826, -0.05721956, -0.01365281]),np.array([-0.99863187, -0.05041007, -0.01390024]),np.array([-0.99666792,  0.08041205, -0.01367302])], 'data': '1, 75, 0, Blue, 32, StellaBluera', 'avgMarkerId': 151, 'isAssigned': True, 'modelName': 13}, {'averagePostion':np.array([ 0.9025056 , -0.10311455,  0.2972    ]), 'averageNormal':np.array([-0.04777953, -0.99865997, -0.01988437]), 'detectedPositions': [np.array([ 0.90370024, -0.10218351,  0.2972    ]),np.array([ 0.90379938, -0.10217816,  0.2972    ]),np.array([ 0.90001719, -0.10498199,  0.2972    ])], 'detectedNormals': [np.array([-0.2015942 , -0.97940044, -0.0115998 ]),np.array([-0.20165693, -0.97938724, -0.01162431]),np.array([ 0.26341196, -0.9640493 , -0.03497264])], 'data': 'https://box.vicos.si/rins/2.txt', 'avgMarkerId': 179, 'isAssigned': True, 'modelName': 18}, {'averagePostion':np.array([1.59715658, 3.39828323, 0.2972    ]), 'averageNormal':np.array([ 0.05586412,  0.99837225, -0.01149107]), 'detectedPositions': [np.array([1.59780757, 3.40452062, 0.2972    ]),np.array([1.59650559, 3.39204585, 0.2972    ])], 'detectedNormals': [np.array([ 0.31332936,  0.94954097, -0.01402346]),np.array([-0.20543783,  0.97863607, -0.00816947])], 'data': '0, 15, 0, Green, 22, Greenzer', 'avgMarkerId': 219, 'isAssigned': True, 'modelName': 21}, {'averagePostion':np.array([2.20407253, 3.45163222, 0.2972    ]), 'averageNormal':np.array([ 0.01684339,  0.99976425, -0.01370207]), 'detectedPositions': [np.array([2.17047621, 3.44369541, 0.2972    ]),np.array([2.2208583 , 3.45559684, 0.2972    ]),np.array([2.22088309, 3.4556044 , 0.2972    ])], 'detectedNormals': [np.array([ 0.17726722,  0.98405243, -0.01473612]),np.array([-0.06316249,  0.99791737, -0.01309293]),np.array([-0.06390226,  0.99787135, -0.01301056])], 'data': '0, 20, 1, Yellow, 20, BlacknikV', 'avgMarkerId': 245, 'isAssigned': True, 'modelName': 23}], 'digits': [{'averagePostion':np.array([ 0.115308  , -1.63104736,  0.2972    ]), 'averageNormal':np.array([ 0.03829475, -0.99899503, -0.0232902 ]), 'detectedPositions': [np.array([ 0.11071775, -1.62916305,  0.2972    ]),np.array([ 0.09532647, -1.61584434,  0.2972    ]),np.array([ 0.12230288, -1.63219802,  0.2972    ]),np.array([ 0.13288489, -1.64698404,  0.2972    ])], 'detectedNormals': [np.array([ 0.21566623, -0.97610426, -0.02661845]),np.array([ 0.2886732 , -0.95705655, -0.02665609]),np.array([-0.18629604, -0.98234199, -0.01726255]),np.array([-0.16850559, -0.98548939, -0.02040921])], 'data': 82, 'avgMarkerId': 65, 'isAssigned': True}, {'averagePostion':np.array([0.50310674, 1.0883997 , 0.2972    ]), 'averageNormal':np.array([-0.9918287 ,  0.12612405, -0.01919758]), 'detectedPositions': [np.array([0.48700087, 1.10885583, 0.2972    ]),np.array([0.5192126 , 1.06794357, 0.2972    ])], 'detectedNormals': [np.array([-0.99909868,  0.03215107, -0.02771527]),np.array([-0.97567559,  0.21896742, -0.01050795])], 'data': 75, 'avgMarkerId': 163, 'isAssigned': True}, {'averagePostion':np.array([1.12443148, 3.40945943, 0.2972    ]), 'averageNormal':np.array([-0.2512796 ,  0.9675397 , -0.02693483]), 'detectedPositions': [np.array([1.10898366, 3.42951349, 0.2972    ]),np.array([1.11808611, 3.40749867, 0.2972    ]),np.array([1.14622467, 3.39136613, 0.2972    ])], 'detectedNormals': [np.array([-0.08054085,  0.99641107, -0.02604131]),np.array([-0.2784663 ,  0.96005311, -0.02746911]),np.array([-0.38833371,  0.9211349 , -0.02659756])], 'data': 15, 'avgMarkerId': 208, 'isAssigned': True}, {'averagePostion':np.array([1.81034267, 3.4328791 , 0.2972    ]), 'averageNormal':np.array([-0.26241263,  0.96458337, -0.02680538]), 'detectedPositions': [np.array([1.81634443, 3.44949933, 0.2972    ]),np.array([1.80434092, 3.41625886, 0.2972    ])], 'detectedNormals': [np.array([-0.15723845,  0.98720276, -0.02658524]),np.array([-0.36454983,  0.93080058, -0.0267153 ])], 'data': 20, 'avgMarkerId': 231, 'isAssigned': True}]}
 
 if __name__ == '__main__':
     main()
