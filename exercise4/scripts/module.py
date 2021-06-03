@@ -71,9 +71,6 @@ def checkForApproach(positions,objectType,publisher):
             publisher.publish(Point(obj["averagePostion"][0],obj["averagePostion"][1],obj["averagePostion"][2]))
     return True
 
-def approachForOrder():
-    pass
-
 def resetApproachesForTask(positions):
     for objT in positions:
         if objT == "QR" or objT == "digits":
@@ -1383,3 +1380,30 @@ def get_arrow_points(scale, head, tail, idn, marker_num):
 
     m.points = [tail,head]
     return (marker_num,m)
+
+#-------------Task specific---------------#
+def get_face_avg(avg,faces):
+    for f in faces:
+        #is ze same
+        if not np.all(f["averagePostion"]-avg):
+            return f
+    #iscemo naimsljeno osebo
+    return None
+
+"""
+primer (zadnji obraz smo lihkar ogovorili in dobili njegov cilinder):
+order = [(f<<face>>,np.array([x,y,z])),(c<<cylinder>>,np.array([x,y,z])),]
+"""
+
+def stackOrders(orders, order):
+    if 
+
+
+def approachForOrder():
+    pass
+
+def get_all_fAvg(positions):
+    li = []
+    for f in positions["face"]:
+        li.append(f["averagePostion"])
+    return li

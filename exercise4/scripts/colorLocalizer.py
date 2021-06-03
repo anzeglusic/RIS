@@ -87,9 +87,11 @@ class color_localizer:
         self.faceIm_pub = rospy.Publisher('/face_im2', Image, queue_size=1000)
         self.points_pub = rospy.Publisher('/our_pub1/chat1', Point, queue_size=1000)
         self.twist_pub = rospy.Publisher('/our_pub1/chat2', Twist, queue_size=1000)
-        #ta dva se uporabljata za objavo
+
+        #objava lokacij ob exploranju in izvajanju taskov
         self.face_pub = rospy.Publisher('/face_tw', Twist, queue_size=1000)
         self.cylinder_pub = rospy.Publisher('/cylinder_pt', Point, queue_size=1000)
+        self.ring_pub = rospy.Publisher('/ring_pt', Point, queue_size=1000)
 
         # Object we use for transforming between coordinate frames
         self.tf_buf = tf2_ros.Buffer()
@@ -964,9 +966,6 @@ class color_localizer:
         return grayBGR_toDrawOn
 
     #NE OHRANI NAPREJ
-
-
-
     def find_objects(self):
         #print('I got a new image!')
 
@@ -1783,7 +1782,7 @@ def main():
 
         color_finder = color_localizer()
 
-    
+
         rate = rospy.Rate(1.25)
         # rate = rospy.Rate(10)
 
