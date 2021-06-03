@@ -172,7 +172,7 @@ def rgba_from_char(color_char):
     if color_char == "y":
         return ColorRGBA(1, 1, 0, 1)
 
-def addPosition(newPosition, objectType, color_char, positions, nM, m_arr, markers_pub, showEveryDetection=True, normal=None, data=None, mask=None):
+def addPosition(newPosition, objectType, color_char, positions, nM, m_arr, markers_pub, showEveryDetection=True, normal=None, data=None, mask=None, modelName=None):
     '''
     positions = {
         "ring": [
@@ -182,9 +182,9 @@ def addPosition(newPosition, objectType, color_char, positions, nM, m_arr, marke
 
         ],
         "cylinder": [
-            { "averagePostion": np.array([x,y,z]), "detectedPositions": [ pos0, pos1, pos2, pos3], "color": {"b":0, "g":0, "r":0, ...}, "approached": False,"avgMarkerId": None, "QR_index": None  },
-            { "averagePostion": np.array([x,y,z]), "detectedPositions": [ pos0, pos1, pos2, pos3], "color": {"b":0, "g":0, "r":0, ...}, "approached": False,"avgMarkerId": None, "QR_index": None  },
-            { "averagePostion": np.array([x,y,z]), "detectedPositions": [ pos0, pos1, pos2, pos3], "color": {"b":0, "g":0, "r":0, ...}, "approached": False,"avgMarkerId": None, "QR_index": None  }
+            { "averagePostion": np.array([x,y,z]), "detectedPositions": [ pos0, pos1, pos2, pos3], "color": {"b":0, "g":0, "r":0, ...}, "approached": False,"avgMarkerId": None, "QR_index": None },
+            { "averagePostion": np.array([x,y,z]), "detectedPositions": [ pos0, pos1, pos2, pos3], "color": {"b":0, "g":0, "r":0, ...}, "approached": False,"avgMarkerId": None, "QR_index": None },
+            { "averagePostion": np.array([x,y,z]), "detectedPositions": [ pos0, pos1, pos2, pos3], "color": {"b":0, "g":0, "r":0, ...}, "approached": False,"avgMarkerId": None, "QR_index": None }
 
         ],
         "face": [
@@ -196,7 +196,7 @@ def addPosition(newPosition, objectType, color_char, positions, nM, m_arr, marke
                 "approached": False,
                 "avgMarkerId": None,
                 "QR_index": None,
-                "digits_index": None
+                "digits_index": None,
                 #!DODANO
                 "has_mask": False
             },
@@ -210,7 +210,8 @@ def addPosition(newPosition, objectType, color_char, positions, nM, m_arr, marke
                 "detectedNormals": [ pos0, pos1, pos2, pos3],
                 "data": None,
                 "avgMarkerId": None,
-                "isAssigned": False
+                "isAssigned": False,
+                "modelName": None
             },
             ...
         ],
@@ -273,6 +274,11 @@ def addPosition(newPosition, objectType, color_char, positions, nM, m_arr, marke
                 area["data"] = data
             else:
                 assert area["data"]==data, f"\n\n\tnovi {objectType} podatki so drugačni kot so predvideni za to pozicijo"
+        if objectType=="QR":
+            if area["modelName"] is None:
+                area["modelName"] = modelName
+            else:
+                assert area["modelName"]==modelName, f"\n\n\time datoteke za QR je drugačna kot je bila predvidena za to pozicijo"
 
         # depending on the type of object
         if objectType=="cylinder" or objectType=="ring":
@@ -469,7 +475,8 @@ def addPosition(newPosition, objectType, color_char, positions, nM, m_arr, marke
                                                 "detectedNormals":[normal.copy()],
                                                 "data": data,
                                                 "avgMarkerId": None,
-                                                "isAssigned": False
+                                                "isAssigned": False,
+                                                "modelName": modelName
                                                 })
         elif objectType=="digits":
             print("\n\nAdding new digits\n\n")
@@ -538,11 +545,6 @@ def addPosition(newPosition, objectType, color_char, positions, nM, m_arr, marke
     (nM, m_arr, positions) = update_positions(nM, m_arr, positions, markers_pub,faceNormalLength, qrNormalLength, digitsNormalLength)
 
     return (nM, m_arr, positions)
-
-def say(sentance):
-    # to play a sound !!!!!!!!!!!!!!!!!!!!
-    subprocess.run(["rosrun" , "sound_play", "say.py", sentance])
-    
 
 def update_positions(nM, m_arr, positions, markers_pub, faceNormalLength, qrNormalLength, digitsNormalLength):
     '''
@@ -929,6 +931,11 @@ def update_positions(nM, m_arr, positions, markers_pub, faceNormalLength, qrNorm
 
     # pprint(positions)
     return (nM, m_arr, positions)
+
+def say(sentance):
+    # to play a sound !!!!!!!!!!!!!!!!!!!!
+    subprocess.run(["rosrun" , "sound_play", "say.py", sentance])
+    
 
 def flatten_list(inpt):
     samples = []
