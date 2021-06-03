@@ -58,7 +58,7 @@ def train_classifier(link,name):
 
     random_forest_fit = randomForest.fit(trainX,trainY)
     pickle.dump(random_forest_fit, open(f"{modelsDir}{name}.sav", 'wb'))
-    print(f"{name}.sav:\n\tscore: {randomForest_fit.oob_score_}\n")
+    print(f"{name}.sav:\n\tscore: {random_forest_fit.oob_score_}\n")
     #print(f)
 
 def listener():
@@ -68,7 +68,7 @@ def listener():
         pprint(link_class)
         link = link_class.data.split(" ")
         print(link)
-        train_classiffier(link[0],link[1])
+        train_classifier(link[0],link[1])
     except Exception as e:
         print(e)
         return 0
