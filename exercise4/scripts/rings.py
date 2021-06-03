@@ -35,7 +35,7 @@ mouth = modelsDir+"mouth/Mouth.xml"
 class ring_maker:
 
     def __init__(self):
-        
+
         print()
         self.loopTimer = datetime.now()
         self.rgbTimer = 0
@@ -45,6 +45,8 @@ class ring_maker:
 
         self.basePosition = {"x":0, "y":0, "z":0}
         self.baseAngularSpeed = 0
+
+        self.randomForestV2 = pickle.load(open(f"{modelsDir}/random_forestV2.sav", "rb"))
 
         self.random_forest_HSV = pickle.load(open(f"{modelsDir}/random_forest_HSV.sav", 'rb'))
         self.random_forest_RGB = pickle.load(open(f"{modelsDir}/random_forest_RGB.sav", 'rb'))
@@ -443,19 +445,19 @@ class ring_maker:
                     #EDIT ali so koordinate pravilne
                     pnts = np.array( (image[cntr_ring[3][0][1],cntr_ring[3][0][2]], image[cntr_ring[3][1][1],cntr_ring[3][1][2]],image[cntr_ring[3][2][1],cntr_ring[3][2][2]]))
 
-                    # standin = np.zeros(image.shape)
+                    standin = np.zeros(image.shape)
 
                     # """(32.40898513793945, 39.01688003540039), --> (širina,višina)"""
-                    # if(e1[1][0]<e2[1][0]):
-                    #     cv2.ellipse(standin,e2,(0, 255, 0),-1)
-                    #     cv2.ellipse(standin,e1,(0, 0, 0),-1)
-                    # else:
-                    #     cv2.ellipse(standin,e1,(0, 255, 0),-1)
-                    #     cv2.ellipse(standin,e2,(0, 0, 0),-1)
+                    if(e1[1][0]<e2[1][0]):
+                        cv2.ellipse(standin,e2,(0, 255, 0),-1)
+                        cv2.ellipse(standin,e1,(0, 0, 0),-1)
+                    else:
+                        cv2.ellipse(standin,e1,(0, 255, 0),-1)
+                        cv2.ellipse(standin,e2,(0, 0, 0),-1)
                     # # print(np.sum(standin==(0,0,0)))
                     # # print(type(standin))
-                    # standin = standin.astype("uint8")
-                    # mask = standin[:,:,1] == 255
+                    standin = standin.astype("uint8")
+                    mask = standin[:,:,1] == 255
 
                     # pprint(mask)
                     # print(type(mask))
@@ -467,11 +469,22 @@ class ring_maker:
                     # masked_image = masked_image.astype("uint8")
 
                     # # print(masked_image)
-                    # t = image[mask,:]
+                    t = image[mask,:]
+                    pts = t.tolist()
+
+
+                    # blue = 150
+                    # green = 200
+                    # red = 150
+                    # temp = [(pixel[0]<blue and pixel[1]>green and pixel[2]<red) for pixel in pts]
+                    # print(f"\t\t\t\t\tgreen: {sum(temp)}")
+
+
+                    print(f"\t\t\t\t\tRing color is {module.calc_rgbV2(pts,self.randomForestV2,'ring')}")
 
                     #! -----------------------------------------------------------------------------------
                     # print(f"pixels: {len(t)}")
-                    
+
                     # color = ""
                     # #! reading JSON file
                     # try:
@@ -482,7 +495,7 @@ class ring_maker:
                     #         print("------->",len(library["ring"][color]))
                     # except Exception as err:
                     #     print(f"JSON error: {err}")
-                    
+
                     # #! writing in JSON file
                     # if library:
                     #     try:
@@ -654,24 +667,26 @@ class ring_maker:
             center_depth = depth_image[inter[1],(inter[0][0]+inter[0][1])//2]
             if self.check_if_ball(center_depth_up,center_depth,center_depth_down):
                 continue
-            
+
             # trainingOut = np.zeros(image.shape)
             # trainingOut[inter[1]:inter[1]+13,inter[0][0]:inter[0][1],:] = 1
             # trainingOut[:,:,0] = image[:,:,0]*(trainingOut[:,:,0]==1)
             # trainingOut[:,:,1] = image[:,:,1]*(trainingOut[:,:,1]==1)
             # trainingOut[:,:,2] = image[:,:,2]*(trainingOut[:,:,2]==1)
             # trainingOut = trainingOut.astype("uint8")
-            
-            # training = image[inter[1]:inter[1]+13,inter[0][0]:inter[0][1],:].astype("uint8")
-            
-            # t = training[np.zeros(training[:,:,0].shape)==0,:]
 
+            training = image[inter[1]:inter[1]+13,inter[0][0]:inter[0][1],:].astype("uint8")
+
+            t = training[np.zeros(training[:,:,0].shape)==0,:]
+            send_me = t.tolist()
+            color = module.calc_rgbV2(send_me,self.randomForestV2,"cylinder")
+            print(f"\t\t\t\tClyinder color is {color}")
             # pprint(training.shape)
             # pprint(t)
 
             # # ! -----------------------------------------------------------------------------------
             # print(f"\npixels: {len(t)}")
-            
+
             # color = ""
             # #! reading JSON file
             # try:
@@ -682,7 +697,7 @@ class ring_maker:
             #         print("----------------->",len(library["cylinder"][color]))
             # except Exception as err:
             #     print(f"JSON error: {err}")
-            
+
             # #! writing in JSON file
             # if library:
             #     try:
