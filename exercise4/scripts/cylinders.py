@@ -17,7 +17,7 @@ import functools
 import operator
 import requests
 import rospy
-from geometry_msgs.msg import PointStamped, Vector3, Pose, Point, Twist, String
+from geometry_msgs.msg import PointStamped, Vector3, Pose, Point, Twist, Text
 modelsDir = '/'.join(os.path.realpath(__file__).split('/')[0:-1])+'/'
 
 def train_classifier(link,name):
@@ -61,7 +61,7 @@ def train_classifier(link,name):
 
 def listener():
     try:
-        link_class = rospy.wait_for_message("/classifier", String)
+        link_class = rospy.wait_for_message("/classifier", Text)
         link =split()
         train_classiffier(link[0],link[1])
     except Exception as e:
