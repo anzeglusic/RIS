@@ -52,11 +52,14 @@ class color_localizer:
         self.sr = sr.Recognizer()
         self.mic = sr.Microphone()
 
+
+
         self.foundAll = True
 
         self.basePosition = {"x":0, "y":0, "z":0}
         self.baseAngularSpeed = 0
 
+        self.models = 0
         self.randomForestV2 = pickle.load(open(f"{modelsDir}/random_forestV2.sav", "rb"))
         self.random_forest_HSV = pickle.load(open(f"{modelsDir}/random_forest_HSV.sav", 'rb'))
         self.random_forest_RGB = pickle.load(open(f"{modelsDir}/random_forest_RGB.sav", 'rb'))
@@ -81,6 +84,9 @@ class color_localizer:
         self.bridge = CvBridge()
         self.m_arr = MarkerArray()
         self.nM = 0
+
+        #classifier topic
+        self.class_pub = rospy.Publisher("/classifier", String,queue_size=1000)
         # Publiser for the visualization markers
         self.markers_pub = rospy.Publisher('/ring_markers', MarkerArray, queue_size=1000)
         self.pic_pub = rospy.Publisher('/face_im', Image, queue_size=1000)
@@ -1509,7 +1515,9 @@ class color_localizer:
                 continue
             pose = module.get_pose((x1+x2)//2,(y1+y2)//2,depth_image_shifted[(y1+y2)//2,(x1+x2)//2],depth_image_shifted,"QR",stamp,None,self.tf_buf)
             #pose = self.get_pose((x1+x2)//2,(y1+y2)//2,depth_image_shifted[(y1+y2)//2,(x1+x2)//2],depth_image_shifted,"QR",stamp,None)
-            (self.nM, self.m_arr, self.positions) = module.addPosition(np.array([pose.position.x,pose.position.y,pose.position.z]),"QR", None,self.positions,self.nM, self.m_arr, self.markers_pub,showEveryDetection=self.showEveryDetection,normal=norm, data=dObject.data.decode())
+            (self.nM, self.m_arr, self.positions) = module.addPosition(np.array([pose.position.x,pose.position.y,pose.position.z]),"QR", None,self.positions,self.nM, self.m_arr, self.markers_pub,showEveryDetection=self.showEveryDetection,normal=norm, data=dObject.data.decode(), modelName=self.models)
+            self.class_pub(f"{dObject.data.decode()} {self.models}")
+            self.models +=1
             #self.addPosition(np.array([pose.position.x,pose.position.y, pose.position.z]),"QR",None,norm,dObject.data.decode())
 
 

@@ -54,8 +54,7 @@ def train_classifier(link,name):
 
     random_forest_fit = randomForest.fit(trainX,trainY)
     pickle.dump(random_forest_fit, open(f"{modelsDir}{name}.sav", 'wb'))
-
-
+    print(f"{name}.sav:\n\tscore: {randomForest_fit.oob_score_}\n")
     #print(f)
 
 def listener():
@@ -70,7 +69,7 @@ def listener():
 
 
 def main():
-    
+
     # rate = rospy.Rate(1.25)
     rate = rospy.Rate(100)
 

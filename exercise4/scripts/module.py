@@ -935,7 +935,6 @@ def update_positions(nM, m_arr, positions, markers_pub, faceNormalLength, qrNorm
 def say(sentance):
     # to play a sound !!!!!!!!!!!!!!!!!!!!
     subprocess.run(["rosrun" , "sound_play", "say.py", sentance])
-    
 
 def flatten_list(inpt):
     samples = []
@@ -1387,30 +1386,3 @@ def get_arrow_points(scale, head, tail, idn, marker_num):
 
     m.points = [tail,head]
     return (marker_num,m)
-
-#-------------Task specific---------------#
-def get_face_avg(avg,faces):
-    for f in faces:
-        #is ze same
-        if not np.all(f["averagePostion"]-avg):
-            return f
-    #iscemo naimsljeno osebo
-    return None
-
-"""
-primer (zadnji obraz smo lihkar ogovorili in dobili njegov cilinder):
-order = [(f<<face>>,np.array([x,y,z])),(c<<cylinder>>,np.array([x,y,z])),]
-"""
-
-def stackOrders(orders, order):
-    pass
-
-
-def approachForOrder():
-    pass
-
-def get_all_fAvg(positions):
-    li = []
-    for f in positions["face"]:
-        li.append(f["averagePostion"])
-    return li
