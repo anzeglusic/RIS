@@ -64,7 +64,9 @@ def train_classifier(link,name):
 def listener():
     try:
         link_class = rospy.wait_for_message("/classifier", String)
-        link = link_class.split()
+        pprint(type(link_class))
+        pprint(link_class)
+        link = link_class.split(" ")
         print(link)
         train_classiffier(link[0],link[1])
     except Exception as e:
