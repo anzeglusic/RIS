@@ -23,6 +23,7 @@ import pandas as pd
 from collections import Counter
 import random
 import functools
+import operator
 
 def keepExploring(positions):
     if len(positions["face"]) < 4:
