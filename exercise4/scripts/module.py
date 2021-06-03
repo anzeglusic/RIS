@@ -939,10 +939,11 @@ def update_positions(nM, m_arr, positions, markers_pub, faceNormalLength, qrNorm
 
 def flatten_list(inpt):
     samples = []
-    print(inpt)
+    print(type(inpt))
     #naredimo 4 sample
     for it in range(4):
         tem = random.sample(inpt,50)
+        print("ded")
         #flattenamo sample
         flatten_tem = functools.reduce(operator.iconcat,tem,[])
 
