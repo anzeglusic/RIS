@@ -1089,6 +1089,10 @@ int main(int argc, char **argv)
                         roko.publish(mgg);
                         sleep(5);
                     }
+                    sleep(5);
+                    std_msgs::String mggg;
+                    mggg.data = "pridel";
+                    semNekaj.publish(mggg);
                     sleep(10);
                     sleep(5);
                 }
