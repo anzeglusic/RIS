@@ -25,7 +25,7 @@ class Arm_Mover():
 
         self.extend = JointTrajectory()
         self.extend.joint_names = ["arm_shoulder_pan_joint", "arm_shoulder_lift_joint", "arm_elbow_flex_joint", "arm_wrist_flex_joint"]
-        self.extend.points = [JointTrajectoryPoint(positions=[0,0.3,1,0],
+        self.extend.points = [JointTrajectoryPoint(positions=[0.3,1,1,0],
                                                     time_from_start = rospy.Duration(1))]
 
     def new_user_command(self, data):
@@ -56,3 +56,15 @@ if __name__ == "__main__":
     while not rospy.is_shutdown():
         am.update_position()
         r.sleep()
+
+
+#source /home/iletavcioski/ROS/devel/setup.bash
+#roslaunch exercise7 rins_world.launch
+#roslaunch exercise3 amcl_simulation.launch 
+#roslaunch turtlebot_rviz_launchers view_navigation.launch 2>/dev/null
+#rostopic echo /camera/rgb/image_raw --noarr
+#rosrun exercise4 colorLocalizer.py
+#rosrun exercise3 map_goals
+#rosrun exercise7 move_arm.py
+#rostopic pub /arm_command std_msgs/String "data: "extend""
+#Sepravi vektor je od lokacije kjer aprochas in cilindra in potem naredis arcustanges kota do x osi atan2. Js posiljam kr obicajen gole tako da orientation.z =sin(kot/2), orientation.w = cos(kot/2)
