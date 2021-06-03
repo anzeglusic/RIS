@@ -22,7 +22,7 @@ from pprint import pprint
 #import matplotlib.pyplot as plt
 from sensor_msgs.msg import Image
 from nav_msgs.msg import Odometry
-from geometry_msgs.msg import PointStamped, Vector3, Pose, Point, Twist
+from geometry_msgs.msg import PointStamped, Vector3, Pose, Point, Twist, String
 from cv_bridge import CvBridge, CvBridgeError
 from visualization_msgs.msg import Marker, MarkerArray
 from std_msgs.msg import ColorRGBA
@@ -86,7 +86,7 @@ class color_localizer:
         self.nM = 0
 
         #classifier topic
-        self.class_pub = rospy.Publisher("/classifier", string,queue_size=1000)
+        self.class_pub = rospy.Publisher("/classifier", String,queue_size=1000)
         # Publiser for the visualization markers
         self.markers_pub = rospy.Publisher('/ring_markers', MarkerArray, queue_size=1000)
         self.pic_pub = rospy.Publisher('/face_im', Image, queue_size=1000)
