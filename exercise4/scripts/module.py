@@ -539,6 +539,11 @@ def addPosition(newPosition, objectType, color_char, positions, nM, m_arr, marke
 
     return (nM, m_arr, positions)
 
+def say(sentance):
+    # to play a sound !!!!!!!!!!!!!!!!!!!!
+    subprocess.run(["rosrun" , "sound_play", "say.py", sentance])
+    
+
 def update_positions(nM, m_arr, positions, markers_pub, faceNormalLength, qrNormalLength, digitsNormalLength):
     '''
     positions = {
@@ -1391,7 +1396,7 @@ order = [(f<<face>>,np.array([x,y,z])),(c<<cylinder>>,np.array([x,y,z])),]
 """
 
 def stackOrders(orders, order):
-    if 
+    pass
 
 
 def approachForOrder():

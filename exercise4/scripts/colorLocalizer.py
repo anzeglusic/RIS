@@ -151,7 +151,6 @@ class color_localizer:
         #element: (interval,vrstic_od_sredine)
         self.tru_intervals = []
 
-
     # TODO: change for the brain of task 3
 
     def connect_QR_to_objects(self):
