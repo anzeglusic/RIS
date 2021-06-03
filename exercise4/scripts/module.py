@@ -952,6 +952,7 @@ def flatten_list(inpt):
 def calc_rgbV2(all_points,random_forest):
     samples = flatten_list(all_points)
     df_x = pd.DataFrame(samples)
+    print(df_x)
     y = random_forest.predict(df_x.to_numpy())
     dict_res = Counter(y)
     print(dict_res)
