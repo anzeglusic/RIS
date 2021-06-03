@@ -35,6 +35,7 @@ ros::Publisher goal_pub;
 ros::Subscriber map_sub;
 ros::Subscriber sub25;
 ros::Publisher roko;
+ros::Publisher semNekaj;
 int yy11 = 259;
 int xx11 = 255;
 double paty[] = {0.5, 1.5, 2.5, 2.5, 2.5, 2.5, 1.5, 0.5, -0.5, -0.5, -0.5};
@@ -431,6 +432,11 @@ void approaching(double zY, double zX, int kaj)
     {
         pair<double, pair<double, int>> pp = it->first;
         cout << pp.second.first << " " << pp.first << " " << euc(zX, zY, pp.second.first, pp.first) << endl;
+        if (pp.first == -0.5 && pp.second.first == 1.5)
+        {
+            pp.first = -0.75;
+            pp.second.first = 1.3;
+        }
         if (euc(zX, zY, pp.second.first, pp.first) < dist)
         {
             if (zY > 1 && zY < 2 && zX > 0 && zX < 1 && pp.first == 1.5 && pp.second.first == 1.5)
@@ -470,11 +476,12 @@ void approaching(double zY, double zX, int kaj)
         cout << direction << endl;
         if (kaj == 3 && direction == 2)
             direction = 0;
-        if (kaj == 1 && direction == 0 && zX >= 0 && zX <= 2 && zY >= (-1) && zY <= 1)
-            direction = 2;
+        //if (kaj == 1 && direction == 0 && zX >= 0 && zX <= 2 && zY >= (-1) && zY <= 1)
+        //  direction = 2;
         if (zY > 1 && zY < 2 && zX > 0 && zX < 1 && kaj == 1)
         {
-            vozi(0, 0, zY - 0.25, zX - 0.25, 5);
+            cout << "ZABRANA" << endl;
+            vozi(0, 0, zY - 0.3, zX - 0.3, 5);
             sleep(20);
             cout << "STASAV" << endl;
         }
@@ -737,6 +744,7 @@ int main(int argc, char **argv)
     ros::Subscriber getCilinder = n.subscribe("cylinder_pt", 1000, getCilinderCall);
     ros::Subscriber getObraz = n.subscribe("face_tw", 1000, getObrazCall);
     roko = n.advertise<std_msgs::String>("/arm_command", 1000);
+    semNekaj = n.advertise<std_msgs::String>("/sem_nekaj", 1000);
     namedWindow("Map");
     //ros::Subscriber sub24 = n.subscribe("/our_pub1/chat1", 100, tapa);
     std_msgs::String mgg;
@@ -755,7 +763,7 @@ int main(int argc, char **argv)
     int krat3 = 0;
     int krat4 = 0;
     int krat5 = 0;
-    endSearching = 1;
+    endSearching = 0;
     momY = 0.5;
     momX = -0.5;
     prideCel(-0.44, 4.06, 1);
@@ -927,16 +935,14 @@ int main(int argc, char **argv)
                 waitKey(30);
                 continue;
             }
-            if (!mozi && stevec > 1)
-                continue;
-            if (!qi.empty())
+            if (!qi.empty() && isApproaching == 0)
             {
                 isApproaching = 1;
                 approaching(qi.front().first, qi.front().second.first, qi.front().second.second);
                 Kaj = qi.front().second.second;
                 qi.pop();
                 cout << "VLEZEAPP" << endl;
-                isApproaching = 0;
+
                 if (Kaj == 4 || Kaj == 2)
                 {
                     Kaj = 1;
@@ -949,9 +955,26 @@ int main(int argc, char **argv)
                     roko.publish(mgg);
                     sleep(5);
                 }
+                sleep(5);
+                std_msgs::String mggg;
+                mggg.data = "pridel";
+                semNekaj.publish(mggg);
                 sleep(10);
                 sleep(5);
+
+                continue;
             }
+            if (mozi && stevec > 1)
+            {
+                cout << "VLEZE v MOZI" << endl;
+                isApproaching = 0;
+            }
+            if ((!mozi && stevec > 1) || isApproaching == 1)
+            {
+                cout << "VLEZE v !MOZI" << endl;
+                continue;
+            }
+
             cout << y << " " << x << " " << mom << endl;
             if (stevec > 100)
                 return 0;
