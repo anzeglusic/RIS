@@ -20,7 +20,7 @@ import tf2_geometry_msgs
 import tf2_ros
 from pprint import pprint
 #import matplotlib.pyplot as plt
-from std_msgs import String
+from std_msgs.msg import String
 from sensor_msgs.msg import Image
 from nav_msgs.msg import Odometry
 from geometry_msgs.msg import PointStamped, Vector3, Pose, Point, Twist

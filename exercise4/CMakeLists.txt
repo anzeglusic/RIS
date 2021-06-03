@@ -14,11 +14,9 @@ find_package(catkin REQUIRED COMPONENTS
 
 find_package( OpenCV REQUIRED )
 
-<<<<<<< HEAD
-generate_messages(DEPENDENCIES std_msgs geometry_msgs )
-=======
-generate_messages(mess.srv DEPENDENCIES std_msgs geometry_msgs )
->>>>>>> parent of 6bbdee7... dodan cmake srv
+
+generate_messages(MESSAGES srv/Mess.srv DEPENDENCIES std_msgs geometry_msgs )
+
 
 catkin_package()
 
