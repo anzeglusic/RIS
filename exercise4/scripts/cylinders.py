@@ -16,6 +16,7 @@ import random
 import functools
 import operator
 import requests
+import rospy
 modelsDir = '/'.join(os.path.realpath(__file__).split('/')[0:-1])+'/'
 
 def train_classifier(link,name):

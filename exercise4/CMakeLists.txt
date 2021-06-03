@@ -23,5 +23,3 @@ catkin_package()
 #target_link_libraries(map_goals ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
 
 catkin_install_python(PROGRAMS scripts/colorLocalizer.py scripts/cylinders.py scripts/rings.py DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
-
-
