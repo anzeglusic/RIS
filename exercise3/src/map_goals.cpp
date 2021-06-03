@@ -13,6 +13,7 @@
 #include <actionlib/client/terminal_state.h>
 #include <actionlib_msgs/GoalStatusArray.h>
 #include <vector>
+#include <queue>
 #include <cmath>
 #include <map>
 #include <wait.h>
@@ -141,6 +142,7 @@ void vozi(int y3, int x3, double y, double x, int dir)
     {
         y = 2.6;
     }
+
     mozi = false;
     X = x;
     Y = y;
@@ -402,6 +404,7 @@ int brojcccc = 0;
 map<pair<double, pair<double, int>>, bool> can1;
 map<pair<double, pair<double, int>>, bool> went1;
 
+queue<pair<double, pair<double, int>>> qi;
 void ins()
 {
     can[make_pair(2.5, make_pair(1.5, 3))] = false;
@@ -460,15 +463,26 @@ void approaching(double zY, double zX, int kaj)
             }
         }
         cout << direction << endl;
-        if (zY > 1 && zY < 2 && zX > 0 && zX < 1)
+        if (kaj == 3 && direction == 2)
+            direction = 0;
+        if (kaj == 1 && direction == 0 && zX >= 0 && zX <= 2 && zY >= (-1) && zY <= 1)
+            direction = 2;
+        if (zY > 1 && zY < 2 && zX > 0 && zX < 1 && kaj == 1)
         {
-            vozi(0, 0, zY - 0.3, zX - 0.3, 5);
+            vozi(0, 0, zY - 0.25, zX - 0.25, 5);
+            sleep(20);
             cout << "STASAV" << endl;
         }
         else if (direction == 0)
         {
             vozi(0, 0, zY, zX + 0.3, 0);
+            sleep(20);
             int bezveze = 0;
+            if (kaj == 3)
+            {
+                vozi(0, 0, zY + 0.2, zX + 0.3, 0);
+                sleep(10);
+            }
 
             cout << "STASAV" << endl;
             //sleep(20);
@@ -476,18 +490,36 @@ void approaching(double zY, double zX, int kaj)
         else if (direction == 1)
         {
             vozi(0, 0, zY - 0.3, zX, 1);
+            sleep(20);
+            if (kaj == 3)
+            {
+                vozi(0, 0, zY - 0.3, zX + 0.2, 1);
+                sleep(10);
+            }
             cout << "STASAV" << endl;
             //sleep(20);
         }
         else if (direction == 2)
         {
             vozi(0, 0, zY, zX - 0.3, 2);
+            sleep(20);
+            if (kaj == 3)
+            {
+                vozi(0, 0, zY - 0.2, zX - 0.3, 2);
+                sleep(10);
+            }
             cout << "STASAV" << endl;
             // sleep(20);
         }
         else if (direction == 3)
         {
             vozi(0, 0, zY + 0.3, zX, 3);
+            sleep(20);
+            if (kaj == 3)
+            {
+                vozi(0, 0, zY + 0.3, zX - 0.2, 3);
+                sleep(10);
+            }
             cout << "STASAV" << endl;
             // sleep(20);
         }
@@ -565,22 +597,24 @@ int endSearching = 3;
 
 void getObrazCall(const geometry_msgs::Twist::ConstPtr &mg)
 {
-    isApproaching = 1;
+    // isApproaching = 1;
     double aY = mg->angular.y;
     double aX = mg->angular.x;
     cout << "DOJDEOBRAZ-> " << aY << " " << aX << endl;
-    approaching(aY, aX, 3);
-    sleep(5);
+    qi.push(make_pair(aY, make_pair(aX, 3)));
+    //approaching(aY, aX, 3);
+    //sleep(5);
 }
 
 void getCilinderCall(const geometry_msgs::Point::ConstPtr &mg)
 {
-    isApproaching = 1;
+    //isApproaching = 1;
     double aY = mg->y;
     double aX = mg->x;
     cout << "DOJDECILINDER-> " << aY << " " << aX << endl;
-    approaching(aY, aX, 1);
-    sleep(5);
+    qi.push(make_pair(aY, make_pair(aX, 1)));
+    //approaching(aY, aX, 1);
+    //sleep(5);
 }
 
 int main(int argc, char **argv)
@@ -622,8 +656,8 @@ int main(int argc, char **argv)
         }
         ros::spinOnce();
         //brojcccc++;
-        if (!mozi && stevec > 1)
-            continue;
+        // if (!mozi && stevec > 1)
+        // continue;
         //ros::spinOnce();
         //ros::Subscriber sub24 = n.subscribe("/our_pub1/chat1", 100, tapa);
         if (!cv_map.empty())
@@ -754,24 +788,7 @@ int main(int argc, char **argv)
             continue;
         }
         */
-        if (mozi && isApproaching == 1)
-        {
-            cout << "VLEZEAPP" << endl;
-            isApproaching = 0;
-            sleep(10);
-        }
-        if (Kaj == 4 || Kaj == 2)
-        {
-            Kaj = 1;
-            std_msgs::String mgg1;
-            mgg1.data = "extend";
-            roko.publish(mgg1);
-            sleep(5);
-            std_msgs::String mgg;
-            mgg.data = "retract";
-            roko.publish(mgg);
-            sleep(5);
-        }
+
         //approaching(1.32, 0.39, 1);
         //approaching(1.28, 2.94, 1);
         //approaching(-0.44, 4.06, 1);
@@ -790,9 +807,31 @@ int main(int argc, char **argv)
         }
         if (!mozi && stevec > 1)
             continue;
-
+        if (!qi.empty())
+        {
+            isApproaching = 1;
+            approaching(qi.front().first, qi.front().second.first, qi.front().second.second);
+            Kaj = qi.front().second.second;
+            qi.pop();
+            cout << "VLEZEAPP" << endl;
+            isApproaching = 0;
+            if (Kaj == 4 || Kaj == 2)
+            {
+                Kaj = 1;
+                std_msgs::String mgg1;
+                mgg1.data = "extend";
+                roko.publish(mgg1);
+                sleep(5);
+                std_msgs::String mgg;
+                mgg.data = "retract";
+                roko.publish(mgg);
+                sleep(5);
+            }
+            sleep(10);
+            sleep(5);
+        }
         cout << y << " " << x << " " << mom << endl;
-        if (stevec > 60)
+        if (stevec > 100)
             return 0;
         int le = (mom + 3) % 4;
         int de = (mom + 1) % 4;
