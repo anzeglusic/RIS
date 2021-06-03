@@ -152,23 +152,12 @@ def chose_color(colorDict):
     g = colorDict["g"]
     r = colorDict["r"]
     c = colorDict["c"]
-    w = colorDict["w"]
     y = colorDict["y"]
 
-    numOfDetections = np.sum([ b , g , r , y , w , c ])
+    tag =   ["b","g","r","y","c"]
+    value = [ b , g , r , y , c ]
 
-    # black is selected if no other is selected
-    c = 0
-    # white is considered to be blue
-    b += w
-    w = 0
 
-    tag =   ["b","g","r","y","w","c"]
-    value = [ b , g , r , y , w , c ]
-
-    if np.sum(value)==0 and numOfDetections>10:
-        print("NOT ENOUGHF COLORS DETECTED")
-        return 'c'
     bestIndx = np.argmax(value)
     return tag[bestIndx]
 
@@ -953,7 +942,8 @@ def flatten_list(inpt):
         samples.append(flatten_tem)
     return samples
 
-def calc_rgbV2(all_points,random_forest):
+def calc_rgbV2(all_points,random_forest,objectType):
+
     samples = flatten_list(all_points)
     #print(df_x)
     df_x = pd.DataFrame(samples)
@@ -962,6 +952,14 @@ def calc_rgbV2(all_points,random_forest):
     dict_res = Counter(y)
     #print(dict_res)
     res = dict_res.most_common(1)
+    if objectType=="ring" and res[0][0]=="c":
+        blue = 150
+        green = 200
+        red = 150
+        temp = [(pixel[0]<blue and pixel[1]>green and pixel[2]<red) for pixel in all_points]
+        # print(f"\t\t\t\t\t{sum(temp)}")
+        if sum(temp)>0:
+            return "g"
     return res[0][0]
 
 def calc_rgb(point,knn_RGB,random_forest_RGB,knn_HSV,random_forest_HSV):

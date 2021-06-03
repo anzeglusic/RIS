@@ -471,7 +471,16 @@ class ring_maker:
                     # # print(masked_image)
                     t = image[mask,:]
                     pts = t.tolist()
-                    #print(f"Ze color is {module.calc_rgbV2(pts,self.randomForestV2)}")
+
+
+                    # blue = 150
+                    # green = 200
+                    # red = 150
+                    # temp = [(pixel[0]<blue and pixel[1]>green and pixel[2]<red) for pixel in pts]
+                    # print(f"\t\t\t\t\tgreen: {sum(temp)}")
+
+
+                    print(f"\t\t\t\t\tRing color is {module.calc_rgbV2(pts,self.randomForestV2,'ring')}")
 
                     #! -----------------------------------------------------------------------------------
                     # print(f"pixels: {len(t)}")
@@ -670,8 +679,8 @@ class ring_maker:
 
             t = training[np.zeros(training[:,:,0].shape)==0,:]
             send_me = t.tolist()
-            color = module.calc_rgbV2(send_me,self.randomForestV2)
-            print(f"Ze color is {color}")
+            color = module.calc_rgbV2(send_me,self.randomForestV2,"cylinder")
+            print(f"\t\t\t\tClyinder color is {color}")
             # pprint(training.shape)
             # pprint(t)
 

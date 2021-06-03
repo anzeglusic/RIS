@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 
+from itertools import count
 from pprint import pprint
 import pandas as pd
 import sklearn
@@ -116,7 +117,7 @@ def create_list(dicta):
 #print(datF.head)
 #datF.to_pickle("./pixls100.pkl")
 
-datF = pd.read_pickle("pixls.pkl")
+datF = pd.read_pickle(f"{modelsDir}pixls.pkl")
 #print(datF.count())
 
 
@@ -200,3 +201,12 @@ for color in allColors:
     print(f"{color}: {sum(temp1)+sum(temp2)}\t( {round((sum(temp1)+sum(temp2))/numOfAllPixels*100)} % )")
 print()
 """
+
+for objectType in ["ring","cylinder"]:
+    print(objectType)
+    for color in ["r","g","b","y","c"]:
+        blue = 200
+        green = 200
+        red = 200
+        temp = [sum([(pixel[0]<blue and pixel[1]>green and pixel[2]<red) for pixel in detection])>5 for detection in library[objectType][color]]
+        print(f"\t{color}: {sum(temp)}\t{round(sum(temp)/len(temp)*100) if len(temp)>0 else 0} %")
