@@ -471,7 +471,7 @@ class ring_maker:
                     # # print(masked_image)
                     t = image[mask,:]
                     pts = t.tolist()
-                    print(f"Ze color is {module.calc_rgbV2(t,self.randomForestV2)}")
+                    print(f"Ze color is {module.calc_rgbV2(pts,self.randomForestV2)}")
                     #! -----------------------------------------------------------------------------------
                     # print(f"pixels: {len(t)}")
 
