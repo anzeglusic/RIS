@@ -501,7 +501,7 @@ void approaching(double zY, double zX, int kaj)
         }
         else if (direction == 1)
         {
-            vozi(0, 0, zY - 0.3, zX, 1);
+            vozi(0, 0, zY - 0.3, zX - 0.1, 1);
             sleep(20);
             if (kaj == 3)
             {
@@ -777,6 +777,9 @@ int main(int argc, char **argv)
             Kaj = 1;
             if (konec)
             {
+                std_msgs::String mggg;
+                mggg.data = "koncal";
+                semNekaj.publish(mggg);
                 cout << "THE END OF SEARCHING" << endl;
                 endSearching = 1;
                 mozi = true;
@@ -955,7 +958,7 @@ int main(int argc, char **argv)
                     roko.publish(mgg);
                     sleep(5);
                 }
-                sleep(5);
+                //sleep(5);
                 std_msgs::String mggg;
                 mggg.data = "pridel";
                 semNekaj.publish(mggg);
@@ -1089,12 +1092,12 @@ int main(int argc, char **argv)
                         roko.publish(mgg);
                         sleep(5);
                     }
-                    sleep(5);
+                    //sleep(5);
                     std_msgs::String mggg;
                     mggg.data = "pridel";
                     semNekaj.publish(mggg);
                     sleep(10);
-                    sleep(5);
+                    //sleep(5);
                 }
                 qI.pop();
             }
