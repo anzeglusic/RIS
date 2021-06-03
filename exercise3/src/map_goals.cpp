@@ -35,12 +35,18 @@ ros::Publisher goal_pub;
 ros::Subscriber map_sub;
 ros::Subscriber sub25;
 ros::Publisher roko;
+ros::Publisher semNekaj;
 int yy11 = 259;
 int xx11 = 255;
+double paty[] = {0.5, 1.5, 2.5, 2.5, 2.5, 2.5, 1.5, 0.5, -0.5, -0.5, -0.5};
+double patx[] = {-0.5, -0.5, -0.5, 0.5, 1.5, 2.5, 2.5, 2.5, 2.5, 1.5, 0.5};
+
 //proba
 string s1 = "-1";
 double z[] = {1, 0.7, 0, -0.7, 0.925, 0.3797, -0.3797, -0.925};
 double w[] = {0, 0.7, 1, 0.7, 0.3797, 0.925, 0.925, 0.3797};
+double momY = 0.5;
+double momX = -0.5;
 map<pair<double, pair<double, int>>, bool> looked;
 map<pair<double, pair<double, int>>, bool> went;
 map<pair<double, pair<double, int>>, bool> can;
@@ -416,7 +422,7 @@ void ins()
     can1[make_pair(0.5, make_pair(1.5, 1))] = false;
     can1[make_pair(0.5, make_pair(2.5, 2))] = true;
 }
-
+queue<pair<double, pair<double, int>>> qI;
 void approaching(double zY, double zX, int kaj)
 {
     cout << "APPROACHING-> " << zY << " " << zX << endl;
@@ -426,6 +432,11 @@ void approaching(double zY, double zX, int kaj)
     {
         pair<double, pair<double, int>> pp = it->first;
         cout << pp.second.first << " " << pp.first << " " << euc(zX, zY, pp.second.first, pp.first) << endl;
+        if (pp.first == -0.5 && pp.second.first == 1.5)
+        {
+            pp.first = -0.75;
+            pp.second.first = 1.3;
+        }
         if (euc(zX, zY, pp.second.first, pp.first) < dist)
         {
             if (zY > 1 && zY < 2 && zX > 0 && zX < 1 && pp.first == 1.5 && pp.second.first == 1.5)
@@ -465,11 +476,12 @@ void approaching(double zY, double zX, int kaj)
         cout << direction << endl;
         if (kaj == 3 && direction == 2)
             direction = 0;
-        if (kaj == 1 && direction == 0 && zX >= 0 && zX <= 2 && zY >= (-1) && zY <= 1)
-            direction = 2;
+        //if (kaj == 1 && direction == 0 && zX >= 0 && zX <= 2 && zY >= (-1) && zY <= 1)
+        //  direction = 2;
         if (zY > 1 && zY < 2 && zX > 0 && zX < 1 && kaj == 1)
         {
-            vozi(0, 0, zY - 0.25, zX - 0.25, 5);
+            cout << "ZABRANA" << endl;
+            vozi(0, 0, zY - 0.3, zX - 0.3, 5);
             sleep(20);
             cout << "STASAV" << endl;
         }
@@ -593,28 +605,132 @@ void approaching(double zY, double zX, int kaj)
 }
 int krat = 0;
 int isApproaching = 0;
-int endSearching = 3;
-
+int endSearching;
+void prideCel(double y, double x, int kind)
+{
+    int koje1 = -1;
+    int koje2 = -1;
+    double dist_maxi = 1e9;
+    for (int i = 0; i < 11; i++)
+    {
+        if (euc(momX, momY, patx[i], paty[i]) < dist_maxi)
+        {
+            dist_maxi = euc(momX, momY, patx[i], paty[i]);
+            koje1 = i;
+        }
+    }
+    dist_maxi = 1e9;
+    for (int i = 0; i < 11; i++)
+    {
+        if (euc(x, y, patx[i], paty[i]) < dist_maxi)
+        {
+            dist_maxi = euc(x, y, patx[i], paty[i]);
+            koje2 = i;
+        }
+    }
+    int stevec1 = 0;
+    int stevec2 = 0;
+    int i = koje1;
+    while (i != koje2)
+    {
+        stevec1++;
+        i++;
+        if (i == 11)
+            i = 0;
+    }
+    cout << "POMINA1" << endl;
+    i = koje1;
+    while (i != koje2)
+    {
+        stevec2++;
+        i--;
+        if (i == -1)
+            i = 10;
+    }
+    cout << koje1 << " " << koje2 << endl;
+    if (stevec1 <= stevec2)
+    {
+        i = koje1;
+        while (1)
+        {
+            qI.push(make_pair(paty[i], make_pair(patx[i], 0)));
+            i++;
+            if (i == 11)
+                i = 0;
+            if (i == koje2)
+            {
+                qI.push(make_pair(paty[i], make_pair(patx[i], 0)));
+                break;
+            }
+        }
+    }
+    else
+    {
+        i = koje1;
+        while (1)
+        {
+            qI.push(make_pair(paty[i], make_pair(patx[i], 0)));
+            i--;
+            if (i == -1)
+                i = 10;
+            if (i == koje2)
+            {
+                qI.push(make_pair(paty[i], make_pair(patx[i], 0)));
+                break;
+            }
+        }
+    }
+    cout << "POMINA2" << endl;
+    momY = y;
+    momX = x;
+    qI.push(make_pair(y, make_pair(x, kind)));
+}
 void getObrazCall(const geometry_msgs::Twist::ConstPtr &mg)
 {
     // isApproaching = 1;
     double aY = mg->angular.y;
     double aX = mg->angular.x;
     cout << "DOJDEOBRAZ-> " << aY << " " << aX << endl;
-    qi.push(make_pair(aY, make_pair(aX, 3)));
+    if (endSearching == 1)
+    {
+        prideCel(aY, aX, 4);
+        return;
+    }
+    else
+    {
+        qi.push(make_pair(aY, make_pair(aX, 3)));
+    }
     //approaching(aY, aX, 3);
     //sleep(5);
 }
 
 void getCilinderCall(const geometry_msgs::Point::ConstPtr &mg)
 {
+
     //isApproaching = 1;
     double aY = mg->y;
     double aX = mg->x;
-    cout << "DOJDECILINDER-> " << aY << " " << aX << endl;
-    qi.push(make_pair(aY, make_pair(aX, 1)));
+    if (endSearching == 1)
+    {
+        cout << "DOJDECILINDER-> " << aY << " " << aX << endl;
+        prideCel(aY, aX, 1);
+        return;
+    }
+    else
+    {
+        cout << "DOJDECILINDER-> " << aY << " " << aX << endl;
+        qi.push(make_pair(aY, make_pair(aX, 1)));
+    }
     //approaching(aY, aX, 1);
     //sleep(5);
+}
+
+void getRingCall(const geometry_msgs::Point::ConstPtr &mg)
+{
+    double aY = mg->y;
+    double aX = mg->x;
+    cout << "DOJDERING-> " << aY << " " << aX << endl;
+    prideCel(aY, aX, 2);
 }
 
 int main(int argc, char **argv)
@@ -628,6 +744,7 @@ int main(int argc, char **argv)
     ros::Subscriber getCilinder = n.subscribe("cylinder_pt", 1000, getCilinderCall);
     ros::Subscriber getObraz = n.subscribe("face_tw", 1000, getObrazCall);
     roko = n.advertise<std_msgs::String>("/arm_command", 1000);
+    semNekaj = n.advertise<std_msgs::String>("/sem_nekaj", 1000);
     namedWindow("Map");
     //ros::Subscriber sub24 = n.subscribe("/our_pub1/chat1", 100, tapa);
     std_msgs::String mgg;
@@ -646,88 +763,101 @@ int main(int argc, char **argv)
     int krat3 = 0;
     int krat4 = 0;
     int krat5 = 0;
+    endSearching = 0;
+    momY = 0.5;
+    momX = -0.5;
+    prideCel(-0.44, 4.06, 1);
     while (ros::ok())
     {
-        Kaj = 1;
-        if (konec)
-        {
-            cout << "THE END" << endl;
-            return 0;
-        }
         ros::spinOnce();
-        //brojcccc++;
-        // if (!mozi && stevec > 1)
-        // continue;
-        //ros::spinOnce();
-        //ros::Subscriber sub24 = n.subscribe("/our_pub1/chat1", 100, tapa);
         if (!cv_map.empty())
             imshow("Map", cv_map);
-        //cout << "NOVO" << endl;
-        double zy = 0.5;
-        double zx = -0.5;
-
-        int zy1 = 259;
-        int zx1 = 235;
-        int mom1 = 1;
-        while (krat == 0)
+        if (endSearching == 0)
         {
-            cout << "VLEZE V KRAT" << endl;
-            //cout << zy << " " << zx << " " << mom1 << endl;
-            int le1 = (mom1 + 3) % 4;
-            int de1 = (mom1 + 1) % 4;
-            int naz1 = (mom1 + 2) % 4;
-            int nap1 = mom1;
+            Kaj = 1;
+            if (konec)
+            {
+                cout << "THE END OF SEARCHING" << endl;
+                endSearching = 1;
+                mozi = true;
+                momY = 0.5;
+                momX = -0.5;
+                continue;
+            }
+            ros::spinOnce();
+            //brojcccc++;
+            // if (!mozi && stevec > 1)
+            // continue;
+            //ros::spinOnce();
+            //ros::Subscriber sub24 = n.subscribe("/our_pub1/chat1", 100, tapa);
+            if (!cv_map.empty())
+                imshow("Map", cv_map);
+            //cout << "NOVO" << endl;
+            double zy = 0.5;
+            double zx = -0.5;
 
-            can1[make_pair(zy, make_pair(zx, le1))] = preveri(zy1, zx1, le1);
-            can1[make_pair(zy, make_pair(zx, de1))] = preveri(zy1, zx1, de1);
-            can1[make_pair(zy, make_pair(zx, naz1))] = preveri(zy1, zx1, naz1);
-            can1[make_pair(zy, make_pair(zx, nap1))] = preveri(zy1, zx1, nap1);
-            ins();
-            if (!can1[make_pair(zy, make_pair(zx, le1))] && !went1[make_pair(zy, make_pair(zx, le1))])
+            int zy1 = 259;
+            int zx1 = 235;
+            int mom1 = 1;
+            while (krat == 0)
             {
-                went1[make_pair(zy, make_pair(zx, le1))] = true;
-                mom1 = le1;
-                zy = sy(zy, mom1);
-                zx = sx(zx, mom1);
-                zy1 = syy(zy1, mom1);
-                zx1 = sxx(zx1, mom1);
-            }
-            else if (!can1[make_pair(zy, make_pair(zx, nap1))] && !went1[make_pair(zy, make_pair(zx, nap1))])
-            {
-                went1[make_pair(zy, make_pair(zx, nap1))] = true;
-                mom1 = nap1;
-                zy = sy(zy, mom1);
-                zx = sx(zx, mom1);
-                zy1 = syy(zy1, mom1);
-                zx1 = sxx(zx1, mom1);
-            }
-            else if (!can1[make_pair(zy, make_pair(zx, de1))] && !went1[make_pair(zy, make_pair(zx, de1))])
-            {
-                went1[make_pair(zy, make_pair(zx, de1))] = true;
-                mom1 = de1;
-                zy = sy(zy, mom1);
-                zx = sx(zx, mom1);
-                zy1 = syy(zy1, mom1);
-                zx1 = sxx(zx1, mom1);
-            }
-            else if (!can1[make_pair(zy, make_pair(zx, naz1))] && !went1[make_pair(zy, make_pair(zx, naz1))])
-            {
-                went1[make_pair(zy, make_pair(zx, naz1))] = true;
-                mom1 = naz1;
-                zy = sy(zy, mom1);
-                zx = sx(zx, mom1);
-                zy1 = syy(zy1, mom1);
-                zx1 = sxx(zx1, mom1);
-            }
-            else
-            {
-                krat++;
-                break;
-            }
-        }
-        //return 0;
+                cout << "VLEZE V KRAT" << endl;
+                //cout << zy << " " << zx << " " << mom1 << endl;
+                int le1 = (mom1 + 3) % 4;
+                int de1 = (mom1 + 1) % 4;
+                int naz1 = (mom1 + 2) % 4;
+                int nap1 = mom1;
 
-        /*if (krat1 < 3 && y == 0.5 && x == -0.5)
+                can1[make_pair(zy, make_pair(zx, le1))] = preveri(zy1, zx1, le1);
+                can1[make_pair(zy, make_pair(zx, de1))] = preveri(zy1, zx1, de1);
+                can1[make_pair(zy, make_pair(zx, naz1))] = preveri(zy1, zx1, naz1);
+                can1[make_pair(zy, make_pair(zx, nap1))] = preveri(zy1, zx1, nap1);
+                ins();
+                if (!can1[make_pair(zy, make_pair(zx, le1))] && !went1[make_pair(zy, make_pair(zx, le1))])
+                {
+                    went1[make_pair(zy, make_pair(zx, le1))] = true;
+                    mom1 = le1;
+                    zy = sy(zy, mom1);
+                    zx = sx(zx, mom1);
+                    zy1 = syy(zy1, mom1);
+                    zx1 = sxx(zx1, mom1);
+                }
+                else if (!can1[make_pair(zy, make_pair(zx, nap1))] && !went1[make_pair(zy, make_pair(zx, nap1))])
+                {
+                    went1[make_pair(zy, make_pair(zx, nap1))] = true;
+                    mom1 = nap1;
+                    zy = sy(zy, mom1);
+                    zx = sx(zx, mom1);
+                    zy1 = syy(zy1, mom1);
+                    zx1 = sxx(zx1, mom1);
+                }
+                else if (!can1[make_pair(zy, make_pair(zx, de1))] && !went1[make_pair(zy, make_pair(zx, de1))])
+                {
+                    went1[make_pair(zy, make_pair(zx, de1))] = true;
+                    mom1 = de1;
+                    zy = sy(zy, mom1);
+                    zx = sx(zx, mom1);
+                    zy1 = syy(zy1, mom1);
+                    zx1 = sxx(zx1, mom1);
+                }
+                else if (!can1[make_pair(zy, make_pair(zx, naz1))] && !went1[make_pair(zy, make_pair(zx, naz1))])
+                {
+                    went1[make_pair(zy, make_pair(zx, naz1))] = true;
+                    mom1 = naz1;
+                    zy = sy(zy, mom1);
+                    zx = sx(zx, mom1);
+                    zy1 = syy(zy1, mom1);
+                    zx1 = sxx(zx1, mom1);
+                }
+                else
+                {
+                    krat++;
+                    break;
+                }
+            }
+            //return 0;
+
+            /*if (krat1 < 3 && y == 0.5 && x == -0.5)
         {
             isApproaching = 1;
             krat1++;
@@ -789,123 +919,187 @@ int main(int argc, char **argv)
         }
         */
 
-        //approaching(1.32, 0.39, 1);
-        //approaching(1.28, 2.94, 1);
-        //approaching(-0.44, 4.06, 1);
+            //approaching(1.32, 0.39, 1);
+            //approaching(1.28, 2.94, 1);
+            //approaching(-0.44, 4.06, 1);
 
-        if (cc)
-        {
-            cc = false;
-            cout << "vleze2" << endl;
-            s1 = "Navigation";
-            vozi(yy11, xx11, y, x, mom);
-            //ros::Rate r(10); // 10 hz
-            cout << "ZAVRSENO" << endl;
-            s1 = "sd";
-            waitKey(30);
-            continue;
-        }
-        if (!mozi && stevec > 1)
-            continue;
-        if (!qi.empty())
-        {
-            isApproaching = 1;
-            approaching(qi.front().first, qi.front().second.first, qi.front().second.second);
-            Kaj = qi.front().second.second;
-            qi.pop();
-            cout << "VLEZEAPP" << endl;
-            isApproaching = 0;
-            if (Kaj == 4 || Kaj == 2)
+            if (cc)
             {
-                Kaj = 1;
-                std_msgs::String mgg1;
-                mgg1.data = "extend";
-                roko.publish(mgg1);
-                sleep(5);
-                std_msgs::String mgg;
-                mgg.data = "retract";
-                roko.publish(mgg);
-                sleep(5);
+                cc = false;
+                cout << "vleze2" << endl;
+                s1 = "Navigation";
+                vozi(yy11, xx11, y, x, mom);
+                //ros::Rate r(10); // 10 hz
+                cout << "ZAVRSENO" << endl;
+                s1 = "sd";
+                waitKey(30);
+                continue;
             }
-            sleep(10);
-            sleep(5);
-        }
-        cout << y << " " << x << " " << mom << endl;
-        if (stevec > 100)
-            return 0;
-        int le = (mom + 3) % 4;
-        int de = (mom + 1) % 4;
-        int naz = (mom + 2) % 4;
-        int nap = mom;
-        cout << yy11 << " " << xx11 << endl;
-        cout << "le = " << le << " " << preveri(yy11, xx11, le) << endl;
-        cout << "de = " << de << " " << preveri(yy11, xx11, de) << endl;
-        cout << "naz = " << naz << " " << preveri(yy11, xx11, naz) << endl;
-        cout << "nap = " << nap << " " << preveri(yy11, xx11, nap) << endl;
+            if (!qi.empty() && isApproaching == 0)
+            {
+                isApproaching = 1;
+                approaching(qi.front().first, qi.front().second.first, qi.front().second.second);
+                Kaj = qi.front().second.second;
+                qi.pop();
+                cout << "VLEZEAPP" << endl;
 
-        can[make_pair(y, make_pair(x, le))] = preveri(yy11, xx11, le);
-        can[make_pair(y, make_pair(x, de))] = preveri(yy11, xx11, de);
-        can[make_pair(y, make_pair(x, naz))] = preveri(yy11, xx11, naz);
-        can[make_pair(y, make_pair(x, nap))] = preveri(yy11, xx11, nap);
-        ins();
-        look = true;
-        look = true;
-        if (!looked[make_pair(y, make_pair(x, le))] && can[make_pair(y, make_pair(x, le))])
-            looked[make_pair(y, make_pair(x, le))] = true, vozi(yy11, xx11, y, x, le);
-        look = false;
-        //look = true;
-        //if (!looked[make_pair(y, make_pair(x, nap))] && can[make_pair(y, make_pair(x, nap))]) looked[make_pair(y, make_pair(x, nap))] = true, vozi(yy11, xx11, y, x, nap);
-        //look = false;
-        look = true;
-        if (!looked[make_pair(y, make_pair(x, de))] && can[make_pair(y, make_pair(x, de))])
-            looked[make_pair(y, make_pair(x, de))] = true, vozi(yy11, xx11, y, x, de);
-        look = false;
-        s1 = "Navigation";
-        if (!went[make_pair(y, make_pair(x, le))] && !can[make_pair(y, make_pair(x, le))])
-        {
-            went[make_pair(y, make_pair(x, le))] = true;
-            vozi(syy(yy11, le), sxx(xx11, le), sy(y, le), sx(x, le), le);
+                if (Kaj == 4 || Kaj == 2)
+                {
+                    Kaj = 1;
+                    std_msgs::String mgg1;
+                    mgg1.data = "extend";
+                    roko.publish(mgg1);
+                    sleep(5);
+                    std_msgs::String mgg;
+                    mgg.data = "retract";
+                    roko.publish(mgg);
+                    sleep(5);
+                }
+                sleep(5);
+                std_msgs::String mggg;
+                mggg.data = "pridel";
+                semNekaj.publish(mggg);
+                sleep(10);
+                sleep(5);
 
-            mom = le;
-            y = sy(y, mom);
-            x = sx(x, mom);
-            yy11 = syy(yy11, mom);
-            xx11 = sxx(xx11, mom);
-        }
-        else if (!went[make_pair(y, make_pair(x, nap))] && !can[make_pair(y, make_pair(x, nap))])
-        {
-            went[make_pair(y, make_pair(x, nap))] = true;
-            vozi(syy(yy11, nap), sxx(xx11, nap), sy(y, nap), sx(x, nap), nap);
+                continue;
+            }
+            if (mozi && stevec > 1)
+            {
+                cout << "VLEZE v MOZI" << endl;
+                isApproaching = 0;
+            }
+            if ((!mozi && stevec > 1) || isApproaching == 1)
+            {
+                cout << "VLEZE v !MOZI" << endl;
+                continue;
+            }
 
-            mom = nap;
-            y = sy(y, mom);
-            x = sx(x, mom);
-            yy11 = syy(yy11, mom);
-            xx11 = sxx(xx11, mom);
-        }
-        else if (!went[make_pair(y, make_pair(x, de))] && !can[make_pair(y, make_pair(x, de))])
-        {
-            went[make_pair(y, make_pair(x, de))] = true;
-            vozi(syy(yy11, de), sxx(xx11, de), sy(y, de), sx(x, de), de);
+            cout << y << " " << x << " " << mom << endl;
+            if (stevec > 100)
+                return 0;
+            int le = (mom + 3) % 4;
+            int de = (mom + 1) % 4;
+            int naz = (mom + 2) % 4;
+            int nap = mom;
+            cout << yy11 << " " << xx11 << endl;
+            cout << "le = " << le << " " << preveri(yy11, xx11, le) << endl;
+            cout << "de = " << de << " " << preveri(yy11, xx11, de) << endl;
+            cout << "naz = " << naz << " " << preveri(yy11, xx11, naz) << endl;
+            cout << "nap = " << nap << " " << preveri(yy11, xx11, nap) << endl;
 
-            mom = de;
-            y = sy(y, mom);
-            x = sx(x, mom);
-            yy11 = syy(yy11, mom);
-            xx11 = sxx(xx11, mom);
+            can[make_pair(y, make_pair(x, le))] = preveri(yy11, xx11, le);
+            can[make_pair(y, make_pair(x, de))] = preveri(yy11, xx11, de);
+            can[make_pair(y, make_pair(x, naz))] = preveri(yy11, xx11, naz);
+            can[make_pair(y, make_pair(x, nap))] = preveri(yy11, xx11, nap);
+            ins();
+            look = true;
+            look = true;
+            if (!looked[make_pair(y, make_pair(x, le))] && can[make_pair(y, make_pair(x, le))])
+                looked[make_pair(y, make_pair(x, le))] = true, vozi(yy11, xx11, y, x, le);
+            look = false;
+            //look = true;
+            //if (!looked[make_pair(y, make_pair(x, nap))] && can[make_pair(y, make_pair(x, nap))]) looked[make_pair(y, make_pair(x, nap))] = true, vozi(yy11, xx11, y, x, nap);
+            //look = false;
+            look = true;
+            if (!looked[make_pair(y, make_pair(x, de))] && can[make_pair(y, make_pair(x, de))])
+                looked[make_pair(y, make_pair(x, de))] = true, vozi(yy11, xx11, y, x, de);
+            look = false;
+            s1 = "Navigation";
+            if (!went[make_pair(y, make_pair(x, le))] && !can[make_pair(y, make_pair(x, le))])
+            {
+                went[make_pair(y, make_pair(x, le))] = true;
+                vozi(syy(yy11, le), sxx(xx11, le), sy(y, le), sx(x, le), le);
+
+                mom = le;
+                y = sy(y, mom);
+                x = sx(x, mom);
+                yy11 = syy(yy11, mom);
+                xx11 = sxx(xx11, mom);
+            }
+            else if (!went[make_pair(y, make_pair(x, nap))] && !can[make_pair(y, make_pair(x, nap))])
+            {
+                went[make_pair(y, make_pair(x, nap))] = true;
+                vozi(syy(yy11, nap), sxx(xx11, nap), sy(y, nap), sx(x, nap), nap);
+
+                mom = nap;
+                y = sy(y, mom);
+                x = sx(x, mom);
+                yy11 = syy(yy11, mom);
+                xx11 = sxx(xx11, mom);
+            }
+            else if (!went[make_pair(y, make_pair(x, de))] && !can[make_pair(y, make_pair(x, de))])
+            {
+                went[make_pair(y, make_pair(x, de))] = true;
+                vozi(syy(yy11, de), sxx(xx11, de), sy(y, de), sx(x, de), de);
+
+                mom = de;
+                y = sy(y, mom);
+                x = sx(x, mom);
+                yy11 = syy(yy11, mom);
+                xx11 = sxx(xx11, mom);
+            }
+            else if (!went[make_pair(y, make_pair(x, naz))] && !can[make_pair(y, make_pair(x, naz))])
+            {
+                went[make_pair(y, make_pair(x, naz))] = true;
+                vozi(syy(yy11, naz), sxx(xx11, naz), sy(y, naz), sx(x, naz), naz);
+                mom = naz;
+                y = sy(y, mom);
+                x = sx(x, mom);
+                yy11 = syy(yy11, mom);
+                xx11 = sxx(xx11, mom);
+            }
+            cout << mom << endl;
+            waitKey(30);
         }
-        else if (!went[make_pair(y, make_pair(x, naz))] && !can[make_pair(y, make_pair(x, naz))])
+        else
         {
-            went[make_pair(y, make_pair(x, naz))] = true;
-            vozi(syy(yy11, naz), sxx(xx11, naz), sy(y, naz), sx(x, naz), naz);
-            mom = naz;
-            y = sy(y, mom);
-            x = sx(x, mom);
-            yy11 = syy(yy11, mom);
-            xx11 = sxx(xx11, mom);
+            ros::spinOnce();
+            cout << "VLEZE" << endl;
+            cout << mozi << endl;
+            if (!mozi)
+            {
+                continue;
+            }
+            if (!qI.empty())
+            {
+                cout << qI.front().first << " " << qI.front().second.first << endl;
+                if (qI.front().second.second == 0)
+                {
+
+                    vozi(0, 0, qI.front().first, qI.front().second.first, 0);
+                }
+                else
+                {
+                    isApproaching = 1;
+                    approaching(qI.front().first, qI.front().second.first, qI.front().second.second);
+                    Kaj = qI.front().second.second;
+                    qi.pop();
+                    cout << "VLEZEAPP" << endl;
+                    isApproaching = 0;
+                    if (Kaj == 4 || Kaj == 2)
+                    {
+                        Kaj = 1;
+                        std_msgs::String mgg1;
+                        mgg1.data = "extend";
+                        roko.publish(mgg1);
+                        sleep(5);
+                        std_msgs::String mgg;
+                        mgg.data = "retract";
+                        roko.publish(mgg);
+                        sleep(5);
+                    }
+                    sleep(5);
+                    std_msgs::String mggg;
+                    mggg.data = "pridel";
+                    semNekaj.publish(mggg);
+                    sleep(10);
+                    sleep(5);
+                }
+                qI.pop();
+            }
+            waitKey(30);
         }
-        cout << mom << endl;
-        waitKey(30);
     }
     return 0;
 }
@@ -913,7 +1107,7 @@ int main(int argc, char **argv)
 /*
 source /home/iletavcioski/ROS/devel/setup.bash
 roslaunch exercise7 rins_world.launch
-roslaunch exercise3 amcl_simulation.launch 2>/dev/null
+roslaunch exercise3 amcl_simulation.launch 
 roslaunch turtlebot_rviz_launchers view_navigation.launch 2>/dev/null
 rostopic echo /camera/rgb/image_raw --noarr
 rosrun exercise4 colorLocalizer.py
