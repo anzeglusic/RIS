@@ -939,6 +939,7 @@ def update_positions(nM, m_arr, positions, markers_pub, faceNormalLength, qrNorm
 
 def flatten_list(inpt):
     samples = []
+    print(inpt)
     #naredimo 4 sample
     for it in range(4):
         tem = random.sample(inpt,50)
@@ -951,8 +952,9 @@ def flatten_list(inpt):
 
 def calc_rgbV2(all_points,random_forest):
     samples = flatten_list(all_points)
-    df_x = pd.DataFrame(samples)
     print(df_x)
+    df_x = pd.DataFrame(samples)
+
     y = random_forest.predict(df_x.to_numpy())
     dict_res = Counter(y)
     print(dict_res)
