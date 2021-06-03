@@ -1797,7 +1797,7 @@ def main():
         # rate = rospy.Rate(10)
 
         #! TESTING
-        explore = False
+        explore = True
         skipCounter = 3
         loopTimer = rospy.Time.now().to_sec()
         # print(sleepTimer)
