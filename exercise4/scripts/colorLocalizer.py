@@ -88,7 +88,7 @@ class color_localizer:
         self.nM = 0
 
         #classifier topic
-        self.class_pub = rospy.Publisher("/classifier", mess,queue_size=1000)
+        self.class_pub = rospy.Publisher("/classifier", String,queue_size=1000)
         # Publiser for the visualization markers
         self.markers_pub = rospy.Publisher('/ring_markers', MarkerArray, queue_size=1000)
         self.pic_pub = rospy.Publisher('/face_im', Image, queue_size=1000)
