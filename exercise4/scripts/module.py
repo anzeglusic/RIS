@@ -19,6 +19,11 @@ import pickle
 import subprocess
 import pyzbar.pyzbar as pyzbar
 import pytesseract
+import pandas as pd
+from collections import Counter
+import random
+import functools
+import operator
 
 def keepExploring(positions):
     if len(positions["face"]) < 4:
@@ -44,7 +49,7 @@ def keepExploring(positions):
         for ring_dict in positions["ring"]:
             if len(ring_dict["detectedPositions"]) < 3:
                 return True
-                
+
     if len(positions["QR"])< 8:
         return True
     if len(positions["digits"]) <4:
@@ -147,23 +152,12 @@ def chose_color(colorDict):
     g = colorDict["g"]
     r = colorDict["r"]
     c = colorDict["c"]
-    w = colorDict["w"]
     y = colorDict["y"]
 
-    numOfDetections = np.sum([ b , g , r , y , w , c ])
+    tag =   ["b","g","r","y","c"]
+    value = [ b , g , r , y , c ]
 
-    # black is selected if no other is selected
-    c = 0
-    # white is considered to be blue
-    b += w
-    w = 0
 
-    tag =   ["b","g","r","y","w","c"]
-    value = [ b , g , r , y , w , c ]
-
-    if np.sum(value)==0 and numOfDetections>10:
-        print("NOT ENOUGHF COLORS DETECTED")
-        return 'c'
     bestIndx = np.argmax(value)
     return tag[bestIndx]
 
@@ -888,7 +882,7 @@ def update_positions(nM, m_arr, positions, markers_pub, faceNormalLength, qrNorm
         closestObjectKey = None
         closestObjectIndx = None
         closestObjectDist = np.inf
-        
+
         if (QR_dict["data"] is None) or QR_dict["data"].startswith("https"):
             # chack all cylinders
             for j,cylinder_dict in enumerate(positions["cylinder"]):
@@ -933,6 +927,40 @@ def update_positions(nM, m_arr, positions, markers_pub, faceNormalLength, qrNorm
 
     # pprint(positions)
     return (nM, m_arr, positions)
+
+def flatten_list(inpt):
+    samples = []
+    #print(type(inpt))
+    #naredimo 4 sample
+    for it in range(4):
+        tem = random.sample(inpt,50)
+        #print("ded")
+        #flattenamo sample
+        flatten_tem = functools.reduce(operator.iconcat,tem,[])
+
+        #dodamo v li
+        samples.append(flatten_tem)
+    return samples
+
+def calc_rgbV2(all_points,random_forest,objectType):
+
+    samples = flatten_list(all_points)
+    #print(df_x)
+    df_x = pd.DataFrame(samples)
+
+    y = random_forest.predict(df_x.to_numpy())
+    dict_res = Counter(y)
+    #print(dict_res)
+    res = dict_res.most_common(1)
+    if objectType=="ring" and res[0][0]=="c":
+        blue = 150
+        green = 200
+        red = 150
+        temp = [(pixel[0]<blue and pixel[1]>green and pixel[2]<red) for pixel in all_points]
+        # print(f"\t\t\t\t\t{sum(temp)}")
+        if sum(temp)>0:
+            return "g"
+    return res[0][0]
 
 def calc_rgb(point,knn_RGB,random_forest_RGB,knn_HSV,random_forest_HSV):
     # print("\n!!!!!!!!!!!!!!!!!!!")

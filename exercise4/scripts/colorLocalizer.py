@@ -47,6 +47,7 @@ class color_localizer:
         self.basePosition = {"x":0, "y":0, "z":0}
         self.baseAngularSpeed = 0
 
+        self.randomForestV2 = pickle.load(open(f"{modelsDir}/random_forestV2.sav", "rb"))
         self.random_forest_HSV = pickle.load(open(f"{modelsDir}/random_forest_HSV.sav", 'rb'))
         self.random_forest_RGB = pickle.load(open(f"{modelsDir}/random_forest_RGB.sav", 'rb'))
         self.knn_HSV = pickle.load(open(f"{modelsDir}/knn_HSV.sav", 'rb'))
@@ -556,10 +557,35 @@ class color_localizer:
 
             # cntr_ring = self.chk_ring(depth_im,h11,h21,w11,w21,c[2])
             try:
+
                 #EDIT ali so koordinate pravilne
                 pnts = np.array( (image[cntr_ring[3][0][1],cntr_ring[3][0][2]], image[cntr_ring[3][1][1],cntr_ring[3][1][2]],image[cntr_ring[3][2][1],cntr_ring[3][2][2]]))
+                #---------------------NEW COLOR------------------------------------#
+
+                standin = np.zeros(image.shape)
+
+                # """(32.40898513793945, 39.01688003540039), --> (širina,višina)"""
+                if(e1[1][0]<e2[1][0]):
+                    cv2.ellipse(standin,e2,(0, 255, 0),-1)
+                    cv2.ellipse(standin,e1,(0, 0, 0),-1)
+                else:
+                    cv2.ellipse(standin,e1,(0, 255, 0),-1)
+                    cv2.ellipse(standin,e2,(0, 0, 0),-1)
+
+                standin = standin.astype("uint8")
+                mask = standin[:,:,1] == 255
+
+                t = image[mask,:]
+                pts = t.tolist()
+                color = module.calc_rgbV2(pts,self.randomForestV2,"ring")
+                print(f"\t\t\t\t\tRing color is {color}")
+                #-------------------------------------------------------------------#
+
+                #---------------------OLD COLOR------------------------#
                 # print("dela 1")
-                color = module.calc_rgb(pnts,self.knn_RGB,self.random_forest_RGB,self.knn_HSV,self.random_forest_HSV)
+                # color = module.calc_rgb(pnts,self.knn_RGB,self.random_forest_RGB,self.knn_HSV,self.random_forest_HSV)
+                #------------------------------------------------------#
+                
                 # print("dela 2")
                 ring_point = module.get_pose(cntr_ring[1],cntr_ring[0],cntr_ring[2],depth_im_shifted,"ring",depth_stamp,color,self.tf_buf)
                 #ring_point = self.get_pose(cntr_ring[1],cntr_ring[0],cntr_ring[2],depth_im_shifted,"ring",depth_stamp,color)
@@ -888,7 +914,7 @@ class color_localizer:
             center_depth = depth_image[inter[1],(inter[0][0]+inter[0][1])//2]
             if self.check_if_ball(center_depth_up,center_depth,center_depth_down):
                 continue
-
+            
             for i in range(inter[0][0],inter[0][1]):
                 grayBGR_toDrawOn[inter[1],i] = [0,0,255]
             points = np.array([ image[inter[1],(inter[0][0]+inter[0][1])//2],
@@ -896,7 +922,13 @@ class color_localizer:
                                 image[inter[1],(inter[0][0]+inter[0][1])//2-1]])
 
             print(f"Širina:{inter[0][0]} {inter[0][1]}\n\tna razdalji:{depth_image[inter[1],(inter[0][0]+inter[0][1])//2]}")
-            colorToPush = module.calc_rgb(points,self.knn_RGB,self.random_forest_RGB,self.knn_HSV,self.random_forest_HSV)
+            # colorToPush = module.calc_rgb(points,self.knn_RGB,self.random_forest_RGB,self.knn_HSV,self.random_forest_HSV)
+            training = image[inter[1]:inter[1]+13,inter[0][0]:inter[0][1],:].astype("uint8")
+
+            t = training[np.zeros(training[:,:,0].shape)==0,:]
+            send_me = t.tolist()
+            colorToPush = module.calc_rgbV2(send_me,self.randomForestV2,"cylinder")
+            print(f"\t\t\t\tClyinder color is {colorToPush}")
             pose = module.get_pose((inter[0][0]+inter[0][1])//2,inter[1],depth_image[inter[1],(inter[0][0]+inter[0][1])//2],depth_image,"cylinder",depth_stamp,colorToPush,self.tf_buf)
             #pose = self.get_pose((inter[0][0]+inter[0][1])//2,inter[1],depth_image[inter[1],(inter[0][0]+inter[0][1])//2],depth_image,"cylinder",depth_stamp,colorToPush)
             (self.nM, self.m_arr, self.positions) = module.addPosition(np.array([pose.position.x,pose.position.y,pose.position.z]),"cylinder",colorToPush,self.positions,self.nM, self.m_arr, self.markers_pub, showEveryDetection=self.showEveryDetection)
