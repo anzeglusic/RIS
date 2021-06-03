@@ -1784,7 +1784,7 @@ def main():
 
         color_finder = color_localizer()
 
-
+    
         rate = rospy.Rate(1.25)
         # rate = rospy.Rate(10)
 
@@ -1801,7 +1801,7 @@ def main():
                 else:
                     skipCounter -= 1
             else:
-                text = st.recognize_speech()
+                text = color_finder.recognize_speech()
                 print('I recognized this sentence:', text)
                 print("we done")
 
