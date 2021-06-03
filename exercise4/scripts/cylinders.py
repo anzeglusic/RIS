@@ -69,6 +69,8 @@ def listener():
     return 0
 
 
+rospy.init_node('cylinders', anonymous=True)
+
 def main():
 
     # rate = rospy.Rate(1.25)
