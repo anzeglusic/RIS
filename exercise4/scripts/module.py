@@ -50,8 +50,11 @@ def keepExploring(positions):
             if len(ring_dict["detectedPositions"]) < 3:
                 return True
 
-    if len(positions["QR"])< 8:
-        return True
+    # if len(positions["QR"])< 8:
+    #     return True
+    for cylinder in positions["cylinder"]:
+        if cylinder["QR_index"] is None:
+            return True
     if len(positions["digits"]) <4:
         return True
     return False

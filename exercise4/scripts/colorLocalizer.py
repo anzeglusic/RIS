@@ -45,6 +45,9 @@ mouth = modelsDir+"mouth/Mouth.xml"
 class color_localizer:
 
     def __init__(self):
+
+
+        self.koncal_ilja = False
         print()
         self.loopTimer = datetime.now()
         self.rgbTimer = 0
@@ -1051,14 +1054,15 @@ class color_localizer:
 
         face_found = self.check_faces()
 
-        if (not (face_found is None)) and koncal_ile :
+        #! 
+        if (not (face_found is None)) and koncal_ile and (cylinder_found is None):
             self.grab_face(face_found)
 
         return self.foundAll
 
     def check_faces(self):
         for f in self.positions["face"]:
-            if f["QR_index"] is None:
+            if f["digits_index"] is None:
                 return f
 
     def check_cylinders(self):
@@ -1810,12 +1814,12 @@ class color_localizer:
 
 
     def recognize_speech(self, question):
-        sleep(2)
         with self.mic as source:
             print('Adjusting mic for ambient noise...')
             self.sr.adjust_for_ambient_noise(source)
             module.say(question)
             print(f"\n{question}")
+            time.sleep(2)
             audio = self.sr.listen(source)
 
         print('I am now processing the sounds you made.')
@@ -2127,17 +2131,17 @@ class color_localizer:
                     break
                 # text = input("Are you at next location yet?")
 
-koncal_ilja = False
-def callback(link):
-    if link.data.startswith("k"):
-        koncal_ilja =  True
+    def callback(self,link):
+        # print(f"def callback({link})")
+        if link.data.startswith("k"):
+            self.koncal_ilja =  True
 
 #! ================================================ task_master end ================================================
 def main():
 
         print(tempKrNeki)
         color_finder = color_localizer()
-        rospy.Subscriber("/sem_nekaj", String, callback)
+        rospy.Subscriber("/sem_nekaj", String, color_finder.callback)
         # color_finder.positions = tempKrNeki
 
         # rate = rospy.Rate(1.25)
@@ -2153,8 +2157,9 @@ def main():
             # print("hello!")
             if explore:
                 if skipCounter <= 0:
+                    print(f"\tkoncal_ilija:{color_finder.koncal_ilja}")
                     #preverja ce je ze prisel signal koncal
-                    explore = color_finder.find_objects(koncal_ilja)
+                    explore = color_finder.find_objects(color_finder.koncal_ilja)
                 else:
                     skipCounter -= 1
             else:
@@ -2162,7 +2167,7 @@ def main():
                 # print('I recognized this sentence:', text)
                 print("we done")
                 #preverja ce je ze prisel signal koncal
-                while True and not koncal_ilja:
+                while True and not color_finder.koncal_ilja:
                     if color_finder.listener_end():
                         break
                 color_finder.brain()
