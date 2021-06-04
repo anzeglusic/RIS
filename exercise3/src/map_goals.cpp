@@ -144,6 +144,11 @@ void vozi(int y3, int x3, double y, double x, int dir)
         y = 1.25;
         x = 1.25;
     }
+    if (y == 0.5 && x == 1.5)
+    {
+        //y = 1.25;
+        x = 1.25;
+    }
     if (y == 2.5 && x == 1.5)
     {
         y = 2.6;
@@ -481,7 +486,7 @@ void approaching(double zY, double zX, int kaj)
         if (zY > 1 && zY < 2 && zX > 0 && zX < 1 && kaj == 1)
         {
             cout << "ZABRANA" << endl;
-            vozi(0, 0, zY - 0.3, zX - 0.3, 5);
+            vozi(0, 0, zY - 0.2, zX - 0.2, 5);
             sleep(20);
             cout << "STASAV" << endl;
         }
@@ -501,7 +506,7 @@ void approaching(double zY, double zX, int kaj)
         }
         else if (direction == 1)
         {
-            vozi(0, 0, zY - 0.3, zX, 1);
+            vozi(0, 0, zY - 0.3, zX - 0.1, 1);
             sleep(20);
             if (kaj == 3)
             {
@@ -743,6 +748,7 @@ int main(int argc, char **argv)
     ros::Subscriber move_base_sub = n.subscribe("move_base/status", 1000, statusCallback);
     ros::Subscriber getCilinder = n.subscribe("cylinder_pt", 1000, getCilinderCall);
     ros::Subscriber getObraz = n.subscribe("face_tw", 1000, getObrazCall);
+    ros::Subscriber getRing = n.subscribe("ring_pt", 1000, getRingCall);
     roko = n.advertise<std_msgs::String>("/arm_command", 1000);
     semNekaj = n.advertise<std_msgs::String>("/sem_nekaj", 1000);
     namedWindow("Map");
@@ -766,7 +772,7 @@ int main(int argc, char **argv)
     endSearching = 0;
     momY = 0.5;
     momX = -0.5;
-    prideCel(-0.44, 4.06, 1);
+    //prideCel(-0.44, 4.06, 1);
     while (ros::ok())
     {
         ros::spinOnce();
@@ -777,6 +783,9 @@ int main(int argc, char **argv)
             Kaj = 1;
             if (konec)
             {
+                std_msgs::String mggg;
+                mggg.data = "koncal";
+                semNekaj.publish(mggg);
                 cout << "THE END OF SEARCHING" << endl;
                 endSearching = 1;
                 mozi = true;
@@ -955,12 +964,12 @@ int main(int argc, char **argv)
                     roko.publish(mgg);
                     sleep(5);
                 }
-                sleep(5);
+                //sleep(5);
                 std_msgs::String mggg;
                 mggg.data = "pridel";
                 semNekaj.publish(mggg);
                 sleep(10);
-                sleep(5);
+                // sleep(5);
 
                 continue;
             }
@@ -1089,12 +1098,12 @@ int main(int argc, char **argv)
                         roko.publish(mgg);
                         sleep(5);
                     }
-                    sleep(5);
+                    //sleep(5);
                     std_msgs::String mggg;
                     mggg.data = "pridel";
                     semNekaj.publish(mggg);
                     sleep(10);
-                    sleep(5);
+                    //sleep(5);
                 }
                 qI.pop();
             }
