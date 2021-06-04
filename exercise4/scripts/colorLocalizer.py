@@ -1797,7 +1797,7 @@ class color_localizer:
         with self.mic as source:
             print('Adjusting mic for ambient noise...')
             self.sr.adjust_for_ambient_noise(source)
-            self.say(question)
+            module.say(question)
             print(f"\n{question}")
             audio = self.sr.listen(source)
 
@@ -1844,7 +1844,7 @@ class color_localizer:
 
             # check if it has a mask
             if module.has_mask(face["mask"]) == False:
-                self.say("mask bad")
+                module.say("Where is your mask?")
             # check for social distancing
             for i in range(len(self.positions["face"])):
                 if i == indx:
@@ -1854,10 +1854,10 @@ class color_localizer:
                     dist_vector = area_avg - self.positions["face"][i]["averagePostion"]
                     dist = np.sqrt(dist_vector[0]**2 + dist_vector[1]**2 + dist_vector[2]**2)
                     if dist < 1:
-                        self.say("distancing bad")
+                        module.say("You should obey social distancing!")
                         break
             # vocalize decision
-            # self.say("no more warnings")
+            # module.say("There is no more warnings.")
 
         if stage == "talk":
             # "right_vaccine"     --> "Greenzer" / "Rederna" / "StellaBluera" / "BlacknikV"
@@ -1933,13 +1933,14 @@ class color_localizer:
             face["hours_exercise"] = hours_exercise
 
             if was_vaccinated == 1:
+                module.say("You are already vaccinated.")
                 print(f"nextStage({indx}):\t\t{face['stage']} --> done")
                 face["stage"] = "done"
                 return
 
             # face["right_vaccine"] = right_vaccine
             # vocalize decision
-            self.say("data collected")
+            module.say("All data collected.")
 
         if stage == "cylinder":
             destination_cylinder = None
@@ -1957,7 +1958,7 @@ class color_localizer:
             face["right_vaccine"] = temp_model.predict(toPredict)[0]
 
             # vocalize decition
-            self.say(f"Going to {self.word_from_char(face['doctor'])} cylinder.")
+            module.say(f"Going to {self.word_from_char(face['doctor'])} cylinder.")
 
             # TODO: check if he arrived
             while True:
@@ -1965,7 +1966,7 @@ class color_localizer:
                     break
             print(face["right_vaccine"])
             ringColor = self.word_from_vaccine(face["right_vaccine"].lower())
-            self.say(f"Vaccine is at {ringColor} ring.")
+            module.say(f"Vaccine is at {ringColor} ring.")
 
         if stage == "ring":
             destination_ring = None
@@ -1977,7 +1978,7 @@ class color_localizer:
             self.ring_pub.publish(Point(destination_ring["averagePostion"][0],destination_ring["averagePostion"][1],destination_ring["averagePostion"][2]))
 
             # vocalize decition
-            self.say(f"Going to {self.word_from_vaccine(face['right_vaccine'].lower())} ring.")
+            module.say(f"Going to {self.word_from_vaccine(face['right_vaccine'].lower())} ring.")
 
             # TODO: check if he arrived
             while True:
@@ -1993,7 +1994,7 @@ class color_localizer:
                 Vector3(face["averagePostion"][0],face["averagePostion"][1],face["averagePostion"][2]))
 
             # vocalize decition
-            self.say(f"Going back to the face.")
+            module.say(f"Going back to the face.")
 
             # TODO: check if he arrived
             while True:
@@ -2003,7 +2004,8 @@ class color_localizer:
             # TODO: tell him to extend his hand
 
             # vocalize decition
-            self.say(f"Here is you vaccination.")
+            # module.say(f"Here is your vaccination.")
+            module.say(f"Here is your 5G vaccination.")
 
         if stage == "done":
             # TODO: nothing
@@ -2013,8 +2015,8 @@ class color_localizer:
     def listener(self):
         try:
             link = rospy.wait_for_message("/sem_nekaj", String)
-            print(link.stamp)
-            print(rospy.Time.now())
+            print(link)
+            # print(rospy.Time.now())
             if link.data.startswith("p"):
                 return True
             else:
@@ -2056,11 +2058,6 @@ class color_localizer:
             face["stage"] = "done"
 
         print(f"nextStage({indx}):\t\t{stageBefore} --> {face['stage']}")
-
-    def say(self,statement):
-        # TODO: actualy SAY IT !!!
-        print(f"\n\t--> {statement}\n")
-        module.say(statement)
 
     def char_from_string(self, color_string):
         if color_string == "black":
@@ -2108,6 +2105,8 @@ class color_localizer:
                 print()
                 self.processStage(indx)
                 if self.positions["face"][indx]["stage"]=="done":
+                    if indx < (len(self.positions["face"])-1):
+                        module.say("Going to the next face.")
                     break
                 # text = input("Are you at next location yet?")
 

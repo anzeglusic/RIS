@@ -38,8 +38,9 @@ ros::Publisher roko;
 ros::Publisher semNekaj;
 int yy11 = 259;
 int xx11 = 255;
-double paty[] = {0.5, 1.5, 2.5, 2.5, 2.5, 2.5, 1.5, 0.5, -0.5, -0.5, -0.5};
-double patx[] = {-0.5, -0.5, -0.5, 0.5, 1.5, 2.5, 2.5, 2.5, 2.5, 1.5, 0.5};
+
+double paty[] = {0.5, 1.5, 2.5, 2.5, 2.5, 2.5, 1.5,1.25, 0.5 , 0.5, -0.5, -0.5, -0.5};
+double patx[] = {-0.5, -0.5, -0.5, 0.5, 1.5, 2.5, 2.5, 2.5,1.25,1.25, 2.5, 1.5, 0.5};
 
 //proba
 string s1 = "-1";
@@ -563,7 +564,12 @@ void approaching(double zY, double zX, int kaj)
         if (direction == 1)
         {
             cout << opcii[1].second << endl;
-            if (!can1[make_pair(nearest.first, make_pair(nearest.second, direction))])
+            if (zX <= (-0.5)) 
+            {
+                vozi(0, 0, zY - 0.3, zX * 0.3, 4);
+                 cout << "STASAV" << endl;
+            }
+            else if (!can1[make_pair(nearest.first, make_pair(nearest.second, direction))])
             {
                 if (zX <= opcii[1].second)
                 {
@@ -621,7 +627,7 @@ void prideCel(double y, double x, int kind)
     int koje1 = -1;
     int koje2 = -1;
     double dist_maxi = 1e9;
-    for (int i = 0; i < 11; i++)
+    for (int i = 0; i < 13; i++)
     {
         if (euc(momX, momY, patx[i], paty[i]) < dist_maxi)
         {
@@ -629,12 +635,15 @@ void prideCel(double y, double x, int kind)
             koje1 = i;
         }
     }
-    if (momY >= -1 && momY <= 1 && momX >= 0 && momX <= 2 && kind == 1)
+  /*   cout << momY << " " << momX << endl;
+    if (momY >= -1 && momY <= 1 && momX >= 0 && momX <= 2 && kind == 1){
+         cout <<  " VLEZLELE "  << endl;
         koje1 =  6;
-    if (momY >= 1 && momY <= 2 && momX >= 0 && momX <= 1 && kind == 4)
-        koje1 =  6;
+        }
+        */
+    
     dist_maxi = 1e9;
-    for (int i = 0; i < 11; i++)
+    for (int i = 0; i < 13; i++)
     {
         if (euc(x, y, patx[i], paty[i]) < dist_maxi)
         {
@@ -642,10 +651,13 @@ void prideCel(double y, double x, int kind)
             koje2 = i;
         }
     }
-    if (y >= -1 && y <= 1 && x >= 0 && x <= 2 && kind == 1)
+     /*cout << y << " " << x << endl;
+    if (y >= -1 && y <= 1 && x >= 0 && x <= 2 && kind == 1) {
+        cout <<  " VLEZLELE "  << endl;
         koje2 =  6;
-    if (y >= 1 && y <= 2 && x >= 0 && x <= 1 && kind == 4)
-        koje2 =  6;
+      }
+      */
+    
     int stevec1 = 0;
     int stevec2 = 0;
     int i = koje1;
@@ -653,7 +665,7 @@ void prideCel(double y, double x, int kind)
     {
         stevec1++;
         i++;
-        if (i == 11)
+        if (i == 13)
             i = 0;
     }
     cout << "POMINA1" << endl;
@@ -663,7 +675,7 @@ void prideCel(double y, double x, int kind)
         stevec2++;
         i--;
         if (i == -1)
-            i = 10;
+            i = 12;
     }
     cout << koje1 << " " << koje2 << endl;
     if (stevec1 <= stevec2)
@@ -673,7 +685,7 @@ void prideCel(double y, double x, int kind)
         {
             qI.push(make_pair(paty[i], make_pair(patx[i], 0)));
             i++;
-            if (i == 11)
+            if (i == 13)
                 i = 0;
             if (i == koje2)
             {
@@ -690,7 +702,7 @@ void prideCel(double y, double x, int kind)
             qI.push(make_pair(paty[i], make_pair(patx[i], 0)));
             i--;
             if (i == -1)
-                i = 10;
+                i = 12;
             if (i == koje2)
             {
                 qI.push(make_pair(paty[i], make_pair(patx[i], 0)));

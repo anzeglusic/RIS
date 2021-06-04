@@ -65,9 +65,11 @@ def checkForApproach(positions,objectType,publisher):
         if objectType == "face":
             #rabimo pristopiti poslati moramo twist message za normalo
             obj["approached"] = True
+            say("Going to check a face.")
             publisher.publish(Vector3(obj["averageNormal"][0]+obj["averagePostion"][0],obj["averageNormal"][1]+obj["averagePostion"][1],obj["averageNormal"][2]+obj["averagePostion"][2]),Vector3(obj["averagePostion"][0],obj["averagePostion"][1],obj["averagePostion"][2]))
         elif objectType == "cylinder":
             obj["approached"] = True
+            say("Going to check a cylinder.")
             publisher.publish(Point(obj["averagePostion"][0],obj["averagePostion"][1],obj["averagePostion"][2]))
     return True
 
@@ -946,6 +948,7 @@ def update_positions(nM, m_arr, positions, markers_pub, faceNormalLength, qrNorm
 
 def say(sentance):
     # to play a sound !!!!!!!!!!!!!!!!!!!!
+    print(f"\n\t--> {sentance}\n")
     subprocess.run(["rosrun" , "sound_play", "say.py", sentance])
 
 def flatten_list(inpt):
