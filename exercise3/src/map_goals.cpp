@@ -643,9 +643,9 @@ void prideCel(double y, double x, int kind)
         }
     }
     if (y >= -1 && y <= 1 && x >= 0 && x <= 2 && kind == 1)
-        koje1 =  6;
+        koje2 =  6;
     if (y >= 1 && y <= 2 && x >= 0 && x <= 1 && kind == 4)
-        koje1 =  6;
+        koje2 =  6;
     int stevec1 = 0;
     int stevec2 = 0;
     int i = koje1;
