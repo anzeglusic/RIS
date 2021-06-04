@@ -1062,7 +1062,6 @@ class color_localizer:
                 return f
 
     def check_cylinders(self):
-        module.say("Checking QR code of cylinder.")
         for c in self.positions["cylinder"]:
             if c["QR_index"] is None:
                 return c
@@ -1072,12 +1071,13 @@ class color_localizer:
     def grab_face(self,obj):
             # tell him where to go
         module.say("Checking QR code of face.")
-        face_pub.publish(Vector3(obj["averageNormal"][0]+obj["averagePostion"][0],obj["averageNormal"][1]+obj["averagePostion"][1],obj["averageNormal"][2]+obj["averagePostion"][2]),Vector3(obj["averagePostion"][0],obj["averagePostion"][1],obj["averagePostion"][2]))
+        self.face_pub.publish(Vector3(obj["averageNormal"][0]+obj["averagePostion"][0],obj["averageNormal"][1]+obj["averagePostion"][1],obj["averageNormal"][2]+obj["averagePostion"][2]),Vector3(obj["averagePostion"][0],obj["averagePostion"][1],obj["averagePostion"][2]))
         while True:
             if self.listener():
                 return
 
     def grab_cylinders(self,destination_cylinder):
+        module.say("Checking QR code of cylinder.")
 
         #for destination_cylinder in li_cylinders:
             # tell him where to go
