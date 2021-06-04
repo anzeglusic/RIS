@@ -956,7 +956,7 @@ class color_localizer:
         return grayBGR_toDrawOn
 
     #NE OHRANI NAPREJ
-    def find_objects(self,koncal_ilja=None, koncal_cil=None):
+    def find_objects(self,koncal_ile):
         #print('I got a new image!')
 
         # Get the next rgb and depth images that are posted from the camera
@@ -1044,11 +1044,11 @@ class color_localizer:
 
         #preverjamo ce smo vse ze zaznali
         self.foundAll = module.keepExploring(self.positions)
-        #! cylinder_found = self.check_cylinders()
+        cylinder_found = self.check_cylinders()
 
-        #! if (not (cylinder_found is None)) and koncal_ilja :
-        #!     self.grab_cylinders(cylinder_found)
-            
+        if (not (cylinder_found is None)) and koncal_ile :
+            self.grab_cylinders(cylinder_found)
+
 
 
         return self.foundAll
@@ -2013,8 +2013,8 @@ class color_localizer:
     def listener(self):
         try:
             link = rospy.wait_for_message("/sem_nekaj", String)
-            print(link)
-            # print(rospy.Time.now())
+            print(link.stamp)
+            print(rospy.Time.now())
             if link.data.startswith("p"):
                 return True
             else:
@@ -2034,17 +2034,8 @@ class color_localizer:
         except Exception as e:
             print(e)
             return False
-    
-    def listener_end2(self):
-        try:
-            link = rospy.wait_for_message("/sem_nekaj", String)
-            if link.data.startswith("k"):
-                return True
-            else:
-                return False
-        except Exception as e:
-            print(e)
-            return False
+
+
 
     def nextStage(self, indx):
         face = self.positions["face"][indx]
@@ -2119,20 +2110,25 @@ class color_localizer:
                     break
                 # text = input("Are you at next location yet?")
 
+koncal_ilja = False
+def callback(link):
+    if if link.data.startswith("k"):
+        koncal_ilja =  True
+
 #! ================================================ task_master end ================================================
 def main():
 
 
         color_finder = color_localizer()
-
+        rospy.Subscriber("/sem_nekaj", String, callback)
         # color_finder.positions = tempKrNeki
 
-        rate = rospy.Rate(1.25)
-        # rate = rospy.Rate(10)
+        # rate = rospy.Rate(1.25)
+        rate = rospy.Rate(10)
 
         #! TESTING
         explore = True
-        koncal_ilja = False
+
         skipCounter = 3
         loopTimer = rospy.Time.now().to_sec()
         # print(sleepTimer)
@@ -2141,9 +2137,7 @@ def main():
             if explore:
                 if skipCounter <= 0:
                     #preverja ce je ze prisel signal koncal
-                    #! if not koncal_ilja:
-                    #!     koncal_ilja = color_finder.listener_end2()
-                    explore = color_finder.find_objects()
+                    explore = color_finder.find_objects(koncal_ilja)
                 else:
                     skipCounter -= 1
             else:
