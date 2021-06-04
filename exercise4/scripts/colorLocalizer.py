@@ -964,13 +964,13 @@ class color_localizer:
             rgb_image_message = rospy.wait_for_message("/camera/rgb/image_raw", Image)
         except Exception as e:
             print(e)
-            return 0
+            return True
 
         try:
             depth_image_message = rospy.wait_for_message("/camera/depth/image_raw", Image)
         except Exception as e:
             print(e)
-            return 0
+            return True
 
         try:
             odomMessage = rospy.wait_for_message("/odom", Odometry)
@@ -979,7 +979,7 @@ class color_localizer:
             self.baseAngularSpeed = odomMessage.twist.twist.angular.z
         except Exception as e:
             print(e)
-            return 0
+            return True
 
         #! timing operations
         print("--------------------------------------------------------")
@@ -987,7 +987,7 @@ class color_localizer:
         if (np.abs(diff) > 0.5):
             # stop everything if images are not up to date !!!
             pprint("skip")
-            return
+            return True
 
         # print how many secounds passed since previous loop
         tempLoop = datetime.now()
@@ -1806,9 +1806,19 @@ class color_localizer:
         print(f"processStage({indx}):\t{stage}")
 
         if stage == "warning":
-            # TODO: tell him where to go
+            # tell him where to go
+            self.face_pub.publish(
+                Vector3(face["averageNormal"][0]+face["averagePostion"][0],
+                        face["averageNormal"][1]+face["averagePostion"][1],
+                        face["averageNormal"][2]+face["averagePostion"][2]),
+                Vector3(face["averagePostion"][0],face["averagePostion"][1],face["averagePostion"][2]))
+            
             # TODO: check if he arrived
+            # while True:
+            #     if self.listener():
+            #         break
             # check if it has a mask
+            
             if module.has_mask(face["mask"]) == False:
                 self.say("mask bad")
             # check for social distancing
@@ -1830,40 +1840,40 @@ class color_localizer:
             # "age"                 --> 0 to 100
             age = self.positions["digits"][face["digits_index"]]["data"]
             #! from talking
-            # TODO: # "was_vaccinated"    --> 0 / 1
-            # TODO: was_vaccinated = self.recognize_speech("Have you been vaccinated?")
-            # TODO: while was_vaccinated!="no"and was_vaccinated!="yes":
-            # TODO:     was_vaccinated = self.recognize_speech("Have you been vaccinated?")
-            # TODO: was_vaccinated = 0 if was_vaccinated=="no" else 1
-            
-            
-            # TODO: doctor = None
-            # TODO: tempDoctor = []
-            # TODO: # "doctor"            --> "red" / "green" / "blue" / "yellow"
-            # TODO: while doctor is None:
-            # TODO:     doctor = self.recognize_speech("Who is your personal doctor?")
-            # TODO:     tempDoctor = doctor.split(" ")
-            # TODO:     if len(tempDoctor) == 2:
-            # TODO:         doctor = self.char_from_string(tempDoctor[1])
-            # TODO:     else:
-            # TODO:         doctor = None
-            
-            # TODO: # "hours_exercise"    --> 0 to 40
-            # TODO: while True:
-            # TODO:     try:
-            # TODO:         hours_exercise = int(self.recognize_speech("How many hours per week do you exercise?"))
-            # TODO:         if 0 <= hours_exercise <= 40:
-            # TODO:             break
-            # TODO:     except Exception as e:
-            # TODO:         pass
-            #! from input
             # "was_vaccinated"    --> 0 / 1
-            was_vaccinated = input("was_vaccinated (yes/no): ")
+            was_vaccinated = self.recognize_speech("Have you been vaccinated?")
             while was_vaccinated!="no"and was_vaccinated!="yes":
-                was_vaccinated = input("was_vaccinated (yes/no): ")
+                was_vaccinated = self.recognize_speech("Have you been vaccinated?")
             was_vaccinated = 0 if was_vaccinated=="no" else 1
+            
+            
             doctor = None
             tempDoctor = []
+            # "doctor"            --> "red" / "green" / "blue" / "yellow"
+            while doctor is None:
+                doctor = self.recognize_speech("Who is your personal doctor?")
+                tempDoctor = doctor.split(" ")
+                if len(tempDoctor) == 2:
+                    doctor = self.char_from_string(tempDoctor[1])
+                else:
+                    doctor = None
+            
+            # "hours_exercise"    --> 0 to 40
+            while True:
+                try:
+                    hours_exercise = int(self.recognize_speech("How many hours per week do you exercise?"))
+                    if 0 <= hours_exercise <= 40:
+                        break
+                except Exception as e:
+                    pass
+            #! from input
+            # "was_vaccinated"    --> 0 / 1
+            # was_vaccinated = input("was_vaccinated (yes/no): ")
+            # while was_vaccinated!="no"and was_vaccinated!="yes":
+            #     was_vaccinated = input("was_vaccinated (yes/no): ")
+            # was_vaccinated = 0 if was_vaccinated=="no" else 1
+            # doctor = None
+            # tempDoctor = []
             
             # # "doctor"            --> "red" / "green" / "blue" / "yellow"
             # while doctor is None:
@@ -1885,8 +1895,8 @@ class color_localizer:
             # right_vaccine = input("right_vaccine (Greenzer/Rederna/StellaBluera/BlacknikV): ")
             #!from QR
             # was_vaccinated = int(self.positions["QR"][face["QR_index"]]["data"].split(", ")[2])
-            doctor = self.char_from_string(self.positions["QR"][face["QR_index"]]["data"].split(", ")[3].lower())
-            hours_exercise = int(self.positions["QR"][face["QR_index"]]["data"].split(", ")[4])
+            # doctor = self.char_from_string(self.positions["QR"][face["QR_index"]]["data"].split(", ")[3].lower())
+            # hours_exercise = int(self.positions["QR"][face["QR_index"]]["data"].split(", ")[4])
             # right_vaccine = self.positions["QR"][face["QR_index"]]["data"].split(", ")[5]
 
             # print(was_vaccinated)
@@ -2071,7 +2081,7 @@ def main():
 
         #! TESTING
         explore = True
-        skipCounter = 0
+        skipCounter = 3
         loopTimer = rospy.Time.now().to_sec()
         # print(sleepTimer)
         while not rospy.is_shutdown():
