@@ -39,8 +39,8 @@ ros::Publisher semNekaj;
 int yy11 = 259;
 int xx11 = 255;
 
-double paty[] = {0.5, 1.5, 2.5, 2.5, 2.5, 2.5, 1.5,1.25, 0.5 , 0.5, -0.5, -0.5, -0.5};
-double patx[] = {-0.5, -0.5, -0.5, 0.5, 1.5, 2.5, 2.5, 2.5,1.25,1.25, 2.5, 1.5, 0.5};
+double paty[] = {0.5, 1.5, 2.5, 2.5, 2.5, 2.5, 1.5, 1.25, 0.5, 0.5, -0.5, -0.5, -0.5};
+double patx[] = {-0.5, -0.5, -0.5, 0.5, 1.5, 2.5, 2.5, 1.25, 1.5, 2.5, 2.5, 1.5, 0.5};
 
 //proba
 string s1 = "-1";
@@ -486,7 +486,7 @@ void approaching(double zY, double zX, int kaj)
             direction = 0;
         //if (kaj == 1 && direction == 0 && zX >= 0 && zX <= 2 && zY >= (-1) && zY <= 1)
         //  direction = 2;
-        if (kaj == 1 && zY >= -1 && zY <= 1 && zY >= -2 && zX <= (-1) ) 
+        if (kaj == 1 && zY >= -1 && zY <= 1 && zY >= -2 && zX <= (-1))
             direction = 0;
         if (zY > 1 && zY < 2 && zX > 0 && zX < 1 && kaj == 1)
         {
@@ -564,10 +564,10 @@ void approaching(double zY, double zX, int kaj)
         if (direction == 1)
         {
             cout << opcii[1].second << endl;
-            if (zX <= (-0.5)) 
+            if (zX <= (-0.5))
             {
                 vozi(0, 0, zY - 0.3, zX * 0.3, 4);
-                 cout << "STASAV" << endl;
+                cout << "STASAV" << endl;
             }
             else if (!can1[make_pair(nearest.first, make_pair(nearest.second, direction))])
             {
@@ -635,13 +635,13 @@ void prideCel(double y, double x, int kind)
             koje1 = i;
         }
     }
-  /*   cout << momY << " " << momX << endl;
+    /*   cout << momY << " " << momX << endl;
     if (momY >= -1 && momY <= 1 && momX >= 0 && momX <= 2 && kind == 1){
          cout <<  " VLEZLELE "  << endl;
         koje1 =  6;
         }
         */
-    
+
     dist_maxi = 1e9;
     for (int i = 0; i < 13; i++)
     {
@@ -651,13 +651,13 @@ void prideCel(double y, double x, int kind)
             koje2 = i;
         }
     }
-     /*cout << y << " " << x << endl;
+    /*cout << y << " " << x << endl;
     if (y >= -1 && y <= 1 && x >= 0 && x <= 2 && kind == 1) {
         cout <<  " VLEZLELE "  << endl;
         koje2 =  6;
       }
       */
-    
+
     int stevec1 = 0;
     int stevec2 = 0;
     int i = koje1;
@@ -1089,8 +1089,8 @@ int main(int argc, char **argv)
         else
         {
             ros::spinOnce();
-           // cout << "VLEZE" << endl;
-           // cout << mozi << endl;
+            // cout << "VLEZE" << endl;
+            // cout << mozi << endl;
             if (!mozi)
             {
                 continue;
