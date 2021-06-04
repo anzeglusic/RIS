@@ -2061,7 +2061,7 @@ class color_localizer:
         # TODO: actualy SAY IT !!!
         print(f"\n\t--> {statement}\n")
         module.say(statement)
-        
+
     def char_from_string(self, color_string):
         if color_string == "black":
             return "c"
@@ -2113,13 +2113,13 @@ class color_localizer:
 
 koncal_ilja = False
 def callback(link):
-    if if link.data.startswith("k"):
+    if link.data.startswith("k"):
         koncal_ilja =  True
 
 #! ================================================ task_master end ================================================
 def main():
 
-
+        print(tempKrNeki)
         color_finder = color_localizer()
         rospy.Subscriber("/sem_nekaj", String, callback)
         # color_finder.positions = tempKrNeki
