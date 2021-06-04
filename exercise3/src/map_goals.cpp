@@ -181,7 +181,9 @@ void vozi(int y3, int x3, double y, double x, int dir)
     goal_pub.publish(goal);
     if (stevec == 0)
         sleep(5);
-    if (look)
+    if (look && y == 1.25 && x == 1.25)
+        sleep(15);
+    else if (look)
         sleep(10);
 
     if (y == 0.5 && x == -0.5 && dir == 3)
@@ -483,6 +485,8 @@ void approaching(double zY, double zX, int kaj)
             direction = 0;
         //if (kaj == 1 && direction == 0 && zX >= 0 && zX <= 2 && zY >= (-1) && zY <= 1)
         //  direction = 2;
+        if (kaj == 1 && zY >= -1 && zY <= 1 && zY >= -2 && zX <= (-1) ) 
+            direction = 0;
         if (zY > 1 && zY < 2 && zX > 0 && zX < 1 && kaj == 1)
         {
             cout << "ZABRANA" << endl;
@@ -593,6 +597,7 @@ void approaching(double zY, double zX, int kaj)
         }
         else
         {
+            cout << opcii[3].second << endl;
             if (zX <= opcii[3].second)
             {
                 vozi(0, 0, zY + 0.3, zX + 0.3, 7);
@@ -968,7 +973,7 @@ int main(int argc, char **argv)
                 std_msgs::String mggg;
                 mggg.data = "pridel";
                 semNekaj.publish(mggg);
-                sleep(10);
+                sleep(3);
                 // sleep(5);
 
                 continue;
@@ -980,7 +985,7 @@ int main(int argc, char **argv)
             }
             if ((!mozi && stevec > 1) || isApproaching == 1)
             {
-                cout << "VLEZE v !MOZI" << endl;
+                //cout << "VLEZE v !MOZI" << endl;
                 continue;
             }
 
@@ -1064,8 +1069,8 @@ int main(int argc, char **argv)
         else
         {
             ros::spinOnce();
-            cout << "VLEZE" << endl;
-            cout << mozi << endl;
+           // cout << "VLEZE" << endl;
+           // cout << mozi << endl;
             if (!mozi)
             {
                 continue;
@@ -1102,7 +1107,7 @@ int main(int argc, char **argv)
                     std_msgs::String mggg;
                     mggg.data = "pridel";
                     semNekaj.publish(mggg);
-                    sleep(10);
+                    sleep(5);
                     //sleep(5);
                 }
                 qI.pop();

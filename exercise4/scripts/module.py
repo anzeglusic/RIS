@@ -277,8 +277,8 @@ def addPosition(newPosition, objectType, color_char, positions, nM, m_arr, marke
             # print(data)
             if area["data"] is None:
                 area["data"] = data
-            else:
-                assert area["data"]==data, f"\n\n\tnovi {objectType} podatki so drugačni kot so predvideni za to pozicijo"
+            # else:
+            #     assert area["data"]==data, f"\n\n\tnovi {objectType} podatki so drugačni kot so predvideni za to pozicijo"
         if objectType=="QR":
             if area["modelName"] is None:
                 area["modelName"] = modelName
@@ -889,7 +889,7 @@ def update_positions(nM, m_arr, positions, markers_pub, faceNormalLength, qrNorm
 
         # assign
         digits_dict["isAssigned"] = True
-        assert positions[closestObjectKey][closestObjectIndx]["digits_index"] is None, "Objekt ima že določen svoj digits"
+        # assert positions[closestObjectKey][closestObjectIndx]["digits_index"] is None, "Objekt ima že določen svoj digits"
         positions[closestObjectKey][closestObjectIndx]["digits_index"] = i
 
 
@@ -937,7 +937,7 @@ def update_positions(nM, m_arr, positions, markers_pub, faceNormalLength, qrNorm
 
         # assign
         QR_dict["isAssigned"] = True
-        assert positions[closestObjectKey][closestObjectIndx]["QR_index"] is None, "Objekt ima že določeno svojo QR kodo"
+        # assert positions[closestObjectKey][closestObjectIndx]["QR_index"] is None, "Objekt ima že določeno svojo QR kodo"
         positions[closestObjectKey][closestObjectIndx]["QR_index"] = i
 
 

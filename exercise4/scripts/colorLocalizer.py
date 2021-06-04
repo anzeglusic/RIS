@@ -207,7 +207,7 @@ class color_localizer:
 
             # assign
             QR_dict["isAssigned"] = True
-            assert self.positions[closestObjectKey][closestObjectIndx]["QR_index"] is None, "Objekt ima že določeno svojo QR kodo"
+            # assert self.positions[closestObjectKey][closestObjectIndx]["QR_index"] is None, "Objekt ima že določeno svojo QR kodo"
             self.positions[closestObjectKey][closestObjectIndx]["QR_index"] = i
 
         # print("\n\n\n")
@@ -1814,11 +1814,11 @@ class color_localizer:
                 Vector3(face["averagePostion"][0],face["averagePostion"][1],face["averagePostion"][2]))
             
             # TODO: check if he arrived
-            # while True:
-            #     if self.listener():
-            #         break
-            # check if it has a mask
+            while True:
+                if self.listener():
+                    break
             
+            # check if it has a mask
             if module.has_mask(face["mask"]) == False:
                 self.say("mask bad")
             # check for social distancing
@@ -1936,9 +1936,9 @@ class color_localizer:
             self.say(f"Going to {self.word_from_char(face['doctor'])} cylinder.")
             
             # TODO: check if he arrived
-            # while True:
-            #     if self.listener():
-            #         break
+            while True:
+                if self.listener():
+                    break
             print(face["right_vaccine"])
             ringColor = self.word_from_vaccine(face["right_vaccine"].lower())
             self.say(f"Vaccine is at {ringColor} ring.")
@@ -1956,9 +1956,9 @@ class color_localizer:
             self.say(f"Going to {self.word_from_vaccine(face['right_vaccine'].lower())} ring.")
 
             # TODO: check if he arrived
-            # while True:
-            #     if self.listener():
-            #         break
+            while True:
+                if self.listener():
+                    break
             
         if stage == "vaccinate":
             # TODO: tell him where to go
@@ -1972,9 +1972,9 @@ class color_localizer:
             self.say(f"Going back to the face.")
 
             # TODO: check if he arrived
-            # while True:
-            #     if self.listener():
-            #         break
+            while True:
+                if self.listener():
+                    break
             
             # TODO: tell him to extend his hand
 
@@ -1989,8 +1989,24 @@ class color_localizer:
     def listener(self):
         try:
             link = rospy.wait_for_message("/sem_nekaj", String)
+            print(link.stamp)
+            print(rospy.Time.now())
+            if link.data.startswith("p"):
+                return True
+            else:
+                return False
+        except Exception as e:
+            print(e)
+            return False
+
+    def listener_end(self):
+        try:
+            link = rospy.wait_for_message("/sem_nekaj", String)
             print(link)
-            return True
+            if link.data.startswith("k"):
+                return True
+            else:
+                return False
         except Exception as e:
             print(e)
             return False
@@ -2066,7 +2082,7 @@ class color_localizer:
                 self.processStage(indx)
                 if self.positions["face"][indx]["stage"]=="done":
                     break
-                text = input("Are you at next location yet?")
+                # text = input("Are you at next location yet?")
 
 #! ================================================ task_master end ================================================
 def main():
@@ -2076,8 +2092,8 @@ def main():
 
         # color_finder.positions = tempKrNeki
 
-        rate = rospy.Rate(1.25)
-        # rate = rospy.Rate(10)
+        # rate = rospy.Rate(1.25)
+        rate = rospy.Rate(10)
 
         #! TESTING
         explore = True
@@ -2096,7 +2112,7 @@ def main():
                 # print('I recognized this sentence:', text)
                 print("we done")
                 while True:
-                    if color_finder.listener():
+                    if color_finder.listener_end():
                         break
                 color_finder.brain()
                 break
