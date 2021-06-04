@@ -956,7 +956,7 @@ class color_localizer:
         return grayBGR_toDrawOn
 
     #NE OHRANI NAPREJ
-    def find_objects(self):
+    def find_objects(self,koncal_ilja, koncal_cil):
         #print('I got a new image!')
 
         # Get the next rgb and depth images that are posted from the camera
@@ -1044,9 +1044,31 @@ class color_localizer:
 
         #preverjamo ce smo vse ze zaznali
         self.foundAll = module.keepExploring(self.positions)
+        cylinder_found = self.check_cylinders()
+
+        if (not (cylinder_found is None)) and koncal_ilja :
+            self.grab_cylinders(cylinder_found)
+            
+
 
         return self.foundAll
 
+    def check_cylinders(self):
+
+        for c in self.positions["cylinder"]:
+            if c["QR_index"] is None:
+                return c
+
+        return None
+
+    def grab_cylinders(self,li_cylinders):
+
+        for destination_cylinder in li_cylinders:
+            # tell him where to go
+            self.cylinder_pub.publish(Point(destination_cylinder["averagePostion"][0],destination_cylinder["averagePostion"][1],destination_cylinder["averagePostion"][2]))
+            while True:
+                if self.listener():
+                    return
 
 #! ================================================== digits start ==================================================
     def find_digits(self, rgb_image, depth_image_shifted, stamp,grayBGR_toDrawOn):
@@ -1769,6 +1791,8 @@ class color_localizer:
 #! =============================================== face detection end ===============================================
 # ===================================================================================================================
 #! =============================================== task_master start ================================================
+
+
     def recognize_speech(self, question):
         with self.mic as source:
             print('Adjusting mic for ambient noise...')
@@ -1785,7 +1809,7 @@ class color_localizer:
             print('API is probably unavailable', e)
         except sr.UnknownValueError:
             print('Did not manage to recognize anything.')
-        
+
         good = input(f"\nIs input [{recognized_text}] what you said?\n[y/n]: ")
         if good == "y":
             return recognized_text
@@ -1812,12 +1836,12 @@ class color_localizer:
                         face["averageNormal"][1]+face["averagePostion"][1],
                         face["averageNormal"][2]+face["averagePostion"][2]),
                 Vector3(face["averagePostion"][0],face["averagePostion"][1],face["averagePostion"][2]))
-            
+
             # TODO: check if he arrived
             while True:
                 if self.listener():
                     break
-            
+
             # check if it has a mask
             if module.has_mask(face["mask"]) == False:
                 self.say("mask bad")
@@ -1834,7 +1858,7 @@ class color_localizer:
                         break
             # vocalize decision
             # self.say("no more warnings")
-            
+
         if stage == "talk":
             # "right_vaccine"     --> "Greenzer" / "Rederna" / "StellaBluera" / "BlacknikV"
             # "age"                 --> 0 to 100
@@ -1845,8 +1869,8 @@ class color_localizer:
             while was_vaccinated!="no"and was_vaccinated!="yes":
                 was_vaccinated = self.recognize_speech("Have you been vaccinated?")
             was_vaccinated = 0 if was_vaccinated=="no" else 1
-            
-            
+
+
             doctor = None
             tempDoctor = []
             # "doctor"            --> "red" / "green" / "blue" / "yellow"
@@ -1857,7 +1881,7 @@ class color_localizer:
                     doctor = self.char_from_string(tempDoctor[1])
                 else:
                     doctor = None
-            
+
             # "hours_exercise"    --> 0 to 40
             while True:
                 try:
@@ -1874,7 +1898,7 @@ class color_localizer:
             # was_vaccinated = 0 if was_vaccinated=="no" else 1
             # doctor = None
             # tempDoctor = []
-            
+
             # # "doctor"            --> "red" / "green" / "blue" / "yellow"
             # while doctor is None:
             #     doctor = input("doctor (red/green/blue/yellow): ")
@@ -1883,7 +1907,7 @@ class color_localizer:
             #         doctor = self.char_from_string(tempDoctor[1])
             #     else:
             #         doctor = None
-            
+
             # # "hours_exercise"    --> 0 to 40
             # while True:
             #     try:
@@ -1912,7 +1936,7 @@ class color_localizer:
                 print(f"nextStage({indx}):\t\t{face['stage']} --> done")
                 face["stage"] = "done"
                 return
-                
+
             # face["right_vaccine"] = right_vaccine
             # vocalize decision
             self.say("data collected")
@@ -1926,15 +1950,15 @@ class color_localizer:
             temp_model = pickle.load(open(f"{modelsDir}{self.positions['QR'][destination_cylinder['QR_index']]['modelName']}.sav", "rb"))
             # tell him where to go
             self.cylinder_pub.publish(Point(destination_cylinder["averagePostion"][0],destination_cylinder["averagePostion"][1],destination_cylinder["averagePostion"][2]))
-            
+
             # choose ring
             age = self.positions["digits"][face["digits_index"]]["data"]
             toPredict = np.array([[age, face["hours_exercise"]]])
             face["right_vaccine"] = temp_model.predict(toPredict)[0]
-            
+
             # vocalize decition
             self.say(f"Going to {self.word_from_char(face['doctor'])} cylinder.")
-            
+
             # TODO: check if he arrived
             while True:
                 if self.listener():
@@ -1942,13 +1966,13 @@ class color_localizer:
             print(face["right_vaccine"])
             ringColor = self.word_from_vaccine(face["right_vaccine"].lower())
             self.say(f"Vaccine is at {ringColor} ring.")
-            
+
         if stage == "ring":
             destination_ring = None
             for ring in self.positions["ring"]:
                 if module.chose_color(ring["color"]) == self.char_from_string(self.word_from_vaccine(face["right_vaccine"].lower())):
                     destination_ring = ring
-            
+
             # tell him where to go
             self.ring_pub.publish(Point(destination_ring["averagePostion"][0],destination_ring["averagePostion"][1],destination_ring["averagePostion"][2]))
 
@@ -1959,7 +1983,7 @@ class color_localizer:
             while True:
                 if self.listener():
                     break
-            
+
         if stage == "vaccinate":
             # TODO: tell him where to go
             self.face_pub.publish(
@@ -1975,7 +1999,7 @@ class color_localizer:
             while True:
                 if self.listener():
                     break
-            
+
             # TODO: tell him to extend his hand
 
             # vocalize decition
@@ -1985,7 +2009,7 @@ class color_localizer:
             # TODO: nothing
             pass
         self.nextStage(indx)
-    
+
     def listener(self):
         try:
             link = rospy.wait_for_message("/sem_nekaj", String)
@@ -2019,13 +2043,13 @@ class color_localizer:
 
         elif face["stage"]=="talk":
             face["stage"] = "cylinder"
-        
+
         elif face["stage"]=="cylinder":
             face["stage"] = "ring"
-        
+
         elif face["stage"]=="ring":
             face["stage"] = "vaccinate"
-        
+
         elif face["stage"]=="vaccinate":
             face["stage"] = "done"
 
@@ -2049,7 +2073,7 @@ class color_localizer:
         if color_string == "yellow":
             return "y"
         return None
-    
+
     def word_from_char(self, color_char):
         if color_char == "c":
             return "black"
@@ -2097,6 +2121,7 @@ def main():
 
         #! TESTING
         explore = True
+        koncal_ilja = False
         skipCounter = 3
         loopTimer = rospy.Time.now().to_sec()
         # print(sleepTimer)
@@ -2104,6 +2129,9 @@ def main():
             # print("hello!")
             if explore:
                 if skipCounter <= 0:
+                    #preverja ce je ze prisel signal koncal
+                    if not koncal_ilja:
+                        koncal_ilja = color_finder.listener_end()
                     explore = color_finder.find_objects()
                 else:
                     skipCounter -= 1
@@ -2111,7 +2139,8 @@ def main():
                 # text = color_finder.recognize_speech()
                 # print('I recognized this sentence:', text)
                 print("we done")
-                while True:
+                #preverja ce je ze prisel signal koncal
+                while True and not koncal_ilja:
                     if color_finder.listener_end():
                         break
                 color_finder.brain()
