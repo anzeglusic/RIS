@@ -2060,7 +2060,8 @@ class color_localizer:
     def say(self,statement):
         # TODO: actualy SAY IT !!!
         print(f"\n\t--> {statement}\n")
-
+        module.say(statement)
+        
     def char_from_string(self, color_string):
         if color_string == "black":
             return "c"
