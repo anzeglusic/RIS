@@ -1049,26 +1049,42 @@ class color_localizer:
         if (not (cylinder_found is None)) and koncal_ile :
             self.grab_cylinders(cylinder_found)
 
+        face_found = self.check_faces()
 
+        if (not (face_found is None)) and koncal_ile :
+            self.grab_face(face_found)
 
         return self.foundAll
 
-    def check_cylinders(self):
+    def check_faces(self):
+        for f in self.positions["face"]:
+            if f["QR_index"] is None:
+                return f
 
+    def check_cylinders(self):
+        module.say("Checking QR code of cylinder.")
         for c in self.positions["cylinder"]:
             if c["QR_index"] is None:
                 return c
 
         return None
 
-    def grab_cylinders(self,li_cylinders):
-
-        for destination_cylinder in li_cylinders:
+    def grab_face(self,obj):
             # tell him where to go
-            self.cylinder_pub.publish(Point(destination_cylinder["averagePostion"][0],destination_cylinder["averagePostion"][1],destination_cylinder["averagePostion"][2]))
-            while True:
-                if self.listener():
-                    return
+        module.say("Checking QR code of face.")
+        face_pub.publish(Vector3(obj["averageNormal"][0]+obj["averagePostion"][0],obj["averageNormal"][1]+obj["averagePostion"][1],obj["averageNormal"][2]+obj["averagePostion"][2]),Vector3(obj["averagePostion"][0],obj["averagePostion"][1],obj["averagePostion"][2]))
+        while True:
+            if self.listener():
+                return
+
+    def grab_cylinders(self,destination_cylinder):
+
+        #for destination_cylinder in li_cylinders:
+            # tell him where to go
+        self.cylinder_pub.publish(Point(destination_cylinder["averagePostion"][0],destination_cylinder["averagePostion"][1],destination_cylinder["averagePostion"][2]))
+        while True:
+            if self.listener():
+                return
 
 #! ================================================== digits start ==================================================
     def find_digits(self, rgb_image, depth_image_shifted, stamp,grayBGR_toDrawOn):
@@ -1794,6 +1810,7 @@ class color_localizer:
 
 
     def recognize_speech(self, question):
+        sleep(2)
         with self.mic as source:
             print('Adjusting mic for ambient noise...')
             self.sr.adjust_for_ambient_noise(source)
