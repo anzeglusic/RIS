@@ -510,7 +510,7 @@ void approaching(double zY, double zX, int kaj)
         }
         else if (direction == 1)
         {
-            vozi(0, 0, zY - 0.3, zX - 0.1, 1);
+            vozi(0, 0, zY - 0.3, zX - 0.15, 1);
             sleep(20);
             if (kaj == 3)
             {
@@ -629,6 +629,10 @@ void prideCel(double y, double x, int kind)
             koje1 = i;
         }
     }
+    if (momY >= -1 && momY <= 1 && momX >= 0 && momX <= 2 && kind == 1)
+        koje1 =  6;
+    if (momY >= 1 && momY <= 2 && momX >= 0 && momX <= 1 && kind == 4)
+        koje1 =  6;
     dist_maxi = 1e9;
     for (int i = 0; i < 11; i++)
     {
@@ -638,6 +642,10 @@ void prideCel(double y, double x, int kind)
             koje2 = i;
         }
     }
+    if (y >= -1 && y <= 1 && x >= 0 && x <= 2 && kind == 1)
+        koje1 =  6;
+    if (y >= 1 && y <= 2 && x >= 0 && x <= 1 && kind == 4)
+        koje1 =  6;
     int stevec1 = 0;
     int stevec2 = 0;
     int i = koje1;

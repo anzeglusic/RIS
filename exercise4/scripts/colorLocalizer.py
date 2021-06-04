@@ -2013,8 +2013,8 @@ class color_localizer:
     def listener(self):
         try:
             link = rospy.wait_for_message("/sem_nekaj", String)
-            print(link.stamp)
-            print(rospy.Time.now())
+            print(link)
+            # print(rospy.Time.now())
             if link.data.startswith("p"):
                 return True
             else:
