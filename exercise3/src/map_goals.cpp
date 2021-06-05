@@ -417,7 +417,8 @@ void statusCallback(const actionlib_msgs::GoalStatusArray::ConstPtr &msg)
 int brojcccc = 0;
 map<pair<double, pair<double, int>>, bool> can1;
 map<pair<double, pair<double, int>>, bool> went1;
-
+double garx[] = {-2, -1, 1, 2};
+double gary[] = {-1, 1, 0, 1};
 queue<pair<double, pair<double, int>>> qi;
 void ins()
 {
@@ -430,6 +431,7 @@ void ins()
     can1[make_pair(0.5, make_pair(1.5, 1))] = false;
     can1[make_pair(0.5, make_pair(2.5, 2))] = true;
 }
+double notx = 1.5;
 queue<pair<double, pair<double, int>>> qI;
 void approaching(double zY, double zX, int kaj)
 {
@@ -447,7 +449,7 @@ void approaching(double zY, double zX, int kaj)
         }
         if (euc(zX, zY, pp.second.first, pp.first) < dist)
         {
-            if (zY > 1 && zY < 2 && zX > 0 && zX < 1 && pp.first == 1.5 && pp.second.first == 1.5)
+            if (zY > garx[2] && zY < garx[3] && zX > gary[2] && zX < garx[2] && pp.first == notx && pp.second.first == notx)
                 continue;
 
             dist = euc(zX, zY, pp.second.first, pp.first);
@@ -467,7 +469,7 @@ void approaching(double zY, double zX, int kaj)
         int direction;
         for (int i = 0; i < 4; i++)
         {
-            if (nearest.first > 0 && nearest.first < 1 && nearest.second > (-2) && nearest.second < (-1) && i == 3)
+            if (nearest.first > gary[2] && nearest.first < garx[2] && nearest.second > garx[0] && nearest.second < garx[1] && i == 3)
             {
                 cout << "ZABRANA" << endl;
                 continue;
@@ -484,11 +486,14 @@ void approaching(double zY, double zX, int kaj)
         cout << direction << endl;
         if (kaj == 3 && direction == 2)
             direction = 0;
-        //if (kaj == 1 && direction == 0 && zX >= 0 && zX <= 2 && zY >= (-1) && zY <= 1)
-        //  direction = 2;
-        if (kaj == 1 && zY >= -1 && zY <= 1 && zY >= -2 && zX <= (-1))
+        if (kaj == 3 && direction == 0)
+        {
+            direction = 2;
+        }
+
+        if (kaj == 1 && zY >= gary[0] && zY <= gary[1] && zX >= garx[0] && zX <= garx[1])
             direction = 0;
-        if (zY > 1 && zY < 2 && zX > 0 && zX < 1 && kaj == 1)
+        if (zY > gary[2] && zY < gary[3] && zX > garx[2] && zX < garx[3] && kaj == 1)
         {
             cout << "ZABRANA" << endl;
             vozi(0, 0, zY - 0.2, zX - 0.2, 5);
@@ -564,7 +569,7 @@ void approaching(double zY, double zX, int kaj)
         if (direction == 1)
         {
             cout << opcii[1].second << endl;
-            if (zX <= (-0.5))
+            if (zX >= (opcii[1].second + 0.35) && can1[make_pair(nearest.first, make_pair(nearest.second, direction))])
             {
                 vozi(0, 0, zY - 0.3, zX * 0.3, 4);
                 cout << "STASAV" << endl;
@@ -1139,14 +1144,7 @@ int main(int argc, char **argv)
 }
 
 /*
-source /home/iletavcioski/ROS/devel/setup.bash
-roslaunch exercise7 rins_world.launch
-roslaunch exercise3 amcl_simulation.launch 
-roslaunch turtlebot_rviz_launchers view_navigation.launch 2>/dev/null
-rostopic echo /camera/rgb/image_raw --noarr
-rosrun exercise4 colorLocalizer.py
-rosrun exercise3 map_goals
-rosrun exercise7 move_arm.py
+
 
 Sepravi vektor je od lokacije kjer aprochas in cilindra in potem naredis arcustanges kota do x osi atan2. Js posiljam kr obicajen gole tako da orientation.z =sin(kot/2), orientation.w = cos(kot/2)
 */
